@@ -40,7 +40,11 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
 
-    const result = await login(values);
+    const formData = new FormData();
+    formData.append('email', values.email);
+    formData.append('password', values.password);
+
+    const result = await login(formData);
 
     setIsLoading(false);
 
@@ -50,7 +54,7 @@ export function LoginForm() {
         description: 'Redirecting you to the dashboard...',
       });
       router.push('/dashboard');
-      router.refresh(); // Ensure the layout re-renders with the user's session
+      router.refresh(); 
     } else {
       toast({
         title: 'Login Failed',
@@ -97,3 +101,5 @@ export function LoginForm() {
     </Form>
   );
 }
+
+    

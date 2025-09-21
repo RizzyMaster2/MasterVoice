@@ -1,3 +1,6 @@
+
+'use client';
+
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -14,7 +17,9 @@ import { Logo } from '@/components/logo';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useState } from 'react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 const features = [
   {
@@ -43,13 +48,36 @@ const features = [
   },
 ];
 
-export default async function Home() {
+export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+  const [user, setUser] = useState<SupabaseUser | null>(null);
+  const [year, setYear] = useState(new Date().getFullYear());
   const supabase = createClient();
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+   useEffect(() => {
+    const fetchUser = async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      setUser(user);
+    };
+
+    fetchUser();
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    // Set year on client to avoid hydration mismatch
+    setYear(new Date().getFullYear());
+
+    return () => {
+      subscription?.unsubscribe();
+    };
+  }, [supabase]);
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -221,10 +249,12 @@ export default async function Home() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {new Date().getFullYear()} MasterVoice. All rights reserved.
+            © {year} MasterVoice. All rights reserved.
           </p>
         </div>
       </footer>
     </div>
   );
 }
+
+    

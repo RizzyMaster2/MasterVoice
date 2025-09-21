@@ -4,12 +4,12 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function login(formData: { [key: string]: string; }) {
+export async function login(formData: FormData) {
   const supabase = createClient()
 
   const data = {
-    email: formData.email as string,
-    password: formData.password as string,
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
   }
 
   const { error } = await supabase.auth.signInWithPassword(data)
@@ -19,21 +19,18 @@ export async function login(formData: { [key: string]: string; }) {
   }
 
   revalidatePath('/', 'layout')
-  // The redirect will now be handled on the client side
   return { success: true }
 }
 
-export async function signup(formData: { [key: string]: string; }) {
+export async function signup(formData: FormData) {
   const supabase = createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
   const data = {
-    email: formData.email as string,
-    password: formData.password as string,
+    email: formData.get('email') as string,
+    password: formData.get('password') as string,
     options: {
         data: {
-            full_name: formData.name
+            full_name: formData.get('name') as string,
         }
     }
   }
@@ -41,7 +38,7 @@ export async function signup(formData: { [key: string]: string; }) {
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
-    return error.message
+    return { success: false, message: error.message }
   }
 
   revalidatePath('/', 'layout')
@@ -53,8 +50,12 @@ export async function logout() {
     const { error } = await supabase.auth.signOut()
 
     if (error) {
-        return error.message
+        console.error('Logout error:', error.message)
+        return { success: false, message: error.message }
     }
     
+    revalidatePath('/', 'layout')
     redirect('/')
 }
+
+    

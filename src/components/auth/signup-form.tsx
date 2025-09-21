@@ -43,13 +43,19 @@ export function SignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const error = await signup(values);
+
+    const formData = new FormData();
+    formData.append('name', values.name);
+    formData.append('email', values.email);
+    formData.append('password', values.password);
+
+    const result = await signup(formData);
     setIsLoading(false);
 
-    if (error) {
+    if (result?.success === false) {
       toast({
         title: 'Signup Failed',
-        description: error,
+        description: result.message,
         variant: 'destructive',
       });
     } else {
@@ -57,7 +63,7 @@ export function SignupForm() {
         title: 'Account Created!',
         description: 'Please check your email to verify your account.',
       });
-      router.push('/confirm');
+      // The redirect is handled by the server action
     }
   }
 
@@ -111,3 +117,5 @@ export function SignupForm() {
     </Form>
   );
 }
+
+    
