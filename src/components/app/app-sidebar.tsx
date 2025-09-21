@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
-  MessageSquare,
   Shield,
   User,
 } from 'lucide-react';
@@ -42,7 +41,7 @@ const adminMenuItem = {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { user, isAdmin } = useUser();
+  const { isAdmin } = useUser();
 
   return (
     <>

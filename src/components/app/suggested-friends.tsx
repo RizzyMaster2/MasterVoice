@@ -1,5 +1,4 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { suggestNewConnections } from '@/ai/flows/suggest-new-connections';
 import { users as allUsers } from '@/lib/data';
 import type { User as AppUser } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
@@ -13,8 +12,8 @@ type SuggestedFriendsProps = {
 
 export async function SuggestedFriends({ currentUser }: SuggestedFriendsProps) {
   // Mock data for the AI flow
-  const profileInformation = `Name: ${currentUser.name}, Bio: ${currentUser.bio}, Interests: Programming, AI, Design`;
-  const activityHistory = 'Recently chatted with: Bob, Charlie. Active in the "React Developers" group.';
+  // const profileInformation = `Name: ${currentUser.name}, Bio: ${currentUser.bio}, Interests: Programming, AI, Design`;
+  // const activityHistory = 'Recently chatted with: Bob, Charlie. Active in the "React Developers" group.';
 
   let suggestions: string[] = [];
   try {

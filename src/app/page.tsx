@@ -11,7 +11,7 @@ import {
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/components/logo';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { createClient } from '@/lib/supabase/server';
@@ -170,7 +170,6 @@ export default async function Home() {
                 <p className="mt-4 text-lg text-muted-foreground">
                   Tired of swiping? Our advanced GenAI analyzes shared interests
                   and interaction styles to suggest genuinely compatible
-
                   connections. Spend less time searching and more time talking.
                 </p>
                 <ul className="mt-6 space-y-4">
@@ -188,7 +187,7 @@ export default async function Home() {
                       <strong className="font-semibold">
                         Discover Hidden Gems:
                       </strong>{' '}
-                      Find people outside your usual circles who you'll click
+                      Find people outside your usual circles who you&apos;ll click
                       with.
                     </span>
                   </li>

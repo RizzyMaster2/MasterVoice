@@ -4,7 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
-export async function login(formData: any) {
+export async function login(formData: { [key: string]: string; }) {
   const supabase = createClient()
 
   // type-casting here for convenience
@@ -24,7 +24,7 @@ export async function login(formData: any) {
   redirect('/dashboard')
 }
 
-export async function signup(formData: any) {
+export async function signup(formData: { [key: string]: string; }) {
   const supabase = createClient()
 
   // type-casting here for convenience

@@ -106,10 +106,10 @@ export function ProfileForm() {
         description: 'Your account has been permanently deleted.',
       });
       router.push('/');
-    } catch (error: any) {
+    } catch (error) {
       toast({
         title: 'Error Deleting Account',
-        description: error.message,
+        description: (error as Error).message,
         variant: 'destructive',
       });
     }
