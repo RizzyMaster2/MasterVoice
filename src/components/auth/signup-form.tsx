@@ -48,7 +48,7 @@ export function SignupForm() {
       password: values.password,
       options: {
         data: {
-          name: values.name,
+          full_name: values.name,
         },
       },
     });
@@ -64,9 +64,9 @@ export function SignupForm() {
     } else {
       toast({
         title: 'Account Created!',
-        description: 'Please check your email to verify your account and then log in.',
+        description: 'Please check your email to verify your account.',
       });
-      router.push('/login');
+      router.push('/confirm');
     }
   }
 
