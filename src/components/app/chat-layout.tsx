@@ -12,24 +12,23 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { User, Message } from '@/lib/data';
+import { User, Message, users as allUsers } from '@/lib/data';
 import { Send, Search } from 'lucide-react';
 
 interface ChatLayoutProps {
   currentUser: User;
-  users: User[];
-  messages: Record<string, Message[]>;
 }
 
 export function ChatLayout({
   currentUser,
-  users: contacts,
-  messages: initialMessages,
 }: ChatLayoutProps) {
-  const [selectedUser, setSelectedUser] = useState<User | null>(contacts[0] || null);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] =
-    useState<Record<string, Message[]>>(initialMessages);
+    useState<Record<string, Message[]>>({});
   const [newMessage, setNewMessage] = useState('');
+  
+  // For demonstration, use mock users as contacts, excluding the current user.
+  const contacts = allUsers.filter(u => u.id !== currentUser.id);
 
   const getInitials = (name: string) =>
     name
