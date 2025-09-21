@@ -1,3 +1,52 @@
 {
-  "placeholderImages": []
+  "placeholderImages": [
+    {
+      "id": "hero",
+      "description": "Abstract network of connected nodes, representing communication and AI.",
+      "imageUrl": "https://picsum.photos/seed/100/600/400",
+      "imageHint": "abstract network"
+    },
+    {
+      "id": "avatar1",
+      "description": "Portrait of a smiling woman.",
+      "imageUrl": "https://picsum.photos/seed/101/200/200",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar2",
+      "description": "Portrait of a man with glasses.",
+      "imageUrl": "https://picsum.photos/seed/102/200/200",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar3",
+      "description": "Portrait of a person with short hair.",
+      "imageUrl": "https://picsum.photos/seed/103/200/200",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar4",
+      "description": "Portrait of a woman with curly hair.",
+      "imageUrl": "https://picsum.photos/seed/104/200/200",
+      "imageHint": "woman portrait"
+    },
+    {
+      "id": "avatar5",
+      "description": "Portrait of a man in a suit.",
+      "imageUrl": "https://picsum.photos/seed/105/200/200",
+      "imageHint": "man portrait"
+    },
+    {
+      "id": "avatar6",
+      "description": "Portrait of a user.",
+      "imageUrl": "https://picsum.photos/seed/106/200/200",
+      "imageHint": "person portrait"
+    },
+    {
+      "id": "avatar7",
+      "description": "Portrait of a person outdoors.",
+      "imageUrl": "https://picsum.photos/seed/107/200/200",
+      "imageHint": "person portrait"
+    }
+  ]
 }
