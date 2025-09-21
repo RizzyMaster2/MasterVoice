@@ -1,12 +1,17 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { suggestNewConnections } from '@/ai/flows/suggest-new-connections';
-import { users as allUsers, currentUser } from '@/lib/data';
+import { users as allUsers } from '@/lib/data';
+import type { User as AppUser } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Plus } from 'lucide-react';
 import { Sparkles } from 'lucide-react';
 
-export async function SuggestedFriends() {
+type SuggestedFriendsProps = {
+  currentUser: AppUser;
+};
+
+export async function SuggestedFriends({ currentUser }: SuggestedFriendsProps) {
   // Mock data for the AI flow
   const profileInformation = `Name: ${currentUser.name}, Bio: ${currentUser.bio}, Interests: Programming, AI, Design`;
   const activityHistory = 'Recently chatted with: Bob, Charlie. Active in the "React Developers" group.';

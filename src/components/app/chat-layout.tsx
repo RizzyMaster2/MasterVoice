@@ -26,18 +26,17 @@ export function ChatLayout({
   users: allUsers,
   messages: initialMessages,
 }: ChatLayoutProps) {
-  const [selectedUser, setSelectedUser] = useState<User | null>(allUsers[1]);
+  const contacts = allUsers.filter((user) => user.id !== currentUser.id);
+  const [selectedUser, setSelectedUser] = useState<User | null>(contacts[0] || null);
   const [messages, setMessages] =
     useState<Record<string, Message[]>>(initialMessages);
   const [newMessage, setNewMessage] = useState('');
-
-  const contacts = allUsers.filter((user) => user.id !== currentUser.id);
 
   const getInitials = (name: string) =>
     name
       .split(' ')
       .map((n) => n[0])
-      .join('');
+      .join('') || 'U';
 
   const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
