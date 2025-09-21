@@ -51,7 +51,7 @@ const features = [
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
   const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [year, setYear] = useState<number | null>(null);
   const supabase = createClient();
 
    useEffect(() => {
@@ -147,8 +147,8 @@ export default function Home() {
                   <MoveRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline">
-                Learn More
+              <Button size="lg" variant="outline" asChild>
+                <Link href="#features">Learn More</Link>
               </Button>
             </div>
           </div>
@@ -256,5 +256,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
