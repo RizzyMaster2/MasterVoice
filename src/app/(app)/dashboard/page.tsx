@@ -1,7 +1,6 @@
 import { ChatLayout } from '@/components/app/chat-layout';
 import { OnboardingModal } from '@/components/app/onboarding-modal';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
-import { users, messages } from '@/lib/data';
 import { createClient } from '@/lib/supabase/server';
 import type { User as AppUser } from '@/lib/data';
 import { redirect } from 'next/navigation';
