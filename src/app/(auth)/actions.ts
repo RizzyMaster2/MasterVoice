@@ -7,8 +7,6 @@ import { redirect } from 'next/navigation'
 export async function login(formData: { [key: string]: string; }) {
   const supabase = createClient()
 
-  // type-casting here for convenience
-  // in practice, you should validate your inputs
   const data = {
     email: formData.email as string,
     password: formData.password as string,
@@ -17,11 +15,12 @@ export async function login(formData: { [key: string]: string; }) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    return error.message
+    return { success: false, message: error.message }
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  // The redirect will now be handled on the client side
+  return { success: true }
 }
 
 export async function signup(formData: { [key: string]: string; }) {

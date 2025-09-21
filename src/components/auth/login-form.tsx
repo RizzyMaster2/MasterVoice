@@ -40,22 +40,23 @@ export function LoginForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
 
-    const error = await login(values);
+    const result = await login(values);
 
     setIsLoading(false);
 
-    if (error) {
-      toast({
-        title: 'Login Failed',
-        description: error,
-        variant: 'destructive',
-      });
-    } else {
+    if (result.success) {
       toast({
         title: 'Login Successful',
         description: 'Redirecting you to the dashboard...',
       });
       router.push('/dashboard');
+      router.refresh(); // Ensure the layout re-renders with the user's session
+    } else {
+      toast({
+        title: 'Login Failed',
+        description: result.message,
+        variant: 'destructive',
+      });
     }
   }
 
