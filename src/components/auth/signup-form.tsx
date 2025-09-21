@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
+import { supabase } from '@/lib/supabase';
+import { useState } from 'react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -28,6 +30,7 @@ const formSchema = z.object({
 export function SignupForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -38,15 +41,33 @@ export function SignupForm() {
     },
   });
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    // Mock signup logic
-    console.log(values);
-    toast({
-      title: 'Account Created!',
-      description: 'Welcome to MasterVoice. Redirecting you...',
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    setIsLoading(true);
+    const { error } = await supabase.auth.signUp({
+      email: values.email,
+      password: values.password,
+      options: {
+        data: {
+          full_name: values.name,
+        },
+      },
     });
-    // In a real app, you'd handle auth with Supabase here
-    router.push('/dashboard');
+
+    setIsLoading(false);
+
+    if (error) {
+      toast({
+        title: 'Signup Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Account Created!',
+        description: 'Please check your email to verify your account and then log in.',
+      });
+      router.push('/login');
+    }
   }
 
   return (
@@ -91,9 +112,9 @@ export function SignupForm() {
             </FormItem>
           )}
         />
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full" disabled={isLoading}>
           <UserPlus className="mr-2 h-4 w-4" />
-          Create Account
+          {isLoading ? 'Creating Account...' : 'Create Account'}
         </Button>
       </form>
     </Form>
