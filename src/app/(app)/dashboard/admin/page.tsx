@@ -9,6 +9,7 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
+  // The admin check must be done against the server-side environment variable.
   if (!user || user.email !== process.env.ADMIN_EMAIL) {
     notFound();
   }

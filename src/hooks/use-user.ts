@@ -10,25 +10,29 @@ export function useUser() {
     const supabase = createClient();
 
     useEffect(() => {
+        const checkAdmin = (user: User | null) => {
+            // This logic now correctly reads the public env var on the client.
+            const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+            if (adminEmail && user && user.email === adminEmail) {
+                setIsAdmin(true);
+            } else {
+                setIsAdmin(false);
+            }
+        };
+
         const fetchUser = async () => {
             const { data, error } = await supabase.auth.getUser();
-            if (data.user) {
+            if (!error && data.user) {
                 setUser(data.user);
-                // This check must happen on the client after the env var is loaded
-                if (process.env.NEXT_PUBLIC_ADMIN_EMAIL && data.user.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-                    setIsAdmin(true);
-                }
+                checkAdmin(data.user);
             }
         };
         fetchUser();
 
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            setUser(session?.user ?? null);
-            if (process.env.NEXT_PUBLIC_ADMIN_EMAIL && session?.user?.email === process.env.NEXT_PUBLIC_ADMIN_EMAIL) {
-                setIsAdmin(true);
-            } else {
-                setIsAdmin(false);
-            }
+            const currentUser = session?.user ?? null;
+            setUser(currentUser);
+            checkAdmin(currentUser);
         });
 
         return () => {
