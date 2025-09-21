@@ -17,7 +17,20 @@ import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { currentUser } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Save } from 'lucide-react';
+import { User, Save, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
+import { deleteUser } from '@/app/actions/user';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -27,6 +40,7 @@ const formSchema = z.object({
 
 export function ProfileForm() {
   const { toast } = useToast();
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -45,6 +59,23 @@ export function ProfileForm() {
       title: 'Profile Updated',
       description: 'Your changes have been saved successfully.',
     });
+  }
+
+  async function handleDeleteAccount() {
+    try {
+      await deleteUser();
+      toast({
+        title: 'Account Deleted',
+        description: 'Your account has been permanently deleted.',
+      });
+      router.push('/');
+    } catch (error: any) {
+      toast({
+        title: 'Error Deleting Account',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
   }
   
   const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
@@ -101,10 +132,38 @@ export function ProfileForm() {
             </FormItem>
           )}
         />
-        <Button type="submit">
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
-        </Button>
+        <div className="flex justify-between">
+          <Button type="submit">
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Account
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. This will permanently delete your
+                  account and remove your data from our servers.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDeleteAccount}
+                  className="bg-destructive hover:bg-destructive/90"
+                >
+                  Continue
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
       </form>
     </Form>
   );
