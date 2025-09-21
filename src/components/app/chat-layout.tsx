@@ -23,10 +23,9 @@ interface ChatLayoutProps {
 
 export function ChatLayout({
   currentUser,
-  users: allUsers,
+  users: contacts,
   messages: initialMessages,
 }: ChatLayoutProps) {
-  const contacts = allUsers.filter((user) => user.id !== currentUser.id);
   const [selectedUser, setSelectedUser] = useState<User | null>(contacts[0] || null);
   const [messages, setMessages] =
     useState<Record<string, Message[]>>(initialMessages);

@@ -66,9 +66,6 @@ export const users: User[] = [
   }
 ];
 
-// This is now handled by Supabase Auth.
-export const currentUser = users[0];
-
 export const messages: Record<string, Message[]> = {
   user2: [
     { id: 'msg1', text: 'Hey Alice! How are you?', timestamp: '10:00 AM', senderId: 'user2' },
