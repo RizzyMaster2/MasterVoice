@@ -25,13 +25,13 @@ export default async function DashboardPage() {
   };
 
   return (
-    <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
-      <div className="lg:col-span-2 h-full">
+    <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
+      <div className="flex-1 h-full">
         <ChatLayout
           currentUser={currentUser}
         />
       </div>
-      <div className="flex flex-col gap-6">
+      <div className="w-full lg:w-[320px] flex flex-col gap-6">
         <SuggestedFriends currentUser={currentUser} />
       </div>
       <OnboardingModal />

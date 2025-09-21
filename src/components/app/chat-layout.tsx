@@ -58,7 +58,7 @@ export function ChatLayout({
   };
 
   return (
-    <Card className="flex h-[calc(100vh-5rem)]">
+    <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
         <div className="p-4 border-b">
           <div className="relative">
@@ -116,7 +116,7 @@ export function ChatLayout({
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[calc(100vh-15rem)] p-6">
+              <ScrollArea className="h-[calc(100vh-17.5rem)] lg:h-[calc(100vh-15rem)] p-6">
                 <div className="space-y-4">
                   {(messages[selectedUser.id] || []).map((msg) => (
                     <div
