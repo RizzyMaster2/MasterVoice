@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   MessageSquare,
+  Shield,
   User,
 } from 'lucide-react';
 
@@ -18,6 +19,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { UserNav } from './user-nav';
+import { useUser } from '@/hooks/use-user';
 
 const menuItems = [
   {
@@ -32,8 +34,15 @@ const menuItems = [
   },
 ];
 
+const adminMenuItem = {
+  href: '/dashboard/admin',
+  label: 'Admin',
+  icon: Shield,
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
+  const { user, isAdmin } = useUser();
 
   return (
     <>
@@ -60,6 +69,19 @@ export function AppSidebar() {
               </Link>
             </SidebarMenuItem>
           ))}
+          {isAdmin && (
+             <SidebarMenuItem key={adminMenuItem.href}>
+             <Link href={adminMenuItem.href} legacyBehavior passHref>
+               <SidebarMenuButton
+                 isActive={pathname === adminMenuItem.href}
+                 tooltip={{ children: adminMenuItem.label }}
+               >
+                 <adminMenuItem.icon />
+                 <span>{adminMenuItem.label}</span>
+               </SidebarMenuButton>
+             </Link>
+           </SidebarMenuItem>
+          )}
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="group-data-[collapsible=icon]:hidden">
