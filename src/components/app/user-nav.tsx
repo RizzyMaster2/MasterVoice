@@ -11,21 +11,43 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { currentUser } from '@/lib/data';
 import { CreditCard, LogOut, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
+import { useEffect, useState } from 'react';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
 
 export function UserNav() {
   const router = useRouter();
   const { toast } = useToast();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
 
-  // In a real app, you'd get the user from Supabase auth state
-  const user = currentUser; 
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error) {
+        setUser(data.user);
+      }
+    };
+    fetchUser();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setUser(session?.user ?? null);
+      }
+    );
+
+    return () => {
+      authListener.subscription.unsubscribe();
+    };
+  }, []);
 
   if (!user) return null;
+  
+  const userName = user.user_metadata?.full_name || user.email || 'User';
+  const userEmail = user.email || 'No email provided';
 
   const getInitials = (name: string) => {
     return name
@@ -52,8 +74,8 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.avatarUrl} alt={user.name} />
-            <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+            <AvatarImage src={user.user_metadata?.avatar_url} alt={userName} />
+            <AvatarFallback>{getInitials(userName)}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -61,11 +83,10 @@ export function UserNav() {
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
             <p className="text-sm font-medium leading-none">
-              {user.name}
+              {userName}
             </p>
             <p className="text-xs leading-none text-muted-foreground">
-              {/* In a real app, show user.email */}
-              {user.id}@example.com
+              {userEmail}
             </p>
           </div>
         </DropdownMenuLabel>

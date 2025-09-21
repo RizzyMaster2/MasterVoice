@@ -67,7 +67,6 @@ export const users: User[] = [
 ];
 
 // This is now handled by Supabase Auth.
-// You will need a different way to get the current user.
 export const currentUser = users[0];
 
 export const messages: Record<string, Message[]> = {

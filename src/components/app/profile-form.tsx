@@ -15,7 +15,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { currentUser } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User, Save, Trash2 } from 'lucide-react';
 import {
@@ -31,6 +30,10 @@ import {
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from '@/app/actions/user';
 import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/lib/supabase';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { Skeleton } from '../ui/skeleton';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -41,24 +44,57 @@ const formSchema = z.object({
 export function ProfileForm() {
   const { toast } = useToast();
   const router = useRouter();
+  const [user, setUser] = useState<SupabaseUser | null>(null);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      name: currentUser.name || '',
-      bio: currentUser.bio || '',
-      avatarUrl: currentUser.avatarUrl || '',
+      name: '',
+      bio: '',
+      avatarUrl: '',
     },
   });
+
+  useEffect(() => {
+    const fetchUser = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (!error && data.user) {
+        setUser(data.user);
+        form.reset({
+          name: data.user.user_metadata?.full_name || '',
+          bio: data.user.user_metadata?.bio || '',
+          avatarUrl: data.user.user_metadata?.avatar_url || '',
+        });
+      }
+    };
+    fetchUser();
+  }, [form]);
   
   const avatarUrl = form.watch('avatarUrl');
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-    toast({
-      title: 'Profile Updated',
-      description: 'Your changes have been saved successfully.',
-    });
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    if (!user) return;
+    
+    const { error } = await supabase.auth.updateUser({
+      data: {
+        full_name: values.name,
+        bio: values.bio,
+        avatar_url: values.avatarUrl,
+      }
+    })
+
+    if (error) {
+      toast({
+        title: 'Error Updating Profile',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Profile Updated',
+        description: 'Your changes have been saved successfully.',
+      });
+    }
   }
 
   async function handleDeleteAccount() {
@@ -77,8 +113,25 @@ export function ProfileForm() {
       });
     }
   }
-  
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
+
+  if (!user) {
+    return (
+      <div className="space-y-8">
+        <div className="flex items-center gap-4">
+          <Skeleton className="h-20 w-20 rounded-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+        <div className="space-y-2">
+          <Skeleton className="h-4 w-20" />
+          <Skeleton className="h-20 w-full" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <Form {...form}>
