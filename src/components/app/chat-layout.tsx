@@ -30,9 +30,9 @@ export function ChatLayout({
   // For demonstration, use mock users as contacts, excluding the current user.
   const contacts = allUsers.filter(u => u.id !== currentUser.id);
 
-  const getInitials = (name: string) =>
+  const getInitials = (name: string | undefined | null) =>
     name
-      .split(' ')
+      ?.split(' ')
       .map((n) => n[0])
       .join('') || 'U';
 
