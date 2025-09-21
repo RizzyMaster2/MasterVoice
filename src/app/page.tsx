@@ -1,15 +1,10 @@
-
-'use client';
-
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
   Users,
   Sparkles,
   User,
-  LogIn,
   MoveRight,
-  Rocket,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -17,9 +12,8 @@ import { Logo } from '@/components/logo';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { createClient } from '@/lib/supabase/client';
-import { useEffect, useState } from 'react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/server';
+import { HeaderButtons } from '@/components/app/header-buttons';
 
 const features = [
   {
@@ -48,36 +42,13 @@ const features = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const [year, setYear] = useState<number | null>(null);
   const supabase = createClient();
-
-   useEffect(() => {
-    const fetchUser = async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      setUser(user);
-    };
-
-    fetchUser();
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
-    });
-
-    // Set year on client to avoid hydration mismatch
-    setYear(new Date().getFullYear());
-
-    return () => {
-      subscription?.unsubscribe();
-    };
-  }, [supabase]);
-
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const year = new Date().getFullYear();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -89,30 +60,7 @@ export default function Home() {
               MasterVoice
             </span>
           </Link>
-          <div className="flex items-center gap-4">
-            {user ? (
-              <Button asChild>
-                <Link href="/dashboard">
-                  <Rocket className="mr-2 h-4 w-4" />
-                  Open App
-                </Link>
-              </Button>
-            ) : (
-              <>
-                <Button variant="ghost" asChild>
-                  <Link href="/login">
-                    <LogIn className="mr-2 h-4 w-4" />
-                    Login
-                  </Link>
-                </Button>
-                <Button asChild>
-                  <Link href="/signup">
-                    Get Started <MoveRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
-              </>
-            )}
-          </div>
+          <HeaderButtons user={user} />
         </div>
       </header>
 
