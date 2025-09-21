@@ -48,7 +48,7 @@ export function SignupForm() {
       password: values.password,
       options: {
         data: {
-          full_name: values.name,
+          name: values.name,
         },
       },
     });
