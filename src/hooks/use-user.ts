@@ -10,9 +10,10 @@ export function useUser() {
     const supabase = createClient();
 
     useEffect(() => {
+        // This function now safely checks the public environment variable on the client.
         const checkAdmin = (user: User | null) => {
-            // This logic now correctly reads the public env var on the client.
             const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
+            // Ensure we only set admin to true if the adminEmail is defined and matches the user's email.
             if (adminEmail && user && user.email === adminEmail) {
                 setIsAdmin(true);
             } else {
@@ -25,6 +26,9 @@ export function useUser() {
             if (!error && data.user) {
                 setUser(data.user);
                 checkAdmin(data.user);
+            } else {
+                setUser(null);
+                checkAdmin(null);
             }
         };
         fetchUser();
