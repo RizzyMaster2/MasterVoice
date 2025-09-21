@@ -14,8 +14,7 @@ import { Logo } from '@/components/logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { createClient } from '@/lib/supabase/server';
 
 const features = [
   {
@@ -46,21 +45,11 @@ const features = [
 
 export default async function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-      },
-    }
-  );
+  const supabase = createClient();
+
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user },
+  } = await supabase.auth.getUser();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -73,7 +62,7 @@ export default async function Home() {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            {session ? (
+            {user ? (
               <Button asChild>
                 <Link href="/dashboard">
                   <Rocket className="mr-2 h-4 w-4" />

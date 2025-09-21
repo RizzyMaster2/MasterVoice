@@ -16,8 +16,8 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useState } from 'react';
+import { signup } from '@/app/(auth)/actions';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -43,22 +43,13 @@ export function SignupForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const { error } = await supabase.auth.signUp({
-      email: values.email,
-      password: values.password,
-      options: {
-        data: {
-          full_name: values.name,
-        },
-      },
-    });
-
+    const error = await signup(values);
     setIsLoading(false);
 
     if (error) {
       toast({
         title: 'Signup Failed',
-        description: error.message,
+        description: error,
         variant: 'destructive',
       });
     } else {

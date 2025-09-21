@@ -14,15 +14,17 @@ import {
 import { CreditCard, LogOut, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { supabase } from '@/lib/supabase';
 import { useToast } from '@/hooks/use-toast';
 import { useEffect, useState } from 'react';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { logout } from '@/app/(auth)/actions';
+import { createClient } from '@/lib/supabase/client';
 
 export function UserNav() {
   const router = useRouter();
   const { toast } = useToast();
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const supabase = createClient();
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -42,7 +44,7 @@ export function UserNav() {
     return () => {
       authListener.subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase]);
 
   if (!user) return null;
   
@@ -57,11 +59,11 @@ export function UserNav() {
   };
 
   const handleLogout = async () => {
-    const { error } = await supabase.auth.signOut();
+    const error = await logout();
     if (error) {
       toast({
         title: 'Logout Failed',
-        description: error.message,
+        description: error,
         variant: 'destructive',
       });
     } else {

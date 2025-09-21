@@ -31,7 +31,7 @@ import {
 import { deleteUser } from '@/app/actions/user';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { Skeleton } from '../ui/skeleton';
 
@@ -45,6 +45,7 @@ export function ProfileForm() {
   const { toast } = useToast();
   const router = useRouter();
   const [user, setUser] = useState<SupabaseUser | null>(null);
+  const supabase = createClient();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -68,7 +69,7 @@ export function ProfileForm() {
       }
     };
     fetchUser();
-  }, [form]);
+  }, [form, supabase]);
   
   const avatarUrl = form.watch('avatarUrl');
 

@@ -13,11 +13,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { LogIn } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
 import { useState } from 'react';
+import { login } from '@/app/(auth)/actions';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -25,9 +25,9 @@ const formSchema = z.object({
 });
 
 export function LoginForm() {
-  const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -39,17 +39,15 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsLoading(true);
-    const { error } = await supabase.auth.signInWithPassword({
-      email: values.email,
-      password: values.password,
-    });
+
+    const error = await login(values);
 
     setIsLoading(false);
 
     if (error) {
       toast({
         title: 'Login Failed',
-        description: error.message,
+        description: error,
         variant: 'destructive',
       });
     } else {
