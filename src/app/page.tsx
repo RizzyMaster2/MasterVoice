@@ -6,6 +6,7 @@ import {
   User,
   LogIn,
   MoveRight,
+  Rocket,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -13,6 +14,8 @@ import { Logo } from '@/components/logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 const features = [
   {
@@ -41,8 +44,23 @@ const features = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+      },
+    }
+  );
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -55,17 +73,28 @@ export default function Home() {
             </span>
           </Link>
           <div className="flex items-center gap-4">
-            <Button variant="ghost" asChild>
-              <Link href="/login">
-                <LogIn className="mr-2 h-4 w-4" />
-                Login
-              </Link>
-            </Button>
-            <Button asChild>
-              <Link href="/signup">
-                Get Started <MoveRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
+            {session ? (
+              <Button asChild>
+                <Link href="/dashboard">
+                  <Rocket className="mr-2 h-4 w-4" />
+                  Open App
+                </Link>
+              </Button>
+            ) : (
+              <>
+                <Button variant="ghost" asChild>
+                  <Link href="/login">
+                    <LogIn className="mr-2 h-4 w-4" />
+                    Login
+                  </Link>
+                </Button>
+                <Button asChild>
+                  <Link href="/signup">
+                    Get Started <MoveRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
