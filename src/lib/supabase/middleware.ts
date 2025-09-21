@@ -1,8 +1,12 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { type NextRequest, type NextResponse } from 'next/server'
+import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
-  let response = await getResponse(request)
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  })
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -18,7 +22,11 @@ export async function updateSession(request: NextRequest) {
             value,
             ...options,
           })
-          response = getResponse(request)
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value,
@@ -31,7 +39,11 @@ export async function updateSession(request: NextRequest) {
             value: '',
             ...options,
           })
-          response = getResponse(request)
+          response = NextResponse.next({
+            request: {
+              headers: request.headers,
+            },
+          })
           response.cookies.set({
             name,
             value: '',
@@ -45,14 +57,4 @@ export async function updateSession(request: NextRequest) {
   await supabase.auth.getUser()
 
   return response
-}
-
-function getResponse(request: NextRequest): NextResponse {
-    const response = new (require('next/server').NextResponse) as NextResponse;
-    // Set the headers from the request
-    for (const [key, value] of request.headers.entries()) {
-        response.headers.set(key, value);
-    }
-    // Set other response properties if needed, e.g., status
-    return response;
 }
