@@ -50,7 +50,7 @@ export async function getChats(): Promise<Chat[]> {
     .eq('user_id', userId);
 
   if (participantsError) {
-    console.error('Error fetching user chat memberships:', participantsError);
+    console.error('Error fetching user chats:', participantsError);
     return [];
   }
   
@@ -319,3 +319,4 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   // The client will get the new message via real-time subscription.
   return data;
 }
+
