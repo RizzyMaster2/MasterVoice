@@ -44,7 +44,6 @@ const formSchema = z.object({
 
 export function ProfileForm() {
   const { toast } = useToast();
-  const router = useRouter();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const supabase = createClient();
@@ -105,13 +104,14 @@ export function ProfileForm() {
   }
 
   async function handleDeleteAccount() {
+    if (!user) return;
     try {
-      await deleteUser();
+      await deleteUser(user.id);
       toast({
         title: 'Account Deleted',
         description: 'Your account has been permanently deleted.',
       });
-      router.push('/');
+      // The server action will handle the redirect.
     } catch (error) {
       toast({
         title: 'Error Deleting Account',

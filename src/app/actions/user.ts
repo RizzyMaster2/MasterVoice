@@ -18,21 +18,30 @@ export async function deleteUser(userId: string) {
   }
 
   const supabaseAdmin = createAdminClient();
+  
+  const { data: userToDelete, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
 
-  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-
-  if (deleteError) {
-    console.error('Supabase delete error:', deleteError);
-    throw new Error('Could not delete user from the database.');
+  if (getUserError) {
+    console.error('Supabase get user error:', getUserError);
+    throw new Error('Could not fetch user to delete.');
   }
 
   // If a user deletes their own account, sign them out and redirect.
   if (currentUser && currentUser.id === userId) {
     await supabase.auth.signOut();
-    revalidatePath('/', 'layout')
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
+        throw new Error('Could not delete user from the database.');
+    }
     redirect('/');
   } else {
     // If an admin deletes a user, just revalidate the admin page.
+    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
+    if (deleteError) {
+        console.error('Supabase delete error:', deleteError);
+        throw new Error('Could not delete user from the database.');
+    }
     revalidatePath('/dashboard/admin');
   }
 }
