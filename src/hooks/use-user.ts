@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
@@ -13,9 +14,11 @@ export function useUser() {
     useEffect(() => {
         // This function now safely checks the public environment variable on the client.
         const checkAdmin = (user: User | null) => {
-            const adminEmail = process.env.NEXT_PUBLIC_ADMIN_EMAIL;
-            // Ensure we only set admin to true if the adminEmail is defined and matches the user's email.
-            if (adminEmail && user && user.email === adminEmail) {
+            const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
+            const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
+            
+            // Ensure we only set admin to true if the adminEmails is defined and includes the user's email.
+            if (adminEmails.length > 0 && user && user.email && adminEmails.includes(user.email)) {
                 setIsAdmin(true);
             } else {
                 setIsAdmin(false);

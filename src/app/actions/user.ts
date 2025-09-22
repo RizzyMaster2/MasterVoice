@@ -1,3 +1,4 @@
+
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -10,8 +11,11 @@ export async function deleteUser(userId: string) {
   const supabase = createClient();
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
+  const isAdmin = currentUser && adminEmails.includes(currentUser.email!);
+
   // Admin check. In a real app you'd want more robust role-based access control.
-  if (!currentUser || currentUser.email !== process.env.ADMIN_EMAIL) {
+  if (!isAdmin) {
     if (currentUser?.id !== userId) {
         throw new Error('You do not have permission to delete this user.');
     }

@@ -1,3 +1,4 @@
+
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -13,7 +14,8 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || user.email !== process.env.ADMIN_EMAIL) {
+  const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
+  if (!user || !adminEmails.includes(user.email!)) {
     notFound();
   }
   
@@ -59,14 +61,16 @@ export default async function AdminPage() {
           <CardHeader>
             <CardTitle className="font-headline flex items-center gap-2">
               <ShieldCheck className="h-6 w-6" />
-              Current Administrator
+              Current Administrators
             </CardTitle>
             <CardDescription>
-                The user with this email has full administrative privileges.
+                Users with these emails have full administrative privileges.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <p className="font-mono text-sm bg-muted p-2 rounded-md inline-block">{process.env.ADMIN_EMAIL}</p>
+          <CardContent className="flex flex-wrap gap-2">
+            {adminEmails.map((email) => (
+                <p key={email} className="font-mono text-sm bg-muted p-2 rounded-md inline-block">{email}</p>
+            ))}
           </CardContent>
         </Card>
       </div>
