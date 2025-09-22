@@ -151,7 +151,7 @@ export function ProfileForm() {
         </Alert>
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="space-y-8 group-disabled:opacity-50" aria-disabled={!isVerified}>
+        <div className="space-y-8" aria-disabled={!isVerified}>
           <FormField
             control={form.control}
             name="avatarUrl"
