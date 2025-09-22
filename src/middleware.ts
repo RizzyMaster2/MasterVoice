@@ -10,22 +10,19 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
-  // Define paths that are part of the authentication flow or are public.
-  const isAuthPath = ['/login', '/signup', '/confirm'].includes(
-    url.pathname
-  );
-  const isPublicPath = url.pathname === '/';
+  const protectedPaths = ['/dashboard', '/profile'];
+  const isProtectedPath = protectedPaths.some((path) => url.pathname.startsWith(path));
+  const isAuthPath = ['/login', '/signup', '/confirm'].includes(url.pathname);
 
-  // If user is logged in...
   if (user) {
-    // and tries to access an auth page (like login), redirect to dashboard.
+    // If user is logged in and tries to access an auth page, redirect to dashboard.
     if (isAuthPath) {
       url.pathname = '/dashboard';
       return NextResponse.redirect(url);
     }
   } else {
-    // If user is not logged in and not on a public/auth path, redirect to login.
-    if (!isPublicPath && !isAuthPath) {
+    // If user is not logged in and tries to access a protected page, redirect to login.
+    if (isProtectedPath) {
       url.pathname = '/login';
       return NextResponse.redirect(url);
     }

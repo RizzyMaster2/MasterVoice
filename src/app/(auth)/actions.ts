@@ -23,7 +23,7 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { data: { user }, error } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
     if (error.message === 'Invalid login credentials') {
@@ -35,16 +35,10 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  if (user) {
-    // Set the custom logged_in flag in user_metadata
-    await supabase.auth.updateUser({
-        data: {
-            logged_in: true
-        }
-    });
-  }
-
-  redirect('/dashboard')
+  // The middleware will handle the redirect.
+  // We can revalidate the root path to ensure caches are updated.
+  revalidatePath('/', 'layout');
+  redirect('/dashboard');
 }
 
 export async function signup(formData: FormData) {
@@ -65,21 +59,12 @@ export async function signup(formData: FormData) {
   if (error) {
     return { success: false, message: error.message }
   }
-
-  revalidatePath('/confirm', 'layout')
+  
   redirect('/confirm')
 }
 
 export async function logout() {
     const supabase = createClient()
-    
-    // Set the custom logged_in flag to false before signing out
-    await supabase.auth.updateUser({
-        data: {
-            logged_in: false
-        }
-    });
-
     await supabase.auth.signOut()
     redirect('/')
 }

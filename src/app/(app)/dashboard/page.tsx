@@ -12,10 +12,8 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // The middleware now handles redirecting unauthenticated users.
-  // If we reach this page, we can be sure a user is logged in.
   if (!user) {
-    // This is a fallback, but should not be reached in normal flow.
+    // This is a fallback that should not be reached if middleware is working correctly.
     redirect('/login');
   }
 
