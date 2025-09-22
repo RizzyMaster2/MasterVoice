@@ -73,7 +73,7 @@ export async function getChats(): Promise<Chat[]> {
 
   // 3. Process chats to add participant profiles
    const processedChats = await Promise.all(
-    chats.map(async (chat) => {
+    (chats ?? []).map(async (chat) => {
       const participantIds = chat.chat_participants.map(p => p.user_id);
       
       const fullChat: Chat = {
