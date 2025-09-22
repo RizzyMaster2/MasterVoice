@@ -3,31 +3,33 @@
 
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { User as AppUser } from '@/lib/data';
+import type { UserProfile, Chat } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Plus, Search, Sparkles } from 'lucide-react';
 
 type SuggestedFriendsProps = {
-  allUsers: AppUser[];
-  onAddFriend: (friend: AppUser) => void;
+  allUsers: UserProfile[];
+  onAddFriend: (friend: UserProfile) => void;
   currentUserId: string;
-  contacts: AppUser[];
+  chats: Chat[];
 };
 
-export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, contacts }: SuggestedFriendsProps) {
+export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, chats }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
-  const getInitials = (name: string) => name.split(' ').map(n => n[0]).join('');
+  const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
+  
+  const contactIds = new Set(chats.flatMap(c => c.participants));
 
   const availableUsers = allUsers.filter(user => 
-    user.id !== currentUserId && !contacts.find(c => c.id === user.id)
+    user.id !== currentUserId && !contactIds.has(user.id)
   );
 
   const filteredUsers = searchQuery 
     ? availableUsers.filter(user => 
-        user.name.toLowerCase().includes(searchQuery.toLowerCase())
+        user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       )
     : availableUsers.slice(0, 5); // Show top 5 suggestions if no search
 
@@ -55,12 +57,12 @@ export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, contact
               <div key={user.id} className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    <AvatarImage src={user.photo_url || undefined} alt={user.display_name || ''} />
+                    <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="font-semibold">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate max-w-[150px]">{user.bio}</p>
+                    <p className="font-semibold">{user.display_name}</p>
+                    {/* Bio can be added later if needed */}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => onAddFriend(user)}>

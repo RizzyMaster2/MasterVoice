@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { User } from '@supabase/supabase-js';
@@ -38,7 +39,8 @@ export function UserManagement({ users }: UserManagementProps) {
     name
       ?.split(' ')
       .map((n) => n[0])
-      .join('') || 'U';
+      .join('')
+      .toUpperCase() || 'U';
 
   async function handleDeleteUser(userId: string) {
     try {
@@ -74,15 +76,15 @@ export function UserManagement({ users }: UserManagementProps) {
                 <div className="flex items-center gap-3">
                   <Avatar>
                     <AvatarImage
-                      src={user.user_metadata.avatar_url}
-                      alt={user.user_metadata.full_name}
+                      src={user.user_metadata.photo_url || user.user_metadata.avatar_url}
+                      alt={user.user_metadata.display_name || user.user_metadata.full_name}
                     />
                     <AvatarFallback>
-                      {getInitials(user.user_metadata.full_name)}
+                      {getInitials(user.user_metadata.display_name || user.user_metadata.full_name)}
                     </AvatarFallback>
                   </Avatar>
                   <span className="font-medium">
-                    {user.user_metadata.full_name || 'N/A'}
+                    {user.user_metadata.display_name || user.user_metadata.full_name || 'N/A'}
                   </span>
                 </div>
               </TableCell>

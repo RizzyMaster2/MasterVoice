@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useTransition, useRef } from 'react';
 import type { FormEvent } from 'react';
 import {
   Card,
@@ -14,83 +14,133 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import type { User, Message } from '@/lib/data';
+import type { UserProfile, Message, Chat } from '@/lib/data';
+import { getMessages, sendMessage } from '@/app/actions/chat';
 import { Send, Search, UserPlus } from 'lucide-react';
+import { useUser } from '@/hooks/use-user';
+import { createClient } from '@/lib/supabase/client';
+import { Skeleton } from '../ui/skeleton';
 
 interface ChatLayoutProps {
-  currentUser: User;
-  contacts: User[];
+  currentUser: UserProfile;
+  chats: Chat[];
 }
 
-const MESSAGES_STORAGE_KEY = 'mastervoice-messages';
-
-export function ChatLayout({
-  currentUser,
-  contacts,
-}: ChatLayoutProps) {
-  const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [messages, setMessages]
-    = useState<Record<string, Message[]>>({});
+export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
-  const [isMounted, setIsMounted] = useState(false);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [isSending, startSendingTransition] = useTransition();
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const supabase = createClient();
+  const { user: authUser } = useUser();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-  
-  useEffect(() => {
-    if (isMounted) {
-      try {
-        const storedMessages = localStorage.getItem(MESSAGES_STORAGE_KEY);
-        if (storedMessages) {
-          setMessages(JSON.parse(storedMessages));
+  const scrollToBottom = () => {
+    if (scrollAreaRef.current) {
+        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+        if (viewport) {
+            viewport.scrollTop = viewport.scrollHeight;
         }
-      } catch (error) {
-        console.error('Failed to load messages from localStorage', error);
-      }
     }
-  }, [isMounted]);
+  };
+
 
   useEffect(() => {
-    if (isMounted) {
-      try {
-        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
-      } catch (error) {
-        console.error('Failed to save messages to localStorage', error);
+    const fetchMessages = async () => {
+      if (selectedChat) {
+        setIsLoadingMessages(true);
+        const fetchedMessages = await getMessages(selectedChat.id);
+        setMessages(fetchedMessages);
+        setIsLoadingMessages(false);
+        setTimeout(scrollToBottom, 100);
       }
-    }
-  }, [messages, isMounted]);
+    };
+    fetchMessages();
+  }, [selectedChat]);
+
+  // Listen for new messages in real-time
+  useEffect(() => {
+    if (!selectedChat || !authUser) return;
+
+    const channel = supabase
+      .channel(`chat_${selectedChat.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `chat_id=eq.${selectedChat.id}`,
+        },
+        async (payload) => {
+          // We need to fetch the message with the profile
+          const { data: newMessage, error } = await supabase
+            .from('messages')
+            .select('*, profiles(*)')
+            .eq('id', payload.new.id)
+            .single();
+          
+          if (error) {
+            console.error('Error fetching new message with profile:', error);
+            return;
+          }
+
+          if (newMessage) {
+            setMessages((prevMessages) => [...prevMessages, newMessage as Message]);
+            setTimeout(scrollToBottom, 100);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedChat, supabase, authUser]);
 
   const getInitials = (name: string | undefined | null) =>
     name
       ?.split(' ')
       .map((n) => n[0])
-      .join('') || 'U';
+      .join('')
+      .toUpperCase() || 'U';
 
-  const handleSendMessage = (e: FormEvent) => {
+  const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedUser) return;
+    if (!newMessage.trim() || !selectedChat) return;
 
-    const message: Message = {
-      id: `msg-${Date.now()}`,
-      text: newMessage,
-      timestamp: new Date().toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-      }),
-      senderId: currentUser.id,
-    };
-
-    setMessages((prev) => ({
-      ...prev,
-      [selectedUser.id]: [...(prev[selectedUser.id] || []), message],
-    }));
+    const tempMessageId = `temp-${Date.now()}`;
+    const messageContent = newMessage;
     setNewMessage('');
-  };
 
-  const filteredContacts = contacts.filter((contact) =>
-    contact.name.toLowerCase().includes(searchQuery.toLowerCase())
+    // Optimistically add message to UI
+    const optimisticMessage: Message = {
+      id: tempMessageId,
+      content: messageContent,
+      created_at: new Date().toISOString(),
+      sender_id: currentUser.id,
+      chat_id: selectedChat.id,
+      type: 'text',
+      profiles: currentUser,
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+    setTimeout(scrollToBottom, 100);
+
+    startSendingTransition(async () => {
+      try {
+        await sendMessage(selectedChat.id, messageContent);
+      } catch (error) {
+        console.error("Failed to send message", error);
+        // Revert optimistic update on failure
+        setMessages(prev => prev.filter(m => m.id !== tempMessageId));
+      }
+    });
+  };
+  
+  const filteredChats = chats.filter((chat) =>
+    chat.otherParticipant?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
@@ -108,28 +158,28 @@ export function ChatLayout({
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {contacts.length > 0 ? (
-            filteredContacts.length > 0 ? (
-              filteredContacts.map((user) => (
+          {chats.length > 0 ? (
+            filteredChats.length > 0 ? (
+              filteredChats.map((chat) => (
                 <div
-                  key={user.id}
-                  onClick={() => setSelectedUser(user)}
+                  key={chat.id}
+                  onClick={() => setSelectedChat(chat)}
                   className={cn(
                     'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
-                    selectedUser?.id === user.id && 'bg-accent'
+                    selectedChat?.id === chat.id && 'bg-accent'
                   )}
                 >
                   <Avatar className="h-10 w-10 relative">
-                    <AvatarImage src={user.avatarUrl} alt={user.name} />
-                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                    {user.isOnline && (
+                    <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.otherParticipant?.display_name || ''} />
+                    <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
+                    {/* {chat.otherParticipant?.status === 'online' && (
                       <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
-                    )}
+                    )} */}
                   </Avatar>
                   <div className="flex-1">
-                    <p className="font-semibold">{user.name}</p>
+                    <p className="font-semibold">{chat.otherParticipant?.display_name}</p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {messages[user.id]?.[messages[user.id].length - 1]?.text || 'No messages yet'}
+                      {/* Placeholder for last message */}
                     </p>
                   </div>
                 </div>
@@ -148,63 +198,73 @@ export function ChatLayout({
         </ScrollArea>
       </div>
       <div className="w-2/3 flex flex-col">
-        {selectedUser ? (
+        {selectedChat ? (
           <>
             <CardHeader className="flex flex-row items-center gap-3 border-b">
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={selectedUser.avatarUrl}
-                  alt={selectedUser.name}
+                  src={selectedChat.otherParticipant?.photo_url || undefined}
+                  alt={selectedChat.otherParticipant?.display_name || ''}
                 />
                 <AvatarFallback>
-                  {getInitials(selectedUser.name)}
+                  {getInitials(selectedChat.otherParticipant?.display_name)}
                 </AvatarFallback>
               </Avatar>
               <div>
                 <h2 className="font-headline text-lg font-semibold">
-                  {selectedUser.name}
+                  {selectedChat.otherParticipant?.display_name}
                 </h2>
-                <p className="text-sm text-muted-foreground">
-                  {selectedUser.isOnline ? 'Online' : 'Offline'}
-                </p>
+                 {/* <p className="text-sm text-muted-foreground">
+                  {selectedChat.otherParticipant?.status === 'online' ? 'Online' : 'Offline'}
+                </p> */}
               </div>
             </CardHeader>
             <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[calc(100vh-17.5rem)] lg:h-[calc(100vh-15rem)] p-6">
-                <div className="space-y-4">
-                  {(messages[selectedUser.id] || []).map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={cn(
-                        'flex items-end gap-2',
-                        msg.senderId === currentUser.id && 'justify-end'
-                      )}
-                    >
-                      {msg.senderId !== currentUser.id && (
-                        <Avatar className="h-8 w-8">
-                          <AvatarImage
-                            src={selectedUser.avatarUrl}
-                            alt={selectedUser.name}
-                          />
-                          <AvatarFallback>
-                            {getInitials(selectedUser.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                      )}
-                      <div
+              <ScrollArea className="h-[calc(100vh-17.5rem)] lg:h-[calc(100vh-15rem)] p-6" ref={scrollAreaRef}>
+                {isLoadingMessages ? (
+                   <div className="space-y-4">
+                        <Skeleton className="h-12 w-3/4" />
+                        <Skeleton className="h-12 w-3/4 ml-auto" />
+                        <Skeleton className="h-12 w-2/4" />
+                   </div>
+                ) : (
+                    <div className="space-y-4">
+                    {messages.map((msg) => (
+                        <div
+                        key={msg.id}
                         className={cn(
-                          'max-w-xs rounded-lg p-3 text-sm md:max-w-md',
-                          msg.senderId === currentUser.id
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-muted'
+                            'flex items-end gap-2',
+                            msg.sender_id === currentUser.id && 'justify-end'
                         )}
-                      >
-                        <p>{msg.text}</p>
-                        <p className="text-xs opacity-70 mt-1 text-right">{msg.timestamp}</p>
-                      </div>
+                        >
+                        {msg.sender_id !== currentUser.id && (
+                            <Avatar className="h-8 w-8">
+                            <AvatarImage
+                                src={msg.profiles?.photo_url || undefined}
+                                alt={msg.profiles?.display_name || ''}
+                            />
+                            <AvatarFallback>
+                                {getInitials(msg.profiles?.display_name)}
+                            </AvatarFallback>
+                            </Avatar>
+                        )}
+                        <div
+                            className={cn(
+                            'max-w-xs rounded-lg p-3 text-sm md:max-w-md',
+                            msg.sender_id === currentUser.id
+                                ? 'bg-primary text-primary-foreground'
+                                : 'bg-muted'
+                            )}
+                        >
+                            <p>{msg.content}</p>
+                            <p className="text-xs opacity-70 mt-1 text-right">
+                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </p>
+                        </div>
+                        </div>
+                    ))}
                     </div>
-                  ))}
-                </div>
+                )}
               </ScrollArea>
             </CardContent>
             <CardFooter className="p-4 border-t">
@@ -218,8 +278,9 @@ export function ChatLayout({
                   placeholder="Type a message..."
                   className="flex-1"
                   autoComplete="off"
+                  disabled={isSending}
                 />
-                <Button type="submit" size="icon">
+                <Button type="submit" size="icon" disabled={isSending}>
                   <Send className="h-4 w-4" />
                 </Button>
               </form>

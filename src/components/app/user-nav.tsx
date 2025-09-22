@@ -1,6 +1,6 @@
+
 'use client';
 
-import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -29,19 +29,20 @@ export function UserNav() {
   
   if (!user) return null;
   
-  const userName = user.user_metadata?.full_name || user.email || 'User';
+  const userName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email || 'User';
   const userEmail = user.email || 'No email provided';
+  const userAvatar = user.user_metadata?.photo_url || user.user_metadata?.avatar_url;
 
   const getInitials = (name: string) => {
     return name
       .split(' ')
       .map((n) => n[0])
-      .join('');
+      .join('')
+      .toUpperCase();
   };
 
   const handleLogout = async () => {
     await logout();
-    // Server action handles redirect. We can refresh to be safe.
     router.refresh();
   };
 
@@ -50,7 +51,7 @@ export function UserNav() {
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-10 w-10 rounded-full">
           <Avatar className="h-10 w-10">
-            <AvatarImage src={user.user_metadata?.avatar_url} alt={userName} />
+            <AvatarImage src={userAvatar} alt={userName} />
             <AvatarFallback>{getInitials(userName)}</AvatarFallback>
           </Avatar>
         </Button>

@@ -1,6 +1,6 @@
+
 'use client';
 
-import type { FormEvent } from 'react';
 import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -23,8 +23,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { User, Save, ShieldAlert, Upload } from 'lucide-react';
-import { Card, CardContent, CardHeader } from '../ui/card';
+import { Save, ShieldAlert, Upload } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -32,10 +31,7 @@ const formSchema = z.object({
     .string()
     .max(160, { message: 'Bio cannot exceed 160 characters.' })
     .optional(),
-  avatarUrl: z
-    .string()
-    .url({ message: 'Please enter a valid URL.' })
-    .optional(),
+  // avatarUrl is handled separately via file upload
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -54,7 +50,6 @@ export function ProfileForm() {
     defaultValues: {
       name: '',
       bio: '',
-      avatarUrl: '',
     },
   });
 
@@ -69,11 +64,10 @@ export function ProfileForm() {
         setIsVerified(!!user.email_confirmed_at);
         const metadata = user.user_metadata;
         form.reset({
-          name: metadata?.full_name || '',
+          name: metadata?.display_name || metadata?.full_name || '',
           bio: metadata?.bio || '',
-          avatarUrl: metadata?.avatar_url || '',
         });
-        setPreviewUrl(metadata?.avatar_url || null);
+        setPreviewUrl(metadata?.photo_url || metadata?.avatar_url || null);
       }
     };
     fetchUser();
@@ -89,15 +83,17 @@ export function ProfileForm() {
 
   async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
-    let newAvatarUrl = values.avatarUrl;
+    let newAvatarUrl: string | undefined = undefined;
 
     if (selectedFile) {
+      // The user-provided SQL uses a 'files' bucket. Let's align with that.
+      // And the RLS policy for insert is just for authenticated users, so this should work.
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `public/${fileName}`;
+      const filePath = `${fileName}`; // No public folder needed if policies are set up correctly
 
       const { error: uploadError } = await supabase.storage
-        .from('avatars')
+        .from('files') // Changed from 'avatars' to 'files'
         .upload(filePath, selectedFile);
       
       if (uploadError) {
@@ -109,15 +105,16 @@ export function ProfileForm() {
         return;
       }
       
-      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      const { data } = supabase.storage.from('files').getPublicUrl(filePath);
       newAvatarUrl = data.publicUrl;
     }
 
     const { error } = await supabase.auth.updateUser({
       data: {
-        full_name: values.name,
+        display_name: values.name,
         bio: values.bio,
-        avatar_url: newAvatarUrl,
+        // Only include photo_url if it's being updated
+        ...(newAvatarUrl && { photo_url: newAvatarUrl }),
       },
     });
 
@@ -134,6 +131,8 @@ export function ProfileForm() {
       });
        // Reset the file input state after successful submission
       setSelectedFile(null);
+      // Optionally refresh the page or user state to show new avatar immediately in other components
+      window.location.reload();
     }
   }
   
@@ -141,7 +140,8 @@ export function ProfileForm() {
     name
       ?.split(' ')
       .map((n) => n[0])
-      .join('') || 'U';
+      .join('')
+      .toUpperCase() || 'U';
 
   if (!user) {
     return (
@@ -221,7 +221,7 @@ export function ProfileForm() {
               name="name"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Name</FormLabel>
+                  <FormLabel>Display Name</FormLabel>
                   <FormControl>
                     <Input
                       placeholder="Your Name"
@@ -255,9 +255,9 @@ export function ProfileForm() {
         </div>
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={!isVerified}>
+            <Button type="submit" disabled={!isVerified || form.formState.isSubmitting}>
                 <Save className="mr-2 h-4 w-4" />
-                Save Changes
+                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
         </div>
       </form>

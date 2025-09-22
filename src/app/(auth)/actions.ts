@@ -1,3 +1,4 @@
+
 'use server'
 
 import { createAdminClient } from '@/lib/supabase/admin'
@@ -6,11 +7,10 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 async function userExists(email: string): Promise<boolean> {
-    const supabaseAdmin = createAdminClient()
-    const { data, error } = await supabaseAdmin.from('users').select('id').eq('email', email).single()
-    
-    // If we get data and no error, the user exists.
-    // In all other cases (no data, or an error), we can assume the user doesn't exist or is not findable.
+    const supabase = createClient()
+    // This is a workaround. Ideally we'd use admin client, but it may have issues in some environments.
+    // We check if we can get a user's public profile.
+    const { data, error } = await supabase.from('profiles').select('id').eq('email', email).single()
     return !!data && !error;
 }
 
@@ -35,8 +35,6 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  // The middleware will handle the redirect.
-  // We can revalidate the root path to ensure caches are updated.
   revalidatePath('/', 'layout');
   redirect('/dashboard');
 }
@@ -49,7 +47,8 @@ export async function signup(formData: FormData) {
     password: formData.get('password') as string,
     options: {
         data: {
-            full_name: formData.get('name') as string,
+            display_name: formData.get('name') as string,
+            // photo_url will be set via profile page
         }
     }
   }

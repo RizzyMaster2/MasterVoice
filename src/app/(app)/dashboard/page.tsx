@@ -1,85 +1,61 @@
 
 'use client';
 
-import type { User as AppUser } from '@/lib/data';
+import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { OnboardingModal } from '@/components/app/onboarding-modal';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { useUser } from '@/hooks/use-user';
 import { redirect } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { users as allUsers } from '@/lib/data';
-
-const CONTACTS_STORAGE_KEY = 'mastervoice-contacts';
+import { getUsers, getChats, createChat } from '@/app/actions/chat';
 
 export default function DashboardPage() {
   const { user: authUser, isLoading: isUserLoading } = useUser();
-  const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [contacts, setContacts] = useState<AppUser[]>([]);
-  const [isMounted, setIsMounted] = useState(false);
+  
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [chats, setChats] = useState<AppChat[]>([]);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (isMounted) {
-      try {
-        const storedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
-        if (storedContacts) {
-          setContacts(JSON.parse(storedContacts));
-        }
-      } catch (error) {
-        console.error('Failed to load contacts from localStorage', error);
-      }
+    if (isUserLoading) {
+      return;
     }
-  }, [isMounted]);
-
-  useEffect(() => {
-    if (isMounted) {
-      try {
-        localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
-      } catch (error) {
-        console.error('Failed to save contacts to localStorage', error);
-      }
+    if (!authUser) {
+      redirect('/login');
+      return;
     }
-  }, [contacts, isMounted]);
 
-  useEffect(() => {
-    const setupUser = async () => {
-      if (isUserLoading) {
-        return;
-      }
-      if (!authUser) {
-        redirect('/login');
-        return;
-      }
+    setIsVerified(!!authUser.email_confirmed_at);
 
-      const currentUser: AppUser = {
-        id: authUser.id,
-        name: authUser.user_metadata?.full_name || authUser.email || 'User',
-        avatarUrl: authUser.user_metadata?.avatar_url || '',
-        isOnline: true,
-        bio: authUser.user_metadata?.bio || '',
-      };
-      setAppUser(currentUser);
-      setIsVerified(!!authUser.email_confirmed_at);
-      setIsLoading(false);
+    const fetchData = async () => {
+      setIsLoading(true);
+      startTransition(async () => {
+        const [usersData, chatsData] = await Promise.all([getUsers(), getChats()]);
+        setAllUsers(usersData);
+        setChats(chatsData);
+        setIsLoading(false);
+      });
     };
-    setupUser();
+
+    fetchData();
+
   }, [authUser, isUserLoading]);
 
-  const handleAddFriend = (friend: AppUser) => {
-    if (!contacts.find(c => c.id === friend.id)) {
-      setContacts(prev => [...prev, friend]);
-    }
+  const handleAddFriend = (friend: UserProfile) => {
+    startTransition(async () => {
+      await createChat(friend.id);
+      // Re-fetch chats to update the list
+      const updatedChats = await getChats();
+      setChats(updatedChats);
+    });
   };
 
-  if (isLoading || !appUser) {
+  if (isLoading || !authUser) {
     return (
       <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
         <div className="flex-1 h-full">
@@ -92,20 +68,29 @@ export default function DashboardPage() {
     );
   }
 
+  const currentUserProfile: UserProfile = {
+      id: authUser.id,
+      display_name: authUser.user_metadata?.full_name || authUser.email || 'User',
+      photo_url: authUser.user_metadata?.avatar_url || '',
+      created_at: authUser.created_at,
+      email: authUser.email || null,
+      status: 'online', // Placeholder
+  }
+
   return (
     <>
       <div className="flex-1 flex flex-col gap-6 h-full">
         {!isVerified && <UnverifiedAccountWarning />}
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
           <div className="flex-1 h-full">
-            <ChatLayout currentUser={appUser} contacts={contacts} />
+            <ChatLayout currentUser={currentUserProfile} chats={chats} />
           </div>
           <div className="w-full lg:w-[320px] flex flex-col gap-6">
             <SuggestedFriends
               allUsers={allUsers} 
               onAddFriend={handleAddFriend}
-              currentUserId={appUser.id}
-              contacts={contacts}
+              currentUserId={authUser.id}
+              chats={chats}
             />
           </div>
         </div>
