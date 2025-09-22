@@ -33,33 +33,40 @@ export async function getChats(): Promise<Chat[]> {
   const userId = await getCurrentUserId();
   const { data: chats, error } = await supabase
     .from('chats')
-    .select('*')
-    .or(`participants.cs.{${userId}}`); // Correctly query if userId is in participants array
+    .select('*, otherParticipant:profiles!participants(id, display_name, photo_url)')
+    .filter('participants', 'cs', `{${userId}}`);
 
   if (error) {
     console.error('Error fetching chats:', error);
     return [];
   }
-
-  // For each chat, fetch the other participant's profile
+  
+  // The query above is not quite right for 1-on-1 chats.
+  // We need to properly identify the other participant.
   const chatsWithProfiles = await Promise.all(
     chats.map(async (chat) => {
-      const otherParticipantId = chat.participants.find(p => p !== userId);
-      if (otherParticipantId) {
-        const { data: profile, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', otherParticipantId)
-          .single();
-        if (profileError) {
-          console.error('Error fetching participant profile:', profileError);
-        } else {
-          chat.otherParticipant = profile;
+      if (chat.is_group) {
+        // Handle group chat logic if needed
+      } else {
+        const otherParticipantId = chat.participants.find(p => p !== userId);
+        if (otherParticipantId) {
+          const { data: profile, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', otherParticipantId)
+            .single();
+
+          if (profileError) {
+            console.error('Error fetching participant profile:', profileError);
+          } else {
+            chat.otherParticipant = profile;
+          }
         }
       }
       return chat;
     })
   );
+
 
   return chatsWithProfiles;
 }
@@ -85,8 +92,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
   if (existingChat) {
     console.log('Chat already exists.');
-    // In a real app, you might want to return the existing chat or handle this case differently
-    revalidatePath('/dashboard');
+    // Don't revalidate, client will handle UI update
     return null;
   }
 
@@ -135,7 +141,7 @@ export async function sendMessage(chatId: string, content: string) {
     throw new Error('Could not send message.');
   }
   
-  // Revalidate the path to show the new message
-  revalidatePath(`/dashboard`); 
+  // NO LONGER revalidating the whole dashboard.
+  // The client will get the new message via real-time subscription.
   return data;
 }

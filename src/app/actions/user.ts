@@ -38,6 +38,7 @@ export async function deleteUser(userId: string) {
         console.error('Supabase delete error:', deleteError);
         throw new Error('Could not delete user from the database.');
     }
+    // No revalidation needed, just redirect.
     redirect('/');
   } else {
     // If an admin deletes a user, just revalidate the admin page.

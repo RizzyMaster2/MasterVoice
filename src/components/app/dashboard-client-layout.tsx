@@ -6,6 +6,7 @@ import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition } from 'react';
 import { createChat, getChats } from '@/app/actions/chat';
+import { useToast } from '@/hooks/use-toast';
 
 interface DashboardClientLayoutProps {
     currentUser: UserProfile;
@@ -16,13 +17,29 @@ interface DashboardClientLayoutProps {
 export function DashboardClientLayout({ currentUser, initialChats, allUsers }: DashboardClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [isPending, startTransition] = useTransition();
+  const { toast } = useToast();
 
   const handleAddFriend = (friend: UserProfile) => {
     startTransition(async () => {
-      await createChat(friend.id);
-      // Re-fetch chats to update the list
+      const result = await createChat(friend.id);
+      
+      // If the chat already existed, createChat returns null
+      if (result === null) {
+          toast({
+              title: "Chat already exists",
+              description: "You already have a conversation with this user.",
+          });
+          return;
+      }
+
+      // Re-fetch chats to update the list, which is much faster
+      // than revalidating the entire page.
       const updatedChats = await getChats();
       setChats(updatedChats);
+       toast({
+          title: "Friend Added",
+          description: `You can now chat with ${friend.display_name}.`,
+      });
     });
   };
 
