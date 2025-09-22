@@ -3,7 +3,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
-import { subDays, format } from 'date-fns';
+import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
 
 type AdminStats = {
     totalUsers: number;
@@ -60,19 +60,35 @@ async function checkAdminPermissions() {
 export async function getUserSignupsByDay(): Promise<{ data: TimeSeriesData[], error: string | null }> {
     try {
         const supabaseAdmin = await checkAdminPermissions();
-        const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+        const thirtyDaysAgo = subDays(new Date(), 29); // Include today
+        const startDate = startOfDay(thirtyDaysAgo);
+        const endDate = endOfDay(new Date());
 
-        const { data, error } = await supabaseAdmin.rpc('get_daily_signups', {
-            start_date: thirtyDaysAgo
-        });
+        const { data, error } = await supabaseAdmin
+            .from('profiles')
+            .select('created_at')
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
 
         if (error) throw error;
         
-        // Format date for display
-        const formattedData = data.map((item: any) => ({
-            date: format(new Date(item.day), 'MMM d'),
-            count: item.count,
-        }));
+        const countsByDay = new Map<string, number>();
+        const interval = eachDayOfInterval({ start: startDate, end: endDate });
+
+        interval.forEach(day => {
+            countsByDay.set(format(day, 'yyyy-MM-dd'), 0);
+        });
+
+        data.forEach(profile => {
+            const day = format(new Date(profile.created_at), 'yyyy-MM-dd');
+            countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
+        });
+        
+        const formattedData = Array.from(countsByDay.entries()).map(([day, count]) => ({
+            date: format(new Date(day), 'MMM d'),
+            count: count,
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
 
         return { data: formattedData, error: null };
     } catch (err: any) {
@@ -83,18 +99,35 @@ export async function getUserSignupsByDay(): Promise<{ data: TimeSeriesData[], e
 export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], error: string | null }> {
      try {
         const supabaseAdmin = await checkAdminPermissions();
-        const thirtyDaysAgo = subDays(new Date(), 30).toISOString();
+        const thirtyDaysAgo = subDays(new Date(), 29);
+        const startDate = startOfDay(thirtyDaysAgo);
+        const endDate = endOfDay(new Date());
 
-        const { data, error } = await supabaseAdmin.rpc('get_daily_message_counts', {
-             start_date: thirtyDaysAgo
-        });
+        const { data, error } = await supabaseAdmin
+            .from('messages')
+            .select('created_at')
+            .gte('created_at', startDate.toISOString())
+            .lte('created_at', endDate.toISOString());
+
 
         if (error) throw error;
         
-        const formattedData = data.map((item: any) => ({
-            date: format(new Date(item.day), 'MMM d'),
-            count: item.count,
-        }));
+        const countsByDay = new Map<string, number>();
+        const interval = eachDayOfInterval({ start: startDate, end: endDate });
+
+        interval.forEach(day => {
+            countsByDay.set(format(day, 'yyyy-MM-dd'), 0);
+        });
+
+        data.forEach(message => {
+            const day = format(new Date(message.created_at), 'yyyy-MM-dd');
+            countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
+        });
+
+        const formattedData = Array.from(countsByDay.entries()).map(([day, count]) => ({
+            date: format(new Date(day), 'MMM d'),
+            count: count,
+        })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return { data: formattedData, error: null };
     } catch (err: any) {
