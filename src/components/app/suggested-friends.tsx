@@ -7,7 +7,7 @@ import type { UserProfile } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Plus, Search, Sparkles, Users } from 'lucide-react';
+import { Plus, Search, Sparkles } from 'lucide-react';
 import { CreateGroupDialog } from './create-group-dialog';
 
 type SuggestedFriendsProps = {
@@ -19,7 +19,6 @@ type SuggestedFriendsProps = {
 
 export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCreated }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
-  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
@@ -35,7 +34,6 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
 
 
   return (
-    <>
     <Card>
       <CardHeader>
         <CardTitle className="flex items-center justify-between font-headline">
@@ -45,9 +43,7 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
           </div>
           <CreateGroupDialog
             allUsers={allUsers.filter(u => u.id !== 'ai-bot-echo')}
-            onGroupCreated={() => {
-              onGroupCreated();
-            }}
+            onGroupCreated={onGroupCreated}
           />
         </CardTitle>
       </CardHeader>
@@ -88,6 +84,5 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
         )}
       </CardContent>
     </Card>
-    </>
   );
 }

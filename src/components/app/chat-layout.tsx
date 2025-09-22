@@ -30,6 +30,7 @@ interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
   setChats: (chats: Chat[]) => void;
+  allUsers: UserProfile[];
 }
 
 const parseMessageContent = (content: string): ReactNode[] => {
@@ -59,7 +60,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayoutProps) {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -73,7 +74,7 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
   const { user: authUser } = useUser();
   const { toast } = useToast();
 
-  const isBotChat = useMemo(() => selectedChat?.id === 'chat-ai-bot-echo', [selectedChat]);
+  const isBotChat = useMemo(() => selectedChat?.otherParticipant?.id === 'ai-bot-echo', [selectedChat]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -125,7 +126,7 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
             return;
           }
 
-          if (newMessage) {
+          if (newMessage && newMessage.sender_id !== currentUser.id) {
             setMessages((prevMessages) => [...prevMessages, newMessage as Message]);
             setTimeout(scrollToBottom, 100);
           }
@@ -136,31 +137,27 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, authUser, isBotChat]);
+  }, [selectedChat, supabase, authUser, isBotChat, currentUser.id]);
   
   useEffect(() => {
-    const hasBotChat = chats.some(chat => chat.id === 'chat-ai-bot-echo');
+    const hasBotChat = chats.some(c => c.otherParticipant?.id === 'ai-bot-echo');
     if (!hasBotChat) {
-        const botChat: Chat = {
-            id: 'chat-ai-bot-echo',
-            created_at: new Date().toISOString(),
-            name: 'Echo',
-            is_group: false,
-            participants: [currentUser.id, 'ai-bot-echo'],
-            admin_id: null,
-            otherParticipant: {
-                id: 'ai-bot-echo',
-                display_name: 'Echo',
-                photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
+        const botUser = allUsers.find(u => u.id === 'ai-bot-echo');
+        if (botUser) {
+            const botChat: Chat = {
+                id: `chat-${botUser.id}`,
                 created_at: new Date().toISOString(),
-                email: 'bot@mastervoice.ai',
-                status: 'online',
-            }
-        };
-        setChats([botChat, ...chats]);
+                name: botUser.display_name,
+                is_group: false,
+                participants: [currentUser.id, botUser.id],
+                admin_id: null,
+                otherParticipant: botUser,
+            };
+            setChats(prev => [botChat, ...prev]);
+        }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chats]);
+  }, [chats, allUsers]);
 
   const getInitials = (name: string | undefined | null) =>
     name
@@ -215,7 +212,8 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
              setMessages(prev => [...prev.filter(m => m.id !== tempMessageId), optimisticMessage, botMessage]);
 
         } else {
-            await sendMessage(selectedChat.id, messageContent);
+            const sentMessage = await sendMessage(selectedChat.id, messageContent);
+            setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...m, ...sentMessage } : m));
         }
 
       } catch (error) {
@@ -329,17 +327,17 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
                       <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
                     </>
                    )}
-                  {chat.id === 'chat-ai-bot-echo' && (
+                  {chat.otherParticipant?.id === 'ai-bot-echo' && (
                     <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
                   )}
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-semibold flex items-center gap-2">
                     {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
-                    {chat.id === 'chat-ai-bot-echo' && <Bot className="h-4 w-4 text-primary" />}
+                    {chat.otherParticipant?.id === 'ai-bot-echo' && <Bot className="h-4 w-4 text-primary" />}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.is_group ? `${chat.participants.length} members` : (chat.id === 'chat-ai-bot-echo' ? 'AI Assistant' : '...')}
+                    {chat.is_group ? `${chat.participants.length} members` : (chat.otherParticipant?.id === 'ai-bot-echo' ? 'AI Assistant' : '...')}
                   </p>
                 </div>
               </div>

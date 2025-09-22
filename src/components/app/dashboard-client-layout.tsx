@@ -34,7 +34,7 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
 
       // If the chat is with the AI bot, it won't be in the main chat list from getChats()
       // So we handle it client-side.
-      if (result.id === 'chat-ai-bot-echo') {
+      if (result.id.startsWith('chat-ai-bot')) {
          setChats(prev => {
            if (prev.find(c => c.id === result.id)) return prev;
            return [result, ...prev];
@@ -49,16 +49,20 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
 
       // Re-fetch chats to update the list, which is much faster
       // than revalidating the entire page.
-      const updatedChats = await getChats();
-      setChats(updatedChats);
-       toast({
+      await refreshChats();
+      toast({
           title: "Friend Added",
           description: `You can now chat with ${friend.display_name}.`,
       });
     });
   };
 
-  const contactIds = useMemo(() => new Set(chats.flatMap(c => c.participants)), [chats]);
+  const contactIds = useMemo(() => {
+    const ids = new Set(chats.flatMap(c => c.participants));
+    ids.add(currentUser.id); // Ensure current user isn't in suggestions
+    return ids;
+  }, [chats, currentUser.id]);
+
   const availableUsers = useMemo(() => allUsers.filter(user => user.id !== currentUser.id), [allUsers, currentUser.id]);
 
 
@@ -70,7 +74,7 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
         <div className="flex-1 h-full">
-        <ChatLayout currentUser={currentUser} chats={chats} setChats={setChats} />
+        <ChatLayout currentUser={currentUser} chats={chats} setChats={setChats} allUsers={allUsers} />
         </div>
         <div className="w-full lg:w-[320px] flex flex-col gap-6">
         <SuggestedFriends

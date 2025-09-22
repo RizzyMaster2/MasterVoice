@@ -46,17 +46,24 @@ export async function getChats(): Promise<Chat[]> {
   // Fetch chats where the current user is a participant
   const { data: chats, error } = await supabase
     .from('chats')
-    .select('*, participants(*)')
-    .contains('participants', [userId]);
+    .select('*, participants:chat_participants(user_id)') // Correctly join participants
+    .filter('participants.user_id', 'eq', userId);
+
 
   if (error) {
     console.error('Error fetching chats:', error);
     return [];
   }
+  
+  const processedChats = chats.map(chat => ({
+      ...chat,
+      participants: chat.participants.map((p: any) => p.user_id)
+  }));
+
 
   // For each 1-on-1 chat, find the other participant's ID and fetch their profile
   const chatsWithProfiles = await Promise.all(
-    chats.map(async (chat) => {
+    processedChats.map(async (chat) => {
       if (chat.is_group) {
         // For groups, we attach all participant profiles
         const { data: profiles, error: profileError } = await supabase
@@ -71,18 +78,29 @@ export async function getChats(): Promise<Chat[]> {
       } else {
         const otherParticipantId = chat.participants.find(p => p !== userId);
         if (otherParticipantId) {
-          const { data: profile, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', otherParticipantId)
-            .single();
+            if (otherParticipantId === 'ai-bot-echo') {
+                 chat.otherParticipant = {
+                    id: 'ai-bot-echo',
+                    display_name: 'Echo',
+                    photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
+                    created_at: new Date().toISOString(),
+                    email: 'bot@mastervoice.ai',
+                    status: 'online',
+                };
+            } else {
+                const { data: profile, error: profileError } = await supabase
+                    .from('profiles')
+                    .select('*')
+                    .eq('id', otherParticipantId)
+                    .single();
 
-          if (profileError) {
-            console.error(`Error fetching profile for user ${otherParticipantId}:`, profileError);
-          } else {
-            // Attach the other participant's full profile to the chat object
-            chat.otherParticipant = profile;
-          }
+                if (profileError) {
+                    console.error(`Error fetching profile for user ${otherParticipantId}:`, profileError);
+                } else {
+                    // Attach the other participant's full profile to the chat object
+                    chat.otherParticipant = profile;
+                }
+            }
         }
       }
       return chat;
@@ -95,6 +113,9 @@ export async function getChats(): Promise<Chat[]> {
 
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
+  const supabase = createClient();
+  const userId = await getCurrentUserId();
+
   // If creating a chat with the bot, we don't persist it.
   if (otherUserId === 'ai-bot-echo') {
       const botChat: Chat = {
@@ -102,7 +123,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
         created_at: new Date().toISOString(),
         name: 'Echo',
         is_group: false,
-        participants: [await getCurrentUserId(), 'ai-bot-echo'],
+        participants: [userId, 'ai-bot-echo'],
         admin_id: null,
         otherParticipant: {
              id: 'ai-bot-echo',
@@ -116,74 +137,92 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
       return botChat;
   }
 
-
-  const supabase = createClient();
-  const userId = await getCurrentUserId();
-
   // Check if a chat already exists between the two users
-  const { data: existingChats, error: existingError } = await supabase
-    .from('chats')
-    .select('id, participants')
-    .filter('is_group', 'eq', false)
-    .contains('participants', [userId, otherUserId]);
-    
+    const { data: existingChats, error: existingError } = await supabase
+        .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
+
   if (existingError) {
     console.error('Error checking for existing chats:', existingError);
     throw new Error('Could not check for existing chats.');
   }
 
-  // The .contains filter is not exact, so we need to verify participants match exactly
-  const existingChat = existingChats.find(c => 
-    c.participants.length === 2 && c.participants.includes(userId) && c.participants.includes(otherUserId)
-  );
-
-  if (existingChat) {
-    console.log('Chat already exists.');
-    // Don't revalidate, client will handle UI update
-    return null;
+  if (existingChats && existingChats.length > 0) {
+      console.log('Chat already exists.');
+      return null;
   }
 
-  const participants = [userId, otherUserId];
+  // If no chat exists, create a new one
   const { data, error } = await supabase
     .from('chats')
-    .insert([{ participants, is_group: false }])
+    .insert([{ is_group: false }])
     .select()
     .single();
 
-  if (error) {
+  if (error || !data) {
     console.error('Error creating chat:', error);
     throw new Error('Could not create chat.');
   }
+
+  const newChatId = data.id;
+  const participantsToInsert = [
+      { chat_id: newChatId, user_id: userId },
+      { chat_id: newChatId, user_id: otherUserId }
+  ];
+
+  const { error: participantsError } = await supabase
+      .from('chat_participants')
+      .insert(participantsToInsert);
   
-  // Let client-side state handle the update, no full revalidation needed
-  return data;
+  if (participantsError) {
+      console.error('Error adding participants:', participantsError);
+      // Clean up created chat if participant insertion fails
+      await supabase.from('chats').delete().eq('id', newChatId);
+      throw new Error('Could not add participants to chat.');
+  }
+  
+  revalidatePath('/dashboard');
+  return { ...data, participants: [userId, otherUserId] };
 }
 
 export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
     const supabase = createClient();
     const userId = await getCurrentUserId();
 
-    const allParticipants = [userId, ...participantIds];
+    const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
 
-    const { data, error } = await supabase
+    const { data: chatData, error: chatError } = await supabase
         .from('chats')
         .insert([{
             name,
-            participants: allParticipants,
             is_group: true,
             admin_id: userId,
         }])
         .select()
         .single();
 
-    if (error) {
-        console.error('Error creating group chat:', error);
+    if (chatError || !chatData) {
+        console.error('Error creating group chat:', chatError);
         throw new Error('Could not create group chat.');
     }
+
+    const participantsToInsert = allParticipantIds.map(pId => ({
+        chat_id: chatData.id,
+        user_id: pId,
+    }));
+
+    const { error: participantsError } = await supabase
+        .from('chat_participants')
+        .insert(participantsToInsert);
     
-    // Re-fetch all chats to ensure the UI updates correctly everywhere
+    if (participantsError) {
+        console.error('Error adding participants to group chat:', participantsError);
+        // Attempt to clean up the created chat row if participants fail to insert
+        await supabase.from('chats').delete().eq('id', chatData.id);
+        throw new Error('Could not add members to the group chat.');
+    }
+    
     revalidatePath('/dashboard');
-    return data;
+    return { ...chatData, participants: allParticipantIds };
 }
 
 // Fetch messages for a specific chat
@@ -247,7 +286,9 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
 
   const { data, error } = await supabase
     .from('messages')
-    .insert([messageData]);
+    .insert([messageData])
+    .select()
+    .single();
 
   if (error) {
     console.error('Error sending message:', error);
