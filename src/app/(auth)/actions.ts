@@ -44,7 +44,6 @@ export async function login(formData: FormData) {
     });
   }
 
-  revalidatePath('/dashboard', 'layout')
   redirect('/dashboard')
 }
 
