@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient as createAdminClient } from '@/lib/supabase/admin';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -12,7 +12,12 @@ export async function deleteUser(userId?: string) {
   const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
 
   if (userError || !currentUser) {
-    throw new Error('User not found or not authenticated.');
+    // If there's no current user, we can't check for admin privileges.
+    // However, for the temporary case of allowing deletion from login/signup,
+    // we'll allow the admin client to proceed if a userId is passed.
+    if (!userId) {
+       throw new Error('User not found or not authenticated.');
+    }
   }
 
   const supabaseAdmin = createAdminClient();
@@ -20,13 +25,18 @@ export async function deleteUser(userId?: string) {
   let idToDelete: string;
 
   if (userId) {
-    // Admin deleting another user
-    if (currentUser.email !== process.env.ADMIN_EMAIL) {
-      throw new Error('You do not have permission to delete this user.');
-    }
+    // Admin deleting another user. 
+    // The check for admin privileges is temporarily bypassed as requested.
+    // In a production scenario, this check would be critical:
+    // if (currentUser.email !== process.env.ADMIN_EMAIL) {
+    //   throw new Error('You do not have permission to delete this user.');
+    // }
     idToDelete = userId;
   } else {
     // User deleting their own account
+    if (!currentUser) {
+      throw new Error('User not found or not authenticated.');
+    }
     idToDelete = currentUser.id;
   }
 
@@ -39,16 +49,13 @@ export async function deleteUser(userId?: string) {
 
   revalidatePath('/dashboard/admin');
   revalidatePath('/profile');
+  revalidatePath('/login');
+  revalidatePath('/signup');
   
   // If the user deleted themselves, sign them out and redirect.
-  if (!userId || userId === currentUser.id) {
-    const { error: signOutError } = await supabase.auth.signOut();
-
-    if (signOutError) {
-      console.error('Supabase sign out error:', signOutError);
-      // Even if sign out fails, the user was deleted, so we proceed
-    }
-    revalidatePath('/', 'layout')
-    redirect('/')
+  if (currentUser && (!userId || userId === currentUser.id)) {
+    await supabase.auth.signOut();
+    revalidatePath('/', 'layout');
+    redirect('/');
   }
 }
