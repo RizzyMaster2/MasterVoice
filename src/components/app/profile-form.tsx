@@ -74,9 +74,6 @@ export function ProfileForm() {
           avatarUrl: metadata?.avatar_url || '',
         });
         setPreviewUrl(metadata?.avatar_url || null);
-        if (!user.email_confirmed_at) {
-          form.disable();
-        }
       }
     };
     fetchUser();
@@ -185,7 +182,7 @@ export function ProfileForm() {
         </Alert>
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start" aria-disabled={!isVerified}>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
           {/* Avatar Section */}
           <div className="col-span-1 flex flex-col items-center text-center gap-4">
              <FormLabel>Avatar</FormLabel>
