@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Poppins, PT_Sans } from 'next/font/google';
+import { Poppins, PT_Sans, Fira_Code } from 'next/font/google';
 import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from "@/components/ui/toaster"
@@ -16,6 +16,13 @@ const fontPTSans = PT_Sans({
   weight: ['400', '700'],
   variable: '--font-body',
 });
+
+const fontFiraCode = Fira_Code({
+  subsets: ['latin'],
+  weight: ['400', '700'],
+  variable: '--font-code',
+});
+
 
 export const metadata: Metadata = {
   title: 'MasterVoice',
@@ -41,7 +48,8 @@ export default function RootLayout({
         className={cn(
           'min-h-screen bg-background font-body antialiased',
           fontPoppins.variable,
-          fontPTSans.variable
+          fontPTSans.variable,
+          fontFiraCode.variable
         )}
       >
         <ThemeProvider

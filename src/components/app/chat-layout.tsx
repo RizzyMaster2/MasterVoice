@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, useRef, useMemo } from 'react';
-import type { FormEvent, ChangeEvent } from 'react';
+import type { FormEvent, ChangeEvent, ReactNode } from 'react';
 import {
   Card,
   CardContent,
@@ -22,11 +22,40 @@ import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { echo } from '@/ai/flows/echo-flow';
+import { CodeBlock } from './code-block';
+
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
 }
+
+const parseMessageContent = (content: string): ReactNode[] => {
+  const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
+  const parts: ReactNode[] = [];
+  let lastIndex = 0;
+  let match;
+
+  while ((match = codeBlockRegex.exec(content)) !== null) {
+    const [fullMatch, language, code] = match;
+    const startIndex = match.index;
+    const endIndex = startIndex + fullMatch.length;
+
+    if (startIndex > lastIndex) {
+      parts.push(<p key={lastIndex}>{content.substring(lastIndex, startIndex)}</p>);
+    }
+
+    parts.push(<CodeBlock key={startIndex} language={language || 'text'} code={code.trim()} />);
+    lastIndex = endIndex;
+  }
+
+  if (lastIndex < content.length) {
+    parts.push(<p key={lastIndex}>{content.substring(lastIndex)}</p>);
+  }
+
+  return parts;
+};
+
 
 export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps) {
   const [chats, setChats] = useState<Chat[]>(initialChats);
@@ -373,7 +402,9 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
                                   {msg.file_url.split('/').pop()}
                                 </a>
                               ) : (
-                                <p>{msg.content}</p>
+                                <div className="prose prose-sm dark:prose-invert max-w-none">
+                                  {parseMessageContent(msg.content)}
+                                </div>
                               )}
                             <p className="text-xs opacity-70 mt-1 text-right">
                                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
