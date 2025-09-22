@@ -29,7 +29,8 @@ export function ChatLayout({
   const [messages, setMessages] =
     useState<Record<string, Message[]>>({});
   const [newMessage, setNewMessage] = useState('');
-  
+  const [searchQuery, setSearchQuery] = useState('');
+
   const getInitials = (name: string | undefined | null) =>
     name
       ?.split(' ')
@@ -57,45 +58,60 @@ export function ChatLayout({
     setNewMessage('');
   };
 
+  const filteredContacts = contacts.filter((contact) =>
+    contact.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
   return (
     <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
         <div className="p-4 border-b">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Search contacts..." className="pl-9" />
+            <Input
+              placeholder="Search contacts..."
+              className="pl-9"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
         </div>
         <ScrollArea className="flex-1">
           {contacts.length > 0 ? (
-            contacts.map((user) => (
-              <div
-                key={user.id}
-                onClick={() => setSelectedUser(user)}
-                className={cn(
-                  'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
-                  selectedUser?.id === user.id && 'bg-accent'
-                )}
-              >
-                <Avatar className="h-10 w-10 relative">
-                  <AvatarImage src={user.avatarUrl} alt={user.name} />
-                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                  {user.isOnline && (
-                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+            filteredContacts.length > 0 ? (
+              filteredContacts.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => setSelectedUser(user)}
+                  className={cn(
+                    'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
+                    selectedUser?.id === user.id && 'bg-accent'
                   )}
-                </Avatar>
-                <div className="flex-1">
-                  <p className="font-semibold">{user.name}</p>
-                  <p className="text-sm text-muted-foreground truncate">
-                    {messages[user.id]?.[messages[user.id].length - 1]?.text || 'No messages yet'}
-                  </p>
+                >
+                  <Avatar className="h-10 w-10 relative">
+                    <AvatarImage src={user.avatarUrl} alt={user.name} />
+                    <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                    {user.isOnline && (
+                      <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                    )}
+                  </Avatar>
+                  <div className="flex-1">
+                    <p className="font-semibold">{user.name}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {messages[user.id]?.[messages[user.id].length - 1]?.text || 'No messages yet'}
+                    </p>
+                  </div>
                 </div>
+              ))
+            ) : (
+              <div className="p-4 text-center text-sm text-muted-foreground">
+                <p>No contacts found.</p>
               </div>
-            ))
+            )
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">
-                <p className="mb-2">No contacts yet.</p>
-                <p>Add friends from the suggestions!</p>
+              <p className="mb-2">No contacts yet.</p>
+              <p>Add friends from the suggestions!</p>
             </div>
           )}
         </ScrollArea>
