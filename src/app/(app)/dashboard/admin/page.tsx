@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessagesSquare, MessageSquare, Shield, Users, LineChart } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { MessagesSquare, MessageSquare, Shield, Users, LineChart, ShieldCheck } from 'lucide-react';
 import { UserManagement } from '@/components/app/user-management';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/actions/admin';
@@ -43,17 +43,34 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle className="font-headline flex items-center gap-2">
-            <Shield className="h-6 w-6" />
-            Admin Console
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p>Welcome, Admin! This is your control panel.</p>
-        </CardContent>
-      </Card>
+      <div className="grid gap-6 md:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+              <Shield className="h-6 w-6" />
+              Admin Console
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Welcome, Admin! This is your control panel.</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-headline flex items-center gap-2">
+              <ShieldCheck className="h-6 w-6" />
+              Current Administrator
+            </CardTitle>
+            <CardDescription>
+                The user with this email has full administrative privileges.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <p className="font-mono text-sm bg-muted p-2 rounded-md inline-block">{process.env.ADMIN_EMAIL}</p>
+          </CardContent>
+        </Card>
+      </div>
+
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card>
@@ -134,6 +151,9 @@ export default async function AdminPage() {
                 <Users className='h-6 w-6'/>
                 User Management
             </CardTitle>
+            <CardDescription>
+                View and manage all registered users in the system.
+            </CardDescription>
         </CardHeader>
         <CardContent>
             <UserManagement users={users || []}/>
