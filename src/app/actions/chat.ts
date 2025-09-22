@@ -1,4 +1,3 @@
-
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
@@ -43,30 +42,17 @@ export async function getChats(): Promise<Chat[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
   
-  // 1. Get all chat_ids the user is a part of, with a retry mechanism.
-  let chatParticipants;
-  let attempts = 0;
-  const maxAttempts = 50;
+  // 1. Get all chat_ids the user is a part of.
+  const { data: chatParticipants, error: participantsError } = await supabase
+    .from('chat_participants')
+    .select('chat_id')
+    .eq('user_id', userId);
 
-  while (attempts < maxAttempts) {
-    const { data, error } = await supabase
-      .from('chat_participants')
-      .select('chat_id')
-      .eq('user_id', userId);
-
-    if (!error) {
-      chatParticipants = data;
-      break; // Success, exit loop
-    }
-    
-    attempts++;
-    console.error(`Attempt ${attempts} failed to fetch user chat memberships:`, error);
-    if (attempts >= maxAttempts) {
-       throw new Error('Failed to fetch chat memberships after multiple attempts.');
-    }
-    
-    // Wait for 1 second before retrying
-    await new Promise(res => setTimeout(res, 1000));
+  if (participantsError) {
+    console.error('Error fetching user chat memberships:', participantsError);
+    // Instead of retrying, which hides the real issue, we now return an empty array.
+    // The real fix is in the RLS policies.
+    return [];
   }
 
 
@@ -107,7 +93,7 @@ export async function getChats(): Promise<Chat[]> {
         const otherParticipantProfile = chat.chat_participants.find(p => p.user_id !== userId)?.profiles;
         if (otherParticipantProfile) {
             fullChat.otherParticipant = otherParticipantProfile as UserProfile;
-        } else if (participantIds.find(p => p === 'ai-bot-voicebot')) {
+        } else if (participantIds.includes('ai-bot-voicebot')) { // check if bot is a participant
             fullChat.otherParticipant = {
                 id: 'ai-bot-voicebot',
                 display_name: 'VoiceBot',
@@ -162,7 +148,21 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
   if (existingChats && existingChats.length > 0) {
       console.log('Chat already exists.');
-      return null;
+      // Find and return the existing chat details
+      const { data: existingChatDetails, error: detailsError } = await supabase
+        .from('chats')
+        .select('*, chat_participants(user_id, profiles(*))')
+        .in('id', existingChats)
+        .single();
+      if (detailsError) {
+          console.error('Could not fetch details for existing chat', detailsError);
+          return null;
+      }
+      revalidatePath('/dashboard');
+      return {
+          ...existingChatDetails,
+          participants: existingChatDetails.chat_participants.map(p => p.user_id)
+      };
   }
 
   // If no chat exists, create a new one
