@@ -17,7 +17,6 @@ import { useToast } from '@/hooks/use-toast';
 import { LogIn } from 'lucide-react';
 import { useState } from 'react';
 import { login } from '@/app/(auth)/actions';
-import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -27,7 +26,6 @@ const formSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -48,19 +46,18 @@ export function LoginForm() {
 
     setIsLoading(false);
 
-    if (result.success) {
-      toast({
-        title: 'Login Successful',
-        description: 'Redirecting you to the dashboard...',
-      });
-      router.push('/dashboard');
-      router.refresh(); 
-    } else {
+    if (result?.success === false) {
       toast({
         title: 'Login Failed',
         description: result.message,
         variant: 'destructive',
       });
+    } else {
+       toast({
+        title: 'Login Successful',
+        description: 'Redirecting you to the dashboard...',
+      });
+      // The redirect is now handled by the server action.
     }
   }
 
