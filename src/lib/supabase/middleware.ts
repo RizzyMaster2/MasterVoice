@@ -54,7 +54,6 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
-  await supabase.auth.getUser()
-
-  return response
+  // Also return the supabase client
+  return { response, supabase }
 }
