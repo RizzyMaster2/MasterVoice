@@ -15,6 +15,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { createClient } from '@/lib/supabase/server';
 import { HeaderButtons } from '@/components/app/header-buttons';
 import { CurrentYear } from '@/components/app/current-year';
+import { ThemeToggle } from '@/components/app/theme-toggle';
 
 const features = [
   {
@@ -60,7 +61,10 @@ export default async function Home() {
               MasterVoice
             </span>
           </Link>
-          <HeaderButtons user={user} />
+          <div className="flex items-center gap-2">
+            <HeaderButtons user={user} />
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
