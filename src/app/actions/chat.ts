@@ -46,7 +46,7 @@ export async function getChats(): Promise<Chat[]> {
   // 1. Get all chat_ids the user is a part of, with a retry mechanism.
   let chatParticipants;
   let attempts = 0;
-  const maxAttempts = 3;
+  const maxAttempts = 50;
 
   while (attempts < maxAttempts) {
     const { data, error } = await supabase

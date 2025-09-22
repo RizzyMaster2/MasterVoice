@@ -18,8 +18,8 @@ const VoiceBotInputSchema = z.object({
 });
 
 export async function voiceBot(input: z.infer<typeof VoiceBotInputSchema>): Promise<string> {
-  const {output} = await voiceBotFlow(input);
-  return output!;
+  const response = await voiceBotFlow(input);
+  return response;
 }
 
 const voiceBotFlow = ai.defineFlow(
@@ -36,11 +36,11 @@ ${history.map(h => `${h.role}: ${h.content[0].text}`).join('\n')}
 user: ${message}
 model: `;
 
-    const {output} = await ai.generate({
+    const response = await ai.generate({
       prompt: prompt,
       history,
     });
 
-    return output!;
+    return response.text;
   }
 );
