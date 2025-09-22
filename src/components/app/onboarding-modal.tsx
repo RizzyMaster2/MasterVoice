@@ -10,7 +10,6 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogFooter,
 } from '@/components/ui/dialog';
 import {
   Carousel,
@@ -86,7 +85,7 @@ export function OnboardingModal() {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="sm:max-w-[425px]">
         <Carousel className="w-full">
           <CarouselContent>
@@ -119,9 +118,6 @@ export function OnboardingModal() {
           <CarouselPrevious />
           <CarouselNext />
         </Carousel>
-        <DialogFooter>
-          <Button onClick={handleClose} className="w-full">Get Started</Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

@@ -12,12 +12,42 @@ import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { users as allUsers } from '@/lib/data';
 
+const CONTACTS_STORAGE_KEY = 'mastervoice-contacts';
+
 export default function DashboardPage() {
   const { user: authUser, isLoading: isUserLoading } = useUser();
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [contacts, setContacts] = useState<AppUser[]>([]);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (isMounted) {
+      try {
+        const storedContacts = localStorage.getItem(CONTACTS_STORAGE_KEY);
+        if (storedContacts) {
+          setContacts(JSON.parse(storedContacts));
+        }
+      } catch (error) {
+        console.error('Failed to load contacts from localStorage', error);
+      }
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      try {
+        localStorage.setItem(CONTACTS_STORAGE_KEY, JSON.stringify(contacts));
+      } catch (error) {
+        console.error('Failed to save contacts to localStorage', error);
+      }
+    }
+  }, [contacts, isMounted]);
 
   useEffect(() => {
     const setupUser = async () => {

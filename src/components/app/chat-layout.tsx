@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { FormEvent } from 'react';
 import {
   Card,
@@ -21,15 +22,45 @@ interface ChatLayoutProps {
   contacts: User[];
 }
 
+const MESSAGES_STORAGE_KEY = 'mastervoice-messages';
+
 export function ChatLayout({
   currentUser,
   contacts,
 }: ChatLayoutProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
-  const [messages, setMessages] =
-    useState<Record<string, Message[]>>({});
+  const [messages, setMessages]
+    = useState<Record<string, Message[]>>({});
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+  
+  useEffect(() => {
+    if (isMounted) {
+      try {
+        const storedMessages = localStorage.getItem(MESSAGES_STORAGE_KEY);
+        if (storedMessages) {
+          setMessages(JSON.parse(storedMessages));
+        }
+      } catch (error) {
+        console.error('Failed to load messages from localStorage', error);
+      }
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    if (isMounted) {
+      try {
+        localStorage.setItem(MESSAGES_STORAGE_KEY, JSON.stringify(messages));
+      } catch (error) {
+        console.error('Failed to save messages to localStorage', error);
+      }
+    }
+  }, [messages, isMounted]);
 
   const getInitials = (name: string | undefined | null) =>
     name
