@@ -19,6 +19,7 @@ import {
 import { Logo } from '@/components/logo';
 import { UserNav } from './user-nav';
 import { useUser } from '@/hooks/use-user';
+import { Skeleton } from '../ui/skeleton';
 
 const menuItems = [
   {
@@ -41,7 +42,7 @@ const adminMenuItem = {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isAdmin } = useUser();
+  const { isAdmin, isLoading } = useUser();
 
   return (
     <>
@@ -55,33 +56,42 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {menuItems.map((item) => (
-            <SidebarMenuItem key={item.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === item.href}
-                tooltip={{ children: item.label }}
-              >
-                <Link href={item.href}>
-                  <item.icon />
-                  <span>{item.label}</span>
-                </Link>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          ))}
-          {isAdmin && (
-             <SidebarMenuItem key={adminMenuItem.href}>
-              <SidebarMenuButton
-                asChild
-                isActive={pathname === adminMenuItem.href}
-                tooltip={{ children: adminMenuItem.label }}
-              >
-               <Link href={adminMenuItem.href}>
-                 <adminMenuItem.icon />
-                 <span>{adminMenuItem.label}</span>
-                </Link>
-              </SidebarMenuButton>
-           </SidebarMenuItem>
+          {isLoading ? (
+            <div className="space-y-2 px-2">
+              <Skeleton className="h-8 w-full" />
+              <Skeleton className="h-8 w-full" />
+            </div>
+          ) : (
+            <>
+              {menuItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === item.href}
+                    tooltip={{ children: item.label }}
+                  >
+                    <Link href={item.href}>
+                      <item.icon />
+                      <span>{item.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+              {isAdmin && (
+                <SidebarMenuItem key={adminMenuItem.href}>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname === adminMenuItem.href}
+                    tooltip={{ children: adminMenuItem.label }}
+                  >
+                  <Link href={adminMenuItem.href}>
+                    <adminMenuItem.icon />
+                    <span>{adminMenuItem.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+              </SidebarMenuItem>
+              )}
+            </>
           )}
         </SidebarMenu>
       </SidebarContent>

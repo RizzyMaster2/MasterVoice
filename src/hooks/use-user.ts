@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 export function useUser() {
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
+    const [isLoading, setIsLoading] = useState(true); // Add loading state
     const supabase = createClient();
 
     useEffect(() => {
@@ -22,6 +23,7 @@ export function useUser() {
         };
 
         const fetchUser = async () => {
+            setIsLoading(true);
             const { data, error } = await supabase.auth.getUser();
             if (!error && data.user) {
                 setUser(data.user);
@@ -30,6 +32,7 @@ export function useUser() {
                 setUser(null);
                 checkAdmin(null);
             }
+            setIsLoading(false);
         };
         fetchUser();
 
@@ -37,6 +40,7 @@ export function useUser() {
             const currentUser = session?.user ?? null;
             setUser(currentUser);
             checkAdmin(currentUser);
+            setIsLoading(false);
         });
 
         return () => {
@@ -45,5 +49,5 @@ export function useUser() {
 
     }, [supabase]);
 
-    return { user, isAdmin };
+    return { user, isAdmin, isLoading };
 }

@@ -15,37 +15,19 @@ import { CreditCard, LogOut, Settings, User } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
-import { useEffect, useState } from 'react';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { logout } from '@/app/(auth)/actions';
-import { createClient } from '@/lib/supabase/client';
+import { useUser } from '@/hooks/use-user';
+import { Skeleton } from '../ui/skeleton';
 
 export function UserNav() {
   const router = useRouter();
   const { toast } = useToast();
-  const [user, setUser] = useState<SupabaseUser | null>(null);
-  const supabase = createClient();
+  const { user, isLoading } = useUser();
 
-  useEffect(() => {
-    const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error) {
-        setUser(data.user);
-      }
-    };
-    fetchUser();
-
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setUser(session?.user ?? null);
-      }
-    );
-
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, [supabase]);
-
+  if (isLoading) {
+    return <Skeleton className="h-10 w-10 rounded-full" />;
+  }
+  
   if (!user) return null;
   
   const userName = user.user_metadata?.full_name || user.email || 'User';
@@ -59,16 +41,9 @@ export function UserNav() {
   };
 
   const handleLogout = async () => {
-    const error = await logout();
-    if (error) {
-      toast({
-        title: 'Logout Failed',
-        description: error,
-        variant: 'destructive',
-      });
-    } else {
-      router.push('/');
-    }
+    await logout();
+    // Server action handles redirect. We can refresh to be safe.
+    router.refresh();
   };
 
   return (
