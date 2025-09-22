@@ -295,3 +295,5 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   // The client will get the new message via real-time subscription.
   return data;
 }
+
+    
