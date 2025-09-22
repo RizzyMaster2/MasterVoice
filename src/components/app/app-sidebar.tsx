@@ -25,11 +25,11 @@ const menuItems = [
     label: 'Dashboard',
     icon: LayoutDashboard,
   },
-  {
-    href: '/profile',
-    label: 'Profile',
-    icon: User,
-  },
+  // {
+  //   href: '/profile',
+  //   label: 'Profile',
+  //   icon: User,
+  // },
 ];
 
 const adminMenuItem = {
