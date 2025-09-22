@@ -51,6 +51,7 @@ export default async function Home() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  const currentYear = new Date().getFullYear();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -201,7 +202,7 @@ export default async function Home() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © <CurrentYear /> MasterVoice. All rights reserved.
+            © <CurrentYear year={currentYear} /> MasterVoice. All rights reserved.
           </p>
         </div>
       </footer>
