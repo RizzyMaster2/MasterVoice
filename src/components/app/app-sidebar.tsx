@@ -15,12 +15,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarFooter,
 } from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
-import { UserNav } from './user-nav';
 import { useUser } from '@/hooks/use-user';
-import { Skeleton } from '../ui/skeleton';
 
 const menuItems = [
   {
@@ -89,9 +86,6 @@ export function AppSidebar() {
           </>
         </SidebarMenu>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:hidden">
-        <UserNav />
-      </SidebarFooter>
     </>
   );
 }
