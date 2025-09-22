@@ -56,7 +56,6 @@ export async function signup(formData: FormData) {
     options: {
         data: {
             full_name: formData.get('name') as string,
-            logged_in: false // Initialize the flag on signup
         }
     }
   }
