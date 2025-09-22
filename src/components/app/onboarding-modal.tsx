@@ -57,15 +57,23 @@ export function OnboardingModal() {
 
   useEffect(() => {
     if (isMounted) {
-      const onboardingComplete = localStorage.getItem('onboardingComplete');
-      if (!onboardingComplete) {
-        setIsOpen(true);
+      try {
+        const onboardingComplete = localStorage.getItem('onboardingComplete');
+        if (!onboardingComplete) {
+          setIsOpen(true);
+        }
+      } catch (error) {
+        console.error('Could not access localStorage:', error);
       }
     }
   }, [isMounted]);
 
   const handleClose = () => {
-    localStorage.setItem('onboardingComplete', 'true');
+    try {
+      localStorage.setItem('onboardingComplete', 'true');
+    } catch (error) {
+       console.error('Could not access localStorage:', error);
+    }
     setIsOpen(false);
   };
 

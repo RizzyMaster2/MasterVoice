@@ -22,9 +22,9 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 
 type AdminUserActionsProps = {
   users: User[];
@@ -33,14 +33,20 @@ type AdminUserActionsProps = {
 export function AdminUserActions({ users }: AdminUserActionsProps) {
   const { toast } = useToast();
   const router = useRouter();
+  const [isAlertOpen, setIsAlertOpen] = useState(false);
+  const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
-  async function handleDeleteUser(userId: string) {
+  async function handleDeleteUser() {
+    if (!userToDelete) return;
+    
     try {
-      await deleteUser(userId);
+      await deleteUser(userToDelete.id);
       toast({
         title: 'User Deleted',
         description: 'The user account has been permanently deleted.',
       });
+      setUserToDelete(null);
+      setIsAlertOpen(false);
       // Refresh the page to update the user list
       router.refresh();
     } catch (error) {
@@ -49,12 +55,18 @@ export function AdminUserActions({ users }: AdminUserActionsProps) {
         description: (error as Error).message,
         variant: 'destructive',
       });
+      setIsAlertOpen(false);
     }
+  }
+
+  const openAlertDialog = (user: User) => {
+    setUserToDelete(user);
+    setIsAlertOpen(true);
   }
 
   return (
     <div className="absolute top-4 right-4">
-      <AlertDialog>
+      <AlertDialog open={isAlertOpen} onOpenChange={setIsAlertOpen}>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon">
@@ -75,38 +87,38 @@ export function AdminUserActions({ users }: AdminUserActionsProps) {
                     <UserIcon className="h-4 w-4" />
                     <span>{user.email}</span>
                 </div>
-                <AlertDialogTrigger asChild>
                   <Button
                     variant="ghost"
                     size="icon"
                     className="h-7 w-7"
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={() => openAlertDialog(user)}
                   >
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      This will permanently delete the user: {user.email}. This
-                      action cannot be undone.
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction
-                      onClick={() => handleDeleteUser(user.id)}
-                      className="bg-destructive hover:bg-destructive/90"
-                    >
-                      Delete
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
               </DropdownMenuItem>
             ))}
           </DropdownMenuContent>
         </DropdownMenu>
+         {userToDelete && (
+            <AlertDialogContent>
+                <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will permanently delete the user: {userToDelete.email}. This
+                    action cannot be undone.
+                </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setUserToDelete(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                    onClick={handleDeleteUser}
+                    className="bg-destructive hover:bg-destructive/90"
+                >
+                    Delete
+                </AlertDialogAction>
+                </AlertDialogFooter>
+            </AlertDialogContent>
+         )}
       </AlertDialog>
     </div>
   );

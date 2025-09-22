@@ -18,7 +18,7 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  revalidatePath('/dashboard', 'layout')
+  revalidatePath('/dashboard')
   redirect('/dashboard')
 }
 
@@ -53,6 +53,5 @@ export async function logout() {
         return { success: false, message: error.message }
     }
     
-    revalidatePath('/', 'layout')
     redirect('/')
 }

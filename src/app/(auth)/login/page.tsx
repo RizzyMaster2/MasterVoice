@@ -7,21 +7,10 @@ import {
 } from '@/components/ui/card';
 import { LoginForm } from '@/components/auth/login-form';
 import Link from 'next/link';
-import { createAdminClient } from '@/lib/supabase/admin';
-import { AdminUserActions } from '@/components/auth/admin-user-actions';
-
 
 export default async function LoginPage() {
-  const supabaseAdmin = createAdminClient();
-  const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
-
-  if (error) {
-    console.error("Failed to fetch users for admin actions:", error);
-  }
-
   return (
     <Card className="w-full max-w-sm shadow-xl relative">
-       {users && <AdminUserActions users={users} />}
       <CardHeader>
         <CardTitle className="font-headline text-2xl">Welcome Back</CardTitle>
         <CardDescription>
