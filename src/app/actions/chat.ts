@@ -50,7 +50,7 @@ export async function getChats(): Promise<Chat[]> {
     .eq('user_id', userId);
 
   if (participantsError) {
-    console.error('Error fetching user chats:', participantsError);
+    console.error('Error fetching user chat memberships:', participantsError);
     return [];
   }
   
@@ -320,3 +320,6 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   return data;
 }
 
+
+
+  
