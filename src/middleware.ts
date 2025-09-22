@@ -1,13 +1,37 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
-  const { response } = await updateSession(request)
+  const { response, supabase } = await updateSession(request);
 
-  // The rest of the authentication logic is now handled on the respective pages
-  // to accommodate the custom `logged_in` flag check.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
-  return response
+  const url = request.nextUrl.clone();
+
+  // Define paths that are part of the authentication flow or are public.
+  const isAuthPath = ['/login', '/signup', '/confirm'].includes(
+    url.pathname
+  );
+  const isPublicPath = url.pathname === '/';
+
+  // If user is logged in...
+  if (user) {
+    // and tries to access an auth page (like login), redirect to dashboard.
+    if (isAuthPath) {
+      url.pathname = '/dashboard';
+      return NextResponse.redirect(url);
+    }
+  } else {
+    // If user is not logged in and not on a public/auth path, redirect to login.
+    if (!isPublicPath && !isAuthPath) {
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
+    }
+  }
+
+  return response;
 }
 
 export const config = {
@@ -21,4 +45,4 @@ export const config = {
      */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
-}
+};

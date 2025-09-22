@@ -12,8 +12,10 @@ export default async function DashboardPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect to login if there's no user or if the custom logged_in flag is not true
-  if (!user || user.user_metadata?.logged_in !== true) {
+  // The middleware now handles redirecting unauthenticated users.
+  // If we reach this page, we can be sure a user is logged in.
+  if (!user) {
+    // This is a fallback, but should not be reached in normal flow.
     redirect('/login');
   }
 
