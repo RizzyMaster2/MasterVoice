@@ -1,8 +1,19 @@
 'use server'
 
+import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+
+async function userExists(email: string): Promise<boolean> {
+    const supabaseAdmin = createAdminClient()
+    const { data, error } = await supabaseAdmin.from('users').select('id').eq('email', email).single()
+    
+    // If we get data and no error, the user exists.
+    // In all other cases (no data, or an error), we can assume the user doesn't exist or is not findable.
+    return !!data && !error;
+}
+
 
 export async function login(formData: FormData) {
   const supabase = createClient()
@@ -15,6 +26,12 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
+    if (error.message === 'Invalid login credentials') {
+        const emailExists = await userExists(data.email);
+        if (!emailExists) {
+            return { success: false, message: "This account is NOT registered. Try a different one or create an account today." }
+        }
+    }
     return { success: false, message: error.message }
   }
 
