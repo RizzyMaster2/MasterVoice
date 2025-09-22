@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useRef } from 'react';
 import { ProfileForm } from '@/components/app/profile-form';
 import {
   Card,
@@ -34,10 +35,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
 
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user } = useUser();
+  const [micLevel, setMicLevel] = useState(0);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+
+  useEffect(() => {
+    return () => {
+      // Cleanup on unmount
+      if (animationFrameRef.current) {
+        cancelAnimationFrame(animationFrameRef.current);
+      }
+      if (mediaStreamRef.current) {
+        mediaStreamRef.current.getTracks().forEach(track => track.stop());
+      }
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+      }
+    };
+  }, []);
+
+  const startMicTest = async () => {
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaStreamRef.current = stream;
+        audioContextRef.current = new AudioContext();
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+        
+        analyserRef.current.fftSize = 256;
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const updateMicLevel = () => {
+          if (analyserRef.current) {
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
+            setMicLevel(Math.min(average, 100)); // Cap at 100
+            animationFrameRef.current = requestAnimationFrame(updateMicLevel);
+          }
+        };
+
+        animationFrameRef.current = requestAnimationFrame(updateMicLevel);
+
+      } catch (err) {
+        console.error('Error accessing microphone:', err);
+        toast({
+          title: 'Microphone Access Denied',
+          description: 'Please enable microphone permissions in your browser settings.',
+          variant: 'destructive',
+        });
+      }
+    }
+  };
+
 
   async function handleDeleteAccount() {
     if (!user) return;
@@ -87,6 +146,17 @@ export default function ProfilePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-8">
+              <div className="space-y-4">
+                <Label>Microphone Test</Label>
+                <div className="flex items-center gap-4 p-4 border rounded-lg">
+                  <Mic className="h-5 w-5 text-muted-foreground" />
+                  <Progress value={micLevel} className="w-full" />
+                </div>
+                 <Button variant="outline" onClick={startMicTest} disabled={!!audioContextRef.current}>
+                  Test Microphone
+                </Button>
+              </div>
+
               <div className="flex items-center gap-4">
                 <Mic className="h-5 w-5 text-muted-foreground" />
                 <div className="flex-1">
@@ -123,15 +193,17 @@ export default function ProfilePage() {
         <TabsContent value="account" className="mt-6">
           <Card className="border-destructive">
             <CardHeader>
-              <CardTitle className="text-destructive">Danger Zone</CardTitle>
+              <CardTitle className="text-destructive font-headline">Danger Zone</CardTitle>
               <CardDescription>
                 These actions are permanent and cannot be undone.
               </CardDescription>
             </CardHeader>
-            <CardFooter className="flex justify-between items-center">
-              <p className="text-sm">
+            <CardContent className="pt-6">
+               <p className="text-sm mb-4">
                 Delete your account and all associated data.
               </p>
+            </CardContent>
+            <CardFooter className="flex justify-end items-center bg-destructive/10 py-3 px-6 rounded-b-lg">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive">

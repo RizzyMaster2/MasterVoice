@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useTransition, useRef } from 'react';
+import { useState, useEffect, useTransition, useRef, useMemo } from 'react';
 import type { FormEvent, ChangeEvent } from 'react';
 import {
   Card,
@@ -16,18 +16,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Bot } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { echo } from '@/ai/flows/echo-flow';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
 }
 
-export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps) {
+  const [chats, setChats] = useState<Chat[]>(initialChats);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -39,6 +41,8 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
+
+  const isBotChat = useMemo(() => selectedChat?.id === 'chat-ai-bot-echo', [selectedChat]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -65,7 +69,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
 
   // Listen for new messages in real-time
   useEffect(() => {
-    if (!selectedChat || !authUser) return;
+    if (!selectedChat || !authUser || isBotChat) return;
 
     const channel = supabase
       .channel(`chat_${selectedChat.id}`)
@@ -101,15 +105,32 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, authUser]);
+  }, [selectedChat, supabase, authUser, isBotChat]);
   
   useEffect(() => {
-    // If there's only one chat, select it by default.
-    if (chats.length === 1 && !selectedChat) {
-      setSelectedChat(chats[0]);
+    setChats(initialChats);
+    const hasBotChat = initialChats.some(chat => chat.id === 'chat-ai-bot-echo');
+    if (!hasBotChat) {
+        const botChat: Chat = {
+            id: 'chat-ai-bot-echo',
+            created_at: new Date().toISOString(),
+            name: 'Echo',
+            is_group: false,
+            participants: [currentUser.id, 'ai-bot-echo'],
+            admin_id: null,
+            otherParticipant: {
+                id: 'ai-bot-echo',
+                display_name: 'Echo',
+                photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
+                created_at: new Date().toISOString(),
+                email: 'bot@mastervoice.ai',
+                status: 'online',
+            }
+        };
+        setChats(prev => [botChat, ...prev]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chats]);
+  }, [initialChats]);
 
   const getInitials = (name: string | undefined | null) =>
     name
@@ -142,9 +163,38 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
 
     startSendingTransition(async () => {
       try {
-        await sendMessage(selectedChat.id, messageContent);
+        if (isBotChat) {
+            // Handle bot chat
+            const history = messages.map(m => ({
+                role: m.sender_id === currentUser.id ? 'user' as const : 'model' as const,
+                content: [{ text: m.content }]
+            }));
+
+            const response = await echo({ history, message: messageContent });
+
+            const botMessage: Message = {
+                id: `bot-${Date.now()}`,
+                content: response,
+                created_at: new Date().toISOString(),
+                sender_id: 'ai-bot-echo',
+                chat_id: selectedChat.id,
+                type: 'text',
+                file_url: null,
+                profiles: selectedChat.otherParticipant,
+            };
+             setMessages(prev => [...prev.filter(m => m.id !== tempMessageId), optimisticMessage, botMessage]);
+
+        } else {
+            await sendMessage(selectedChat.id, messageContent);
+        }
+
       } catch (error) {
         console.error("Failed to send message", error);
+        toast({
+          title: "Error",
+          description: "Failed to send message.",
+          variant: "destructive"
+        });
         // Revert optimistic update on failure
         setMessages(prev => prev.filter(m => m.id !== tempMessageId));
       }
@@ -153,6 +203,13 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
+      return;
+    }
+     if (isBotChat) {
+      toast({
+        title: "Not supported",
+        description: "File uploads are not supported in chats with the bot.",
+      });
       return;
     }
     const file = event.target.files[0];
@@ -213,38 +270,37 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {chats.length > 0 ? (
-            filteredChats.length > 0 ? (
-              filteredChats.map((chat) => (
-                <div
-                  key={chat.id}
-                  onClick={() => setSelectedChat(chat)}
-                  className={cn(
-                    'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
-                    selectedChat?.id === chat.id && 'bg-accent'
+          {filteredChats.length > 0 ? (
+            filteredChats.map((chat) => (
+              <div
+                key={chat.id}
+                onClick={() => setSelectedChat(chat)}
+                className={cn(
+                  'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
+                  selectedChat?.id === chat.id && 'bg-accent'
+                )}
+              >
+                <Avatar className="h-10 w-10 relative">
+                  <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.otherParticipant?.display_name || ''} />
+                  <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
+                  {chat.id === 'chat-ai-bot-echo' && (
+                    <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
                   )}
-                >
-                  <Avatar className="h-10 w-10 relative">
-                    <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.otherParticipant?.display_name || ''} />
-                    <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
-                  </Avatar>
-                  <div className="flex-1">
-                    <p className="font-semibold">{chat.otherParticipant?.display_name}</p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {/* Placeholder for last message */}
-                    </p>
-                  </div>
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-semibold flex items-center gap-2">
+                    {chat.otherParticipant?.display_name}
+                    {chat.id === 'chat-ai-bot-echo' && <Bot className="h-4 w-4 text-primary" />}
+                  </p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {chat.id === 'chat-ai-bot-echo' ? 'AI Assistant' : '...'}
+                  </p>
                 </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-sm text-muted-foreground">
-                <p>No contacts found.</p>
               </div>
-            )
+            ))
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              <p className="mb-2">No contacts yet.</p>
-              <p>Add friends from the suggestions!</p>
+              <p>No contacts found.</p>
             </div>
           )}
         </ScrollArea>
@@ -263,8 +319,9 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                 </AvatarFallback>
               </Avatar>
               <div>
-                <h2 className="font-headline text-lg font-semibold">
+                <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
                   {selectedChat.otherParticipant?.display_name}
+                  {isBotChat && <Bot className="h-5 w-5 text-primary" />}
                 </h2>
               </div>
             </CardHeader>
@@ -345,7 +402,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                     size="icon"
                     variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending}
+                    disabled={isSending || isBotChat}
                   >
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>

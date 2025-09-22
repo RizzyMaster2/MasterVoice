@@ -32,6 +32,21 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
           return;
       }
 
+      // If the chat is with the AI bot, it won't be in the main chat list from getChats()
+      // So we handle it client-side.
+      if (result.id === 'chat-ai-bot-echo') {
+         setChats(prev => {
+           if (prev.find(c => c.id === result.id)) return prev;
+           return [result, ...prev];
+         });
+         toast({
+            title: "Chat with Echo started",
+            description: "You can now chat with the AI assistant.",
+        });
+        return;
+      }
+
+
       // Re-fetch chats to update the list, which is much faster
       // than revalidating the entire page.
       const updatedChats = await getChats();
