@@ -1,54 +1,56 @@
-
--- Create profiles table
-create table if not exists public.profiles (
-  id uuid not null primary key,
+-- 1. Create Profiles Table
+-- This table stores public user data.
+create table public.profiles (
+  id uuid not null primary key references auth.users on delete cascade,
   created_at timestamptz not null default now(),
   display_name text,
   email text,
   photo_url text,
   status text
 );
--- Set up constraint to link to auth.users table
-alter table public.profiles
-  add constraint fk_profiles_on_users
-  foreign key (id) references auth.users(id) on delete cascade;
+-- Add a comment to the table.
+comment on table public.profiles is 'Public user profiles.';
 
--- Create chats table
-create table if not exists public.chats (
+-- 2. Create Chats Table
+-- This table stores information about chat rooms.
+create table public.chats (
   id uuid not null default gen_random_uuid() primary key,
   created_at timestamptz not null default now(),
   name text,
   is_group boolean not null default false,
-  admin_id uuid references public.profiles(id) on delete set null
+  admin_id uuid references public.profiles
 );
+-- Add a comment to the table.
+comment on table public.chats is 'Chat rooms.';
 
--- Create chat_participants table
-create table if not exists public.chat_participants (
-  chat_id uuid not null references public.chats(id) on delete cascade,
-  user_id uuid not null references public.profiles(id) on delete cascade,
+-- 3. Create Chat Participants Table
+-- This is a junction table between users and chats.
+create table public.chat_participants (
+  chat_id uuid not null references public.chats on delete cascade,
+  user_id uuid not null references public.profiles on delete cascade,
+  created_at timestamptz not null default now(),
   primary key (chat_id, user_id)
 );
+-- Add a comment to the table.
+comment on table public.chat_participants is 'Users who are members of a chat.';
 
--- Create messages table
-create table if not exists public.messages (
+-- 4. Create Messages Table
+-- This table stores all chat messages.
+create table public.messages (
   id uuid not null default gen_random_uuid() primary key,
   created_at timestamptz not null default now(),
   content text not null,
-  sender_id uuid not null references public.profiles(id) on delete cascade,
-  chat_id uuid not null references public.chats(id) on delete cascade,
+  sender_id uuid not null references public.profiles,
+  chat_id uuid not null references public.chats on delete cascade,
   type text not null default 'text',
   file_url text
 );
+-- Add a comment to the table.
+comment on table public.messages is 'Individual chat messages.';
 
--- Set up Realtime publications
-begin;
-  drop publication if exists supabase_realtime;
-  create publication supabase_realtime;
-commit;
-alter publication supabase_realtime add table public.messages;
-alter publication supabase_realtime add table public.profiles;
 
--- Function to handle new user profile creation
+-- 5. Set up Trigger to Create Profile on New User Signup
+-- This function is called when a new user signs up.
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -58,8 +60,7 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Trigger to call the function when a new user signs up
-create or replace trigger on_auth_user_created
+-- This trigger calls the function when a new user is created.
+create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
-
