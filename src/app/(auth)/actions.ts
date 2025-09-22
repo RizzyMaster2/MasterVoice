@@ -23,7 +23,7 @@ export async function login(formData: FormData) {
     password: formData.get('password') as string,
   }
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { data: { user }, error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
     if (error.message === 'Invalid login credentials') {
@@ -33,6 +33,15 @@ export async function login(formData: FormData) {
         }
     }
     return { success: false, message: error.message }
+  }
+
+  if (user) {
+    // Set the custom logged_in flag in user_metadata
+    await supabase.auth.updateUser({
+        data: {
+            logged_in: true
+        }
+    });
   }
 
   revalidatePath('/dashboard', 'layout')
@@ -48,6 +57,7 @@ export async function signup(formData: FormData) {
     options: {
         data: {
             full_name: formData.get('name') as string,
+            logged_in: false // Initialize the flag on signup
         }
     }
   }
@@ -64,6 +74,14 @@ export async function signup(formData: FormData) {
 
 export async function logout() {
     const supabase = createClient()
+    
+    // Set the custom logged_in flag to false before signing out
+    await supabase.auth.updateUser({
+        data: {
+            logged_in: false
+        }
+    });
+
     await supabase.auth.signOut()
     redirect('/')
 }
