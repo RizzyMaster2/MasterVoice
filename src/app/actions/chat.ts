@@ -5,10 +5,10 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { Chat, Message, UserProfile } from '@/lib/data';
 
-const supabase = createClient();
 
 // Get the current logged-in user's ID
 async function getCurrentUserId() {
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
@@ -18,6 +18,7 @@ async function getCurrentUserId() {
 
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
+  const supabase = createClient();
   const { data, error } = await supabase.from('profiles').select('*');
   if (error) {
     console.error('Error fetching users:', error);
@@ -28,11 +29,12 @@ export async function getUsers(): Promise<UserProfile[]> {
 
 // Fetch all chats for the current user
 export async function getChats(): Promise<Chat[]> {
+  const supabase = createClient();
   const userId = await getCurrentUserId();
   const { data: chats, error } = await supabase
     .from('chats')
     .select('*')
-    .in('participants', [userId]);
+    .or(`participants.cs.{${userId}}`); // Correctly query if userId is in participants array
 
   if (error) {
     console.error('Error fetching chats:', error);
@@ -64,24 +66,27 @@ export async function getChats(): Promise<Chat[]> {
 
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
+  const supabase = createClient();
   const userId = await getCurrentUserId();
 
   // Check if a chat already exists between the two users
   const { data: existingChats, error: existingError } = await supabase
     .from('chats')
     .select('id, participants')
-    .filter('is_group', 'eq', false);
+    .filter('is_group', 'eq', false)
+    .or(`participants.cs.{${userId}}`) // Check chats where current user is a participant
     
   if (existingError) {
     console.error('Error checking for existing chats:', existingError);
     throw new Error('Could not check for existing chats.');
   }
 
-  const existingChat = existingChats.find(c => c.participants.includes(userId) && c.participants.includes(otherUserId));
+  const existingChat = existingChats.find(c => c.participants.includes(otherUserId));
 
   if (existingChat) {
     console.log('Chat already exists.');
     // In a real app, you might want to return the existing chat or handle this case differently
+    revalidatePath('/dashboard');
     return null;
   }
 
@@ -103,6 +108,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
+  const supabase = createClient();
   const { data, error } = await supabase
     .from('messages')
     .select('*, profiles(*)')
@@ -113,11 +119,12 @@ export async function getMessages(chatId: string): Promise<Message[]> {
     console.error('Error fetching messages:', error);
     return [];
   }
-  return data;
+  return data as Message[];
 }
 
 // Send a new message
 export async function sendMessage(chatId: string, content: string) {
+  const supabase = createClient();
   const userId = await getCurrentUserId();
   const { data, error } = await supabase
     .from('messages')

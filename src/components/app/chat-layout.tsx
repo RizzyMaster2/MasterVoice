@@ -99,6 +99,14 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
       supabase.removeChannel(channel);
     };
   }, [selectedChat, supabase, authUser]);
+  
+  useEffect(() => {
+    // If there's only one chat, select it by default.
+    if (chats.length === 1 && !selectedChat) {
+      setSelectedChat(chats[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chats]);
 
   const getInitials = (name: string | undefined | null) =>
     name
@@ -172,9 +180,6 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                   <Avatar className="h-10 w-10 relative">
                     <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.otherParticipant?.display_name || ''} />
                     <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
-                    {/* {chat.otherParticipant?.status === 'online' && (
-                      <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
-                    )} */}
                   </Avatar>
                   <div className="flex-1">
                     <p className="font-semibold">{chat.otherParticipant?.display_name}</p>
@@ -197,7 +202,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
           )}
         </ScrollArea>
       </div>
-      <div className="w-2/3 flex flex-col">
+      <div className="w-2/3 flex flex-col h-full">
         {selectedChat ? (
           <>
             <CardHeader className="flex flex-row items-center gap-3 border-b">
@@ -214,13 +219,10 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                 <h2 className="font-headline text-lg font-semibold">
                   {selectedChat.otherParticipant?.display_name}
                 </h2>
-                 {/* <p className="text-sm text-muted-foreground">
-                  {selectedChat.otherParticipant?.status === 'online' ? 'Online' : 'Offline'}
-                </p> */}
               </div>
             </CardHeader>
-            <CardContent className="flex-1 p-0">
-              <ScrollArea className="h-[calc(100vh-17.5rem)] lg:h-[calc(100vh-15rem)] p-6" ref={scrollAreaRef}>
+            <div className="flex-1 flex flex-col p-0">
+              <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
                 {isLoadingMessages ? (
                    <div className="space-y-4">
                         <Skeleton className="h-12 w-3/4" />
@@ -266,7 +268,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                     </div>
                 )}
               </ScrollArea>
-            </CardContent>
+            </div>
             <CardFooter className="p-4 border-t">
               <form
                 onSubmit={handleSendMessage}
