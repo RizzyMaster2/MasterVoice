@@ -1,6 +1,7 @@
 import { ChatLayout } from '@/components/app/chat-layout';
 import { OnboardingModal } from '@/components/app/onboarding-modal';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
+import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { createClient } from '@/lib/supabase/server';
 import type { User as AppUser } from '@/lib/data';
 import { redirect } from 'next/navigation';
@@ -24,17 +25,20 @@ export default async function DashboardPage() {
     bio: user.user_metadata?.bio || '',
   };
 
+  const isVerified = user.email_confirmed_at;
+
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
-      <div className="flex-1 h-full">
-        <ChatLayout
-          currentUser={currentUser}
-        />
+    <div className="flex-1 flex flex-col gap-6 h-full">
+      {!isVerified && <UnverifiedAccountWarning />}
+      <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
+        <div className="flex-1 h-full">
+          <ChatLayout currentUser={currentUser} />
+        </div>
+        <div className="w-full lg:w-[320px] flex flex-col gap-6">
+          <SuggestedFriends currentUser={currentUser} />
+        </div>
+        <OnboardingModal />
       </div>
-      <div className="w-full lg:w-[320px] flex flex-col gap-6">
-        <SuggestedFriends currentUser={currentUser} />
-      </div>
-      <OnboardingModal />
     </div>
   );
 }
