@@ -1,5 +1,6 @@
 'use client';
 
+import type { User } from '@supabase/supabase-js';
 import {
   Table,
   TableBody,
@@ -24,7 +25,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from '@/app/actions/user';
 import { useToast } from '@/hooks/use-toast';
-import type { User } from '@supabase/supabase-js';
+
 
 type UserManagementProps = {
   users: User[];

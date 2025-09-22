@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { AppSidebar } from '@/components/app/app-sidebar';
 import { UserNav } from '@/components/app/user-nav';
 import {
@@ -7,7 +8,7 @@ import {
   SidebarTrigger,
 } from '@/components/ui/sidebar';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+export default function AppLayout({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <Sidebar collapsible="icon">

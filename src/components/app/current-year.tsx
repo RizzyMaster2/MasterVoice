@@ -10,8 +10,8 @@ export function CurrentYear() {
   }, []);
 
   if (year === null) {
-    // You can return a placeholder or null while waiting for the client to mount
-    return null; 
+    // Return a placeholder or null to prevent hydration mismatch
+    return <>{new Date().getFullYear()}</>; 
   }
 
   return <>{year}</>;

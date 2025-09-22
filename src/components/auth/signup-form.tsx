@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,9 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus } from 'lucide-react';
-import { useState } from 'react';
 import { signup } from '@/app/(auth)/actions';
+import { UserPlus } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -26,11 +26,13 @@ const formSchema = z.object({
     .min(8, { message: 'Password must be at least 8 characters.' }),
 });
 
+type SignupFormValues = z.infer<typeof formSchema>;
+
 export function SignupForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -39,7 +41,7 @@ export function SignupForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
 
     const formData = new FormData();

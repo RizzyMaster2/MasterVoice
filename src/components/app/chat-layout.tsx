@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { FormEvent } from 'react';
 import {
   Card,
   CardContent,
@@ -12,7 +13,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
-import { User, Message, users as allUsers } from '@/lib/data';
+import type { User, Message } from '@/lib/data';
+import { users as allUsers } from '@/lib/data';
 import { Send, Search } from 'lucide-react';
 
 interface ChatLayoutProps {
@@ -36,7 +38,7 @@ export function ChatLayout({
       .map((n) => n[0])
       .join('') || 'U';
 
-  const handleSendMessage = (e: React.FormEvent) => {
+  const handleSendMessage = (e: FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedUser) return;
 

@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -14,22 +16,22 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
-import { LogIn } from 'lucide-react';
-import { useState } from 'react';
 import { login } from '@/app/(auth)/actions';
-import { useRouter } from 'next/navigation';
+import { LogIn } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
 
+type LoginFormValues = z.infer<typeof formSchema>;
+
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       email: '',
@@ -37,7 +39,7 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
 
     const formData = new FormData();
@@ -54,7 +56,7 @@ export function LoginForm() {
       });
        setIsLoading(false);
     } else {
-      // On successful login, the server action will handle the redirect.
+      // On successful login, the middleware will handle the redirect.
       // We can refresh the page to ensure the UI is in sync.
       router.refresh();
     }

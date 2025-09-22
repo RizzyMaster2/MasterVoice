@@ -1,5 +1,8 @@
 'use client';
 
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import type { User } from '@supabase/supabase-js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -9,10 +12,6 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { deleteUser } from '@/app/actions/user';
-import { useToast } from '@/hooks/use-toast';
-import { Shield, Trash2, User as UserIcon } from 'lucide-react';
-import type { User } from '@supabase/supabase-js';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,8 +22,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { deleteUser } from '@/app/actions/user';
+import { useToast } from '@/hooks/use-toast';
+import { Shield, Trash2, User as UserIcon } from 'lucide-react';
+
 
 type AdminUserActionsProps = {
   users: User[];

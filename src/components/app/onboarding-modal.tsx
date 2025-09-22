@@ -1,7 +1,7 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
+import Image from 'next/image';
 import {
   Dialog,
   DialogContent,
@@ -18,8 +18,9 @@ import {
   CarouselPrevious,
 } from '@/components/ui/carousel';
 import { Button } from '@/components/ui/button';
-import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+
+const ONBOARDING_STORAGE_KEY = 'mastervoice-onboarding-complete';
 
 const onboardingSteps = [
   {
@@ -59,19 +60,20 @@ export function OnboardingModal() {
   useEffect(() => {
     if (isMounted) {
       try {
-        const onboardingComplete = localStorage.getItem('onboardingComplete');
+        const onboardingComplete = localStorage.getItem(ONBOARDING_STORAGE_KEY);
         if (!onboardingComplete) {
           setIsOpen(true);
         }
       } catch (error) {
         console.error('Could not access localStorage:', error);
+        // If localStorage is not available, we can default to not showing the modal.
       }
     }
   }, [isMounted]);
 
   const handleClose = () => {
     try {
-      localStorage.setItem('onboardingComplete', 'true');
+      localStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
     } catch (error) {
        console.error('Could not access localStorage:', error);
     }

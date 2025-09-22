@@ -1,9 +1,9 @@
 'use client';
 
+import type { User } from '@supabase/supabase-js';
 import { Button } from '@/components/ui/button';
 import { LogIn, MoveRight, Rocket } from 'lucide-react';
 import Link from 'next/link';
-import type { User } from '@supabase/supabase-js';
 
 export function HeaderButtons({ user }: { user: User | null }) {
   return (

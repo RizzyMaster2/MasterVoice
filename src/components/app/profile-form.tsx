@@ -1,8 +1,14 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+import { createClient } from '@/lib/supabase/client';
+import { deleteUser } from '@/app/actions/user';
+
+import { useToast } from '@/hooks/use-toast';
 import {
   Form,
   FormControl,
@@ -13,10 +19,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User, Save, Trash2, ShieldAlert } from 'lucide-react';
+import { Skeleton } from '../ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -28,12 +34,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { deleteUser } from '@/app/actions/user';
-import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import type { User as SupabaseUser } from '@supabase/supabase-js';
-import { Skeleton } from '../ui/skeleton';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { User, Save, Trash2, ShieldAlert } from 'lucide-react';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -41,13 +42,15 @@ const formSchema = z.object({
   avatarUrl: z.string().url({ message: 'Please enter a valid URL.' }).optional(),
 });
 
+type ProfileFormValues = z.infer<typeof formSchema>;
+
 export function ProfileForm() {
   const { toast } = useToast();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const supabase = createClient();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<ProfileFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       name: '',
@@ -77,7 +80,7 @@ export function ProfileForm() {
   
   const avatarUrl = form.watch('avatarUrl');
 
-  async function onSubmit(values: z.infer<typeof formSchema>) {
+  async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
     
     const { error } = await supabase.auth.updateUser({
@@ -202,12 +205,11 @@ export function ProfileForm() {
               </FormItem>
             )}
           />
-          <Button type="submit" disabled={!isVerified}>
-            <Save className="mr-2 h-4 w-4" />
-            Save Changes
-          </Button>
         </div>
-        
+        <Button type="submit" disabled={!isVerified}>
+          <Save className="mr-2 h-4 w-4" />
+          Save Changes
+        </Button>
         <div className="flex justify-end pt-8 border-t">
           <AlertDialog>
             <AlertDialogTrigger asChild>
