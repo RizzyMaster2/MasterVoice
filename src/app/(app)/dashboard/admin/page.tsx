@@ -2,11 +2,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { MessagesSquare, MessageSquare, Shield, Users, LineChart, ShieldCheck } from 'lucide-react';
+import { MessagesSquare, MessageSquare, Shield, Users, LineChart, ShieldCheck, Terminal, PlayCircle } from 'lucide-react';
 import { UserManagement } from '@/components/app/user-management';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/actions/admin';
 import { TimeSeriesChart } from '@/components/app/timeseries-chart';
+import { Button } from '@/components/ui/button';
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -147,6 +148,23 @@ export default async function AdminPage() {
             </CardContent>
           </Card>
         </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className='font-headline flex items-center gap-2'>
+            <Terminal className='h-6 w-6'/>
+            Admin Commands
+          </CardTitle>
+          <CardDescription>
+            Run specific administrative tasks and commands.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            <Button variant="outline"><PlayCircle className="mr-2 h-4 w-4" /> Clear System Cache</Button>
+            <Button variant="outline"><PlayCircle className="mr-2 h-4 w-4" /> Re-analyze User Data</Button>
+            <Button variant="outline"><PlayCircle className="mr-2 h-4 w-4" /> Trigger Backup</Button>
+        </CardContent>
+      </Card>
 
 
       <Card>

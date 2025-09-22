@@ -22,7 +22,7 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
-  const availableUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
+  const availableUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id) && user.id !== 'ai-bot-voicebot'), [allUsers, contactIds]);
 
   const filteredUsers = useMemo(() => {
     if (!searchQuery) return availableUsers.slice(0, 5); // Show top 5 suggestions if no search
@@ -42,7 +42,7 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
             Find Friends
           </div>
           <CreateGroupDialog
-            allUsers={allUsers.filter(u => u.id !== 'ai-bot-echo')}
+            allUsers={allUsers.filter(u => u.id !== 'ai-bot-voicebot')}
             onGroupCreated={onGroupCreated}
           />
         </CardTitle>

@@ -21,7 +21,7 @@ import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { echo } from '@/ai/flows/echo-flow';
+import { voiceBot } from '@/ai/flows/voicebot-flow';
 import { CodeBlock } from './code-block';
 import { VideoCall } from './video-call';
 
@@ -74,7 +74,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
   const { user: authUser } = useUser();
   const { toast } = useToast();
 
-  const isBotChat = useMemo(() => selectedChat?.otherParticipant?.id === 'ai-bot-echo', [selectedChat]);
+  const isBotChat = useMemo(() => selectedChat?.otherParticipant?.id === 'ai-bot-voicebot', [selectedChat]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -140,9 +140,9 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
   }, [selectedChat, supabase, authUser, isBotChat, currentUser.id]);
   
   useEffect(() => {
-    const hasBotChat = chats.some(c => c.otherParticipant?.id === 'ai-bot-echo');
+    const hasBotChat = chats.some(c => c.otherParticipant?.id === 'ai-bot-voicebot');
     if (!hasBotChat) {
-        const botUser = allUsers.find(u => u.id === 'ai-bot-echo');
+        const botUser = allUsers.find(u => u.id === 'ai-bot-voicebot');
         if (botUser) {
             const botChat: Chat = {
                 id: `chat-${botUser.id}`,
@@ -197,13 +197,13 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
                 content: [{ text: m.content }]
             }));
 
-            const response = await echo({ history, message: messageContent });
+            const response = await voiceBot({ history, message: messageContent });
 
             const botMessage: Message = {
                 id: `bot-${Date.now()}`,
                 content: response,
                 created_at: new Date().toISOString(),
-                sender_id: 'ai-bot-echo',
+                sender_id: 'ai-bot-voicebot',
                 chat_id: selectedChat.id,
                 type: 'text',
                 file_url: null,
@@ -327,17 +327,17 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
                       <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
                     </>
                    )}
-                  {chat.otherParticipant?.id === 'ai-bot-echo' && (
+                  {chat.otherParticipant?.id === 'ai-bot-voicebot' && (
                     <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
                   )}
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-semibold flex items-center gap-2">
                     {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
-                    {chat.otherParticipant?.id === 'ai-bot-echo' && <Bot className="h-4 w-4 text-primary" />}
+                    {chat.otherParticipant?.id === 'ai-bot-voicebot' && <Bot className="h-4 w-4 text-primary" />}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.is_group ? `${chat.participants.length} members` : (chat.otherParticipant?.id === 'ai-bot-echo' ? 'AI Assistant' : '...')}
+                    {chat.is_group ? `${chat.participants.length} members` : (chat.otherParticipant?.id === 'ai-bot-voicebot' ? 'AI Assistant' : '...')}
                   </p>
                 </div>
               </div>

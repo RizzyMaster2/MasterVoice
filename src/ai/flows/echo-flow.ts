@@ -4,20 +4,20 @@
  * @fileOverview A simple AI chat bot that echoes user messages with a twist.
  *
  * @remarks
- * This flow defines the behavior of an AI assistant named "Echo".
+ * This flow defines the behavior of an AI assistant named "VoiceBot".
  * It takes the conversation history and the latest user message as input,
  * and returns a generated response from the AI model.
  *
- * @exports echo - The function to get a response from the Echo bot.
- * @exports EchoInput - The input type for the echo function.
- * @exports EchoOutput - The return type for the echo function.
+ * @exports voiceBot - The function to get a response from the VoiceBot bot.
+ * @exports VoiceBotInput - The input type for the voiceBot function.
+ * @exports VoiceBotOutput - The return type for the voiceBot function.
  */
 
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-// Define the input schema for the Echo flow
-const EchoInputSchema = z.object({
+// Define the input schema for the VoiceBot flow
+const VoiceBotInputSchema = z.object({
   history: z.array(
     z.object({
       role: z.enum(['user', 'model']),
@@ -27,28 +27,28 @@ const EchoInputSchema = z.object({
   message: z.string().describe('The latest message from the user.'),
 });
 
-export type EchoInput = z.infer<typeof EchoInputSchema>;
+export type VoiceBotInput = z.infer<typeof VoiceBotInputSchema>;
 
-// Define the output schema for the Echo flow
-const EchoOutputSchema = z.string().describe('The AI-generated response.');
+// Define the output schema for the VoiceBot flow
+const VoiceBotOutputSchema = z.string().describe('The AI-generated response.');
 
-export type EchoOutput = z.infer<typeof EchoOutputSchema>;
+export type VoiceBotOutput = z.infer<typeof VoiceBotOutputSchema>;
 
 
 // Export the main function that will be called by the client
-export async function echo(
-  input: EchoInput
-): Promise<EchoOutput> {
-  return echoFlow(input);
+export async function voiceBot(
+  input: VoiceBotInput
+): Promise<VoiceBotOutput> {
+  return voiceBotFlow(input);
 }
 
 
 // Define the Genkit prompt
-const echoPrompt = ai.definePrompt({
-  name: 'echoPrompt',
-  input: { schema: EchoInputSchema },
+const voiceBotPrompt = ai.definePrompt({
+  name: 'voiceBotPrompt',
+  input: { schema: VoiceBotInputSchema },
   output: { format: 'text' },
-  prompt: `You are Echo, a friendly and slightly quirky AI assistant. Your primary function is to be a conversational partner.
+  prompt: `You are VoiceBot, a friendly and slightly quirky AI assistant. Your primary function is to be a conversational partner.
 
 You should respond to the user's message in a helpful and engaging way. Keep your responses concise and friendly. You are built into a chat application as a demonstration of AI capabilities.
 
@@ -67,14 +67,14 @@ Your response:
 });
 
 // Define the Genkit flow
-const echoFlow = ai.defineFlow(
+const voiceBotFlow = ai.defineFlow(
   {
-    name: 'echoFlow',
-    inputSchema: EchoInputSchema,
-    outputSchema: EchoOutputSchema,
+    name: 'voiceBotFlow',
+    inputSchema: VoiceBotInputSchema,
+    outputSchema: VoiceBotOutputSchema,
   },
   async (input) => {
-    const { output } = await echoPrompt(input);
+    const { output } = await voiceBotPrompt(input);
     return output!;
   }
 );

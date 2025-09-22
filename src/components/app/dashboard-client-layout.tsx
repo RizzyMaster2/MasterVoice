@@ -40,7 +40,7 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
            return [result, ...prev];
          });
          toast({
-            title: "Chat with Echo started",
+            title: "Chat with VoiceBot started",
             description: "You can now chat with the AI assistant.",
         });
         return;
