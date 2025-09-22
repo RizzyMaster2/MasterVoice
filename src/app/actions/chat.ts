@@ -43,40 +43,65 @@ export async function getChats(): Promise<Chat[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
   
-  // Fetch chats where the current user is a participant
-   const { data: chats, error } = await supabase.rpc('get_user_chats', { p_user_id: userId });
+  // 1. Get all chat_ids the user is a part of.
+  const { data: chatParticipants, error: participantsError } = await supabase
+    .from('chat_participants')
+    .select('chat_id')
+    .eq('user_id', userId);
 
-
-  if (error) {
-    console.error('Error fetching chats:', error);
+  if (participantsError) {
+    console.error('Error fetching user chat memberships:', participantsError);
     return [];
   }
   
-  const processedChats = chats.map((chat: any) => ({
-      ...chat,
-      participants: chat.participants.map((p: any) => p.user_id)
-  }));
+  if (!chatParticipants || chatParticipants.length === 0) {
+      return [];
+  }
 
+  const chatIds = chatParticipants.map(p => p.chat_id);
 
-  // For each 1-on-1 chat, find the other participant's ID and fetch their profile
-  const chatsWithProfiles = await Promise.all(
-    processedChats.map(async (chat) => {
+  // 2. Get all chat details for those chat_ids
+  const { data: chats, error: chatsError } = await supabase
+    .from('chats')
+    .select('*, chat_participants(user_id)')
+    .in('id', chatIds);
+
+  if (chatsError) {
+    console.error('Error fetching chats:', chatsError);
+    return [];
+  }
+
+  // 3. Process chats to add participant profiles
+   const processedChats = await Promise.all(
+    chats.map(async (chat) => {
+      const participantIds = chat.chat_participants.map(p => p.user_id);
+      
+      const fullChat: Chat = {
+          id: chat.id,
+          created_at: chat.created_at,
+          name: chat.name,
+          is_group: chat.is_group,
+          admin_id: chat.admin_id,
+          participants: participantIds,
+      };
+
       if (chat.is_group) {
-        // For groups, we attach all participant profiles
+        // For groups, fetch all participant profiles
         const { data: profiles, error: profileError } = await supabase
             .from('profiles')
             .select('*')
-            .in('id', chat.participants);
+            .in('id', participantIds);
         if (profileError) {
             console.error(`Error fetching profiles for group ${chat.id}:`, profileError);
         } else {
-            chat.participantProfiles = profiles;
+            fullChat.participantProfiles = profiles as UserProfile[];
         }
       } else {
-        const otherParticipantId = chat.participants.find((p: string) => p !== userId);
+        // For 1-on-1 chats, find the other participant's profile
+        const otherParticipantId = participantIds.find(p => p !== userId);
         if (otherParticipantId) {
             if (otherParticipantId === 'ai-bot-voicebot') {
-                 chat.otherParticipant = {
+                 fullChat.otherParticipant = {
                     id: 'ai-bot-voicebot',
                     display_name: 'VoiceBot',
                     photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
@@ -94,17 +119,16 @@ export async function getChats(): Promise<Chat[]> {
                 if (profileError) {
                     console.error(`Error fetching profile for user ${otherParticipantId}:`, profileError);
                 } else {
-                    // Attach the other participant's full profile to the chat object
-                    chat.otherParticipant = profile;
+                    fullChat.otherParticipant = profile as UserProfile;
                 }
             }
         }
       }
-      return chat;
+      return fullChat;
     })
   );
 
-  return chatsWithProfiles;
+  return processedChats;
 }
 
 
@@ -295,5 +319,3 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   // The client will get the new message via real-time subscription.
   return data;
 }
-
-    
