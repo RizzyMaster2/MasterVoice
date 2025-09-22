@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { notFound } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { MessagesSquare, MessageSquare, Shield, Users } from 'lucide-react';
+import { MessagesSquare, MessageSquare, Shield, Users, LineChart } from 'lucide-react';
 import { UserManagement } from '@/components/app/user-management';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getAdminStats } from '@/app/actions/admin';
+import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/actions/admin';
+import { TimeSeriesChart } from '@/components/app/timeseries-chart';
 
 export default async function AdminPage() {
   const supabase = createClient();
@@ -24,13 +25,21 @@ export default async function AdminPage() {
     // Render an error state for users
   }
 
-  const { totalChats, totalMessages, error: statsError } = await getAdminStats();
+  const [
+    { totalChats, totalMessages, error: statsError },
+    { data: userSignups, error: userSignupsError },
+    { data: messageCounts, error: messageCountsError },
+  ] = await Promise.all([
+    getAdminStats(),
+    getUserSignupsByDay(),
+    getMessageCountByDay(),
+  ]);
+
 
   if (statsError) {
     console.error('Error fetching admin stats:', statsError);
     // Handle stats error gracefully
   }
-
 
   return (
     <div className="space-y-6">
@@ -84,6 +93,40 @@ export default async function AdminPage() {
           </CardContent>
         </Card>
       </div>
+
+       <div className="grid gap-6 md:grid-cols-2">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2 text-lg">
+                <LineChart className="h-5 w-5" />
+                New Users (Last 30 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {userSignupsError ? (
+                <p className="text-destructive">{userSignupsError}</p>
+              ) : (
+                <TimeSeriesChart data={userSignups} dataKey="count" />
+              )}
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2 text-lg">
+                <LineChart className="h-5 w-5" />
+                Messages Sent (Last 30 Days)
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+               {messageCountsError ? (
+                <p className="text-destructive">{messageCountsError}</p>
+              ) : (
+                <TimeSeriesChart data={messageCounts} dataKey="count" />
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
 
       <Card>
         <CardHeader>
