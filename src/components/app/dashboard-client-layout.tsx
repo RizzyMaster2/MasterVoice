@@ -61,7 +61,7 @@ export function DashboardClientLayout({ currentUser, initialChats, allUsers }: D
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
         <div className="flex-1 h-full">
-        <ChatLayout currentUser={currentUser} chats={chats} />
+        <ChatLayout currentUser={currentUser} chats={chats} setChats={setChats} />
         </div>
         <div className="w-full lg:w-[320px] flex flex-col gap-6">
         <SuggestedFriends

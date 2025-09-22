@@ -16,18 +16,20 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Bot } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Bot, Video } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { echo } from '@/ai/flows/echo-flow';
 import { CodeBlock } from './code-block';
+import { VideoCall } from './video-call';
 
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
+  setChats: (chats: Chat[]) => void;
 }
 
 const parseMessageContent = (content: string): ReactNode[] => {
@@ -57,14 +59,14 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps) {
-  const [chats, setChats] = useState<Chat[]>(initialChats);
+export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
+  const [isCalling, setIsCalling] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
@@ -137,8 +139,7 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
   }, [selectedChat, supabase, authUser, isBotChat]);
   
   useEffect(() => {
-    setChats(initialChats);
-    const hasBotChat = initialChats.some(chat => chat.id === 'chat-ai-bot-echo');
+    const hasBotChat = chats.some(chat => chat.id === 'chat-ai-bot-echo');
     if (!hasBotChat) {
         const botChat: Chat = {
             id: 'chat-ai-bot-echo',
@@ -156,10 +157,10 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
                 status: 'online',
             }
         };
-        setChats(prev => [botChat, ...prev]);
+        setChats([botChat, ...chats]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialChats]);
+  }, [chats]);
 
   const getInitials = (name: string | undefined | null) =>
     name
@@ -281,11 +282,19 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
 
   
   const filteredChats = chats.filter((chat) =>
-    chat.otherParticipant?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   return (
     <Card className="flex h-full w-full">
+      {isCalling && selectedChat && !selectedChat.is_group && (
+        <VideoCall 
+          supabase={supabase}
+          currentUser={currentUser}
+          chat={selectedChat}
+          onClose={() => setIsCalling(false)}
+        />
+      )}
       <div className="w-1/3 border-r flex flex-col">
         <div className="p-4 border-b">
           <div className="relative">
@@ -310,19 +319,19 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
                 )}
               >
                 <Avatar className="h-10 w-10 relative">
-                  <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.otherParticipant?.display_name || ''} />
-                  <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
+                  <AvatarImage src={!chat.is_group ? chat.otherParticipant?.photo_url || undefined : undefined} alt={chat.name || chat.otherParticipant?.display_name || ''} />
+                  <AvatarFallback>{getInitials(chat.is_group ? chat.name : chat.otherParticipant?.display_name)}</AvatarFallback>
                   {chat.id === 'chat-ai-bot-echo' && (
                     <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
                   )}
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-semibold flex items-center gap-2">
-                    {chat.otherParticipant?.display_name}
+                    {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
                     {chat.id === 'chat-ai-bot-echo' && <Bot className="h-4 w-4 text-primary" />}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.id === 'chat-ai-bot-echo' ? 'AI Assistant' : '...'}
+                    {chat.is_group ? `${chat.participants.length} members` : (chat.id === 'chat-ai-bot-echo' ? 'AI Assistant' : '...')}
                   </p>
                 </div>
               </div>
@@ -340,19 +349,28 @@ export function ChatLayout({ currentUser, chats: initialChats }: ChatLayoutProps
             <CardHeader className="flex flex-row items-center gap-3 border-b">
               <Avatar className="h-10 w-10">
                 <AvatarImage
-                  src={selectedChat.otherParticipant?.photo_url || undefined}
-                  alt={selectedChat.otherParticipant?.display_name || ''}
+                  src={!selectedChat.is_group ? selectedChat.otherParticipant?.photo_url || undefined : undefined}
+                  alt={selectedChat.is_group ? selectedChat.name || '' : selectedChat.otherParticipant?.display_name || ''}
                 />
                 <AvatarFallback>
-                  {getInitials(selectedChat.otherParticipant?.display_name)}
+                  {getInitials(selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name)}
                 </AvatarFallback>
               </Avatar>
-              <div>
+              <div className="flex-1">
                 <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
-                  {selectedChat.otherParticipant?.display_name}
+                  {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
                   {isBotChat && <Bot className="h-5 w-5 text-primary" />}
                 </h2>
+                {selectedChat.is_group && (
+                    <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
+                )}
               </div>
+              {!isBotChat && !selectedChat.is_group && (
+                <Button size="icon" variant="ghost" onClick={() => setIsCalling(true)}>
+                  <Video className="h-5 w-5" />
+                  <span className="sr-only">Start Video Call</span>
+                </Button>
+              )}
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
