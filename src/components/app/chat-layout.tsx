@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Bot, Video } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Bot, Video, Users } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -300,7 +300,7 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search contacts..."
+              placeholder="Search contacts or groups..."
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -319,8 +319,16 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
                 )}
               >
                 <Avatar className="h-10 w-10 relative">
-                  <AvatarImage src={!chat.is_group ? chat.otherParticipant?.photo_url || undefined : undefined} alt={chat.name || chat.otherParticipant?.display_name || ''} />
-                  <AvatarFallback>{getInitials(chat.is_group ? chat.name : chat.otherParticipant?.display_name)}</AvatarFallback>
+                   {chat.is_group ? (
+                     <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                     </div>
+                   ) : (
+                    <>
+                      <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.name || chat.otherParticipant?.display_name || ''} />
+                      <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
+                    </>
+                   )}
                   {chat.id === 'chat-ai-bot-echo' && (
                     <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
                   )}
@@ -348,13 +356,21 @@ export function ChatLayout({ currentUser, chats, setChats }: ChatLayoutProps) {
           <>
             <CardHeader className="flex flex-row items-center gap-3 border-b">
               <Avatar className="h-10 w-10">
-                <AvatarImage
-                  src={!selectedChat.is_group ? selectedChat.otherParticipant?.photo_url || undefined : undefined}
-                  alt={selectedChat.is_group ? selectedChat.name || '' : selectedChat.otherParticipant?.display_name || ''}
-                />
-                <AvatarFallback>
-                  {getInitials(selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name)}
-                </AvatarFallback>
+                {selectedChat.is_group ? (
+                    <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
+                        <Users className="h-5 w-5 text-muted-foreground" />
+                    </div>
+                ) : (
+                    <>
+                    <AvatarImage
+                      src={selectedChat.otherParticipant?.photo_url || undefined}
+                      alt={selectedChat.name || ''}
+                    />
+                    <AvatarFallback>
+                      {getInitials(selectedChat.otherParticipant?.display_name)}
+                    </AvatarFallback>
+                    </>
+                )}
               </Avatar>
               <div className="flex-1">
                 <h2 className="font-headline text-lg font-semibold flex items-center gap-2">

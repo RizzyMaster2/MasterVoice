@@ -17,7 +17,8 @@ export type Chat = {
   is_group: boolean;
   participants: string[];
   admin_id: string | null;
-  otherParticipant?: UserProfile; // Used on the client to show who you're chatting with
+  otherParticipant?: UserProfile; // Used on the client for 1-on-1 chats
+  participantProfiles?: UserProfile[]; // Used on the client for group chats
 };
 
 export type Message = {

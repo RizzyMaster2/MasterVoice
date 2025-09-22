@@ -46,7 +46,7 @@ export async function getChats(): Promise<Chat[]> {
   // Fetch chats where the current user is a participant
   const { data: chats, error } = await supabase
     .from('chats')
-    .select('*')
+    .select('*, participants(*)')
     .contains('participants', [userId]);
 
   if (error) {
@@ -58,7 +58,16 @@ export async function getChats(): Promise<Chat[]> {
   const chatsWithProfiles = await Promise.all(
     chats.map(async (chat) => {
       if (chat.is_group) {
-        // Future: Handle group chat participant fetching if needed
+        // For groups, we attach all participant profiles
+        const { data: profiles, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .in('id', chat.participants);
+        if (profileError) {
+            console.error(`Error fetching profiles for group ${chat.id}:`, profileError);
+        } else {
+            chat.participantProfiles = profiles;
+        }
       } else {
         const otherParticipantId = chat.participants.find(p => p !== userId);
         if (otherParticipantId) {
@@ -148,6 +157,33 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
   
   // Let client-side state handle the update, no full revalidation needed
   return data;
+}
+
+export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
+    const supabase = createClient();
+    const userId = await getCurrentUserId();
+
+    const allParticipants = [userId, ...participantIds];
+
+    const { data, error } = await supabase
+        .from('chats')
+        .insert([{
+            name,
+            participants: allParticipants,
+            is_group: true,
+            admin_id: userId,
+        }])
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creating group chat:', error);
+        throw new Error('Could not create group chat.');
+    }
+    
+    // Re-fetch all chats to ensure the UI updates correctly everywhere
+    revalidatePath('/dashboard');
+    return data;
 }
 
 // Fetch messages for a specific chat

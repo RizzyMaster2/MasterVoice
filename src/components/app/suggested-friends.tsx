@@ -1,44 +1,54 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import type { UserProfile, Chat } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Plus, Search, Sparkles } from 'lucide-react';
+import { Plus, Search, Sparkles, Users } from 'lucide-react';
+import { CreateGroupDialog } from './create-group-dialog';
 
 type SuggestedFriendsProps = {
   allUsers: UserProfile[];
   onAddFriend: (friend: UserProfile) => void;
-  currentUserId: string;
-  chats: Chat[];
+  contactIds: Set<string>;
+  onGroupCreated: () => void;
 };
 
-export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, chats }: SuggestedFriendsProps) {
+export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCreated }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false);
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
-  const contactIds = new Set(chats.flatMap(c => c.participants));
+  const availableUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
 
-  const availableUsers = allUsers.filter(user => 
-    user.id !== currentUserId && !contactIds.has(user.id)
-  );
-
-  const filteredUsers = searchQuery 
-    ? availableUsers.filter(user => 
+  const filteredUsers = useMemo(() => {
+    if (!searchQuery) return availableUsers.slice(0, 5); // Show top 5 suggestions if no search
+    
+    return availableUsers.filter(user => 
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       )
-    : availableUsers.slice(0, 5); // Show top 5 suggestions if no search
+  }, [searchQuery, availableUsers]);
+
 
   return (
+    <>
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 font-headline">
-          <Sparkles className="h-5 w-5 text-accent" />
-          Find Friends
+        <CardTitle className="flex items-center justify-between font-headline">
+          <div className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-accent" />
+            Find Friends
+          </div>
+          <CreateGroupDialog
+            allUsers={allUsers.filter(u => u.id !== 'ai-bot-echo')}
+            onGroupCreated={() => {
+              onGroupCreated();
+            }}
+          />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -62,7 +72,6 @@ export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, chats }
                   </Avatar>
                   <div>
                     <p className="font-semibold">{user.display_name}</p>
-                    {/* Bio can be added later if needed */}
                   </div>
                 </div>
                 <Button variant="ghost" size="icon" onClick={() => onAddFriend(user)}>
@@ -79,5 +88,6 @@ export function SuggestedFriends({ allUsers, onAddFriend, currentUserId, chats }
         )}
       </CardContent>
     </Card>
+    </>
   );
 }
