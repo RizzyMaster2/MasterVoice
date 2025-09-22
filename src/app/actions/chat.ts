@@ -31,22 +31,23 @@ export async function getUsers(): Promise<UserProfile[]> {
 export async function getChats(): Promise<Chat[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
+  
+  // Fetch chats where the current user is a participant
   const { data: chats, error } = await supabase
     .from('chats')
-    .select('*, otherParticipant:profiles!participants(id, display_name, photo_url)')
-    .filter('participants', 'cs', `{${userId}}`);
+    .select('*')
+    .contains('participants', [userId]);
 
   if (error) {
     console.error('Error fetching chats:', error);
     return [];
   }
-  
-  // The query above is not quite right for 1-on-1 chats.
-  // We need to properly identify the other participant.
+
+  // For each 1-on-1 chat, find the other participant's ID and fetch their profile
   const chatsWithProfiles = await Promise.all(
     chats.map(async (chat) => {
       if (chat.is_group) {
-        // Handle group chat logic if needed
+        // Future: Handle group chat participant fetching if needed
       } else {
         const otherParticipantId = chat.participants.find(p => p !== userId);
         if (otherParticipantId) {
@@ -57,8 +58,9 @@ export async function getChats(): Promise<Chat[]> {
             .single();
 
           if (profileError) {
-            console.error('Error fetching participant profile:', profileError);
+            console.error(`Error fetching profile for user ${otherParticipantId}:`, profileError);
           } else {
+            // Attach the other participant's full profile to the chat object
             chat.otherParticipant = profile;
           }
         }
@@ -67,9 +69,9 @@ export async function getChats(): Promise<Chat[]> {
     })
   );
 
-
   return chatsWithProfiles;
 }
+
 
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
@@ -81,14 +83,17 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
     .from('chats')
     .select('id, participants')
     .filter('is_group', 'eq', false)
-    .or(`participants.cs.{${userId}}`) // Check chats where current user is a participant
+    .contains('participants', [userId, otherUserId]);
     
   if (existingError) {
     console.error('Error checking for existing chats:', existingError);
     throw new Error('Could not check for existing chats.');
   }
 
-  const existingChat = existingChats.find(c => c.participants.includes(otherUserId));
+  // The .contains filter is not exact, so we need to verify participants match exactly
+  const existingChat = existingChats.find(c => 
+    c.participants.length === 2 && c.participants.includes(userId) && c.participants.includes(otherUserId)
+  );
 
   if (existingChat) {
     console.log('Chat already exists.');
@@ -107,8 +112,8 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
     console.error('Error creating chat:', error);
     throw new Error('Could not create chat.');
   }
-
-  revalidatePath('/dashboard');
+  
+  // Let client-side state handle the update, no full revalidation needed
   return data;
 }
 
@@ -141,7 +146,6 @@ export async function sendMessage(chatId: string, content: string) {
     throw new Error('Could not send message.');
   }
   
-  // NO LONGER revalidating the whole dashboard.
   // The client will get the new message via real-time subscription.
   return data;
 }

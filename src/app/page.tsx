@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -63,7 +64,6 @@ export default async function Home() {
           </Link>
           <div className="flex items-center gap-2">
             <HeaderButtons user={user} />
-            <ThemeToggle />
           </div>
         </div>
       </header>
