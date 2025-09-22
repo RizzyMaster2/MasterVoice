@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import vscDarkPlus from 'react-syntax-highlighter/dist/cjs/styles/prism/vsc-dark-plus';
-import coy from 'react-syntax-highlighter/dist/cjs/styles/prism/coy';
+import { vscDarkPlus, coy } from 'react-syntax-highlighter/dist/cjs/styles/prism';
 import { useTheme } from 'next-themes';
 import { Button } from '@/components/ui/button';
 import { Check, Copy } from 'lucide-react';
