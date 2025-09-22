@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { User as AppUser } from '@/lib/data';
@@ -48,14 +49,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Mock suggestions - in a real app this would come from an API
-  const suggestedUsers = allUsers.filter(u => {
-    if (!appUser || u.id === appUser.id) return false;
-    if (contacts.find(c => c.id === u.id)) return false;
-    return ['user5', 'user6', 'user7'].includes(u.id);
-  });
-
-
   if (isLoading || !appUser) {
     return (
       <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
@@ -78,9 +71,11 @@ export default function DashboardPage() {
             <ChatLayout currentUser={appUser} contacts={contacts} />
           </div>
           <div className="w-full lg:w-[320px] flex flex-col gap-6">
-            <SuggestedFriends 
-              suggestedUsers={suggestedUsers} 
+            <SuggestedFriends
+              allUsers={allUsers} 
               onAddFriend={handleAddFriend}
+              currentUserId={appUser.id}
+              contacts={contacts}
             />
           </div>
         </div>
