@@ -27,6 +27,7 @@ const formSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -51,11 +52,12 @@ export function LoginForm() {
         description: result.message,
         variant: 'destructive',
       });
-    } 
-    // The server action will handle the redirect on success.
-    // No need for client-side navigation here.
-    
-    setIsLoading(false);
+       setIsLoading(false);
+    } else {
+      // On successful login, the server action will handle the redirect.
+      // We can refresh the page to ensure the UI is in sync.
+      router.refresh();
+    }
   }
 
   return (

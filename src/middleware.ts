@@ -1,6 +1,5 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
-import { createClient } from '@/lib/supabase/server'
 
 export async function middleware(request: NextRequest) {
   const { response, supabase } = await updateSession(request)
@@ -15,10 +14,17 @@ export async function middleware(request: NextRequest) {
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/signup') &&
     !request.nextUrl.pathname.startsWith('/confirm') &&
-    request.nextUrl.pathname !== '/'
+    request.nextUrl.pathname !== '/' &&
+    !request.nextUrl.pathname.startsWith('/dashboard') // Allow dashboard path to be checked below
   ) {
     return NextResponse.redirect(new URL('/login', request.url))
   }
+
+  // if user is not signed in and tries to access dashboard, redirect to login
+  if (!user && request.nextUrl.pathname.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
 
   // if user is signed in and the current path is /login or /signup, redirect the user to /dashboard
   if (
