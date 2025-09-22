@@ -13,7 +13,6 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus } from 'lucide-react';
 import { useState } from 'react';
@@ -28,7 +27,6 @@ const formSchema = z.object({
 });
 
 export function SignupForm() {
-  const router = useRouter();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
@@ -50,7 +48,6 @@ export function SignupForm() {
     formData.append('password', values.password);
 
     const result = await signup(formData);
-    setIsLoading(false);
 
     if (result?.success === false) {
       toast({
@@ -58,13 +55,10 @@ export function SignupForm() {
         description: result.message,
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: 'Account Created!',
-        description: 'Please check your email to verify your account.',
-      });
-      // The redirect is handled by the server action
     }
+    // The server action handles the redirect on success.
+    
+    setIsLoading(false);
   }
 
   return (
@@ -117,5 +111,3 @@ export function SignupForm() {
     </Form>
   );
 }
-
-    

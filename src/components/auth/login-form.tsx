@@ -27,7 +27,6 @@ const formSchema = z.object({
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -46,21 +45,17 @@ export function LoginForm() {
 
     const result = await login(formData);
 
-    setIsLoading(false);
-
     if (result?.success === false) {
       toast({
         title: 'Login Failed',
         description: result.message,
         variant: 'destructive',
       });
-    } else {
-       toast({
-        title: 'Login Successful',
-        description: 'Redirecting you to the dashboard...',
-      });
-      // The redirect is now handled by the server action.
-    }
+    } 
+    // The server action will handle the redirect on success.
+    // No need for client-side navigation here.
+    
+    setIsLoading(false);
   }
 
   return (

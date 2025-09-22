@@ -18,7 +18,7 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  revalidatePath('/dashboard')
+  revalidatePath('/dashboard', 'layout')
   redirect('/dashboard')
 }
 
@@ -41,17 +41,12 @@ export async function signup(formData: FormData) {
     return { success: false, message: error.message }
   }
 
+  revalidatePath('/confirm', 'layout')
   redirect('/confirm')
 }
 
 export async function logout() {
     const supabase = createClient()
-    const { error } = await supabase.auth.signOut()
-
-    if (error) {
-        console.error('Logout error:', error.message)
-        return { success: false, message: error.message }
-    }
-    
+    await supabase.auth.signOut()
     redirect('/')
 }
