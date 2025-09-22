@@ -58,6 +58,10 @@ export function UserManagement({ users }: UserManagementProps) {
     }
   }
 
+  if (!users || users.length === 0) {
+    return <p>No users to display.</p>
+  }
+
   return (
     <div className="border rounded-lg">
       <Table>
