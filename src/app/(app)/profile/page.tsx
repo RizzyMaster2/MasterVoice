@@ -36,6 +36,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { cn } from '@/lib/utils';
 
 export default function ProfilePage() {
   const { toast } = useToast();
@@ -45,6 +46,7 @@ export default function ProfilePage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [isMicTesting, setIsMicTesting] = useState(false);
 
   const stopMicTest = () => {
     if (animationFrameRef.current) {
@@ -60,6 +62,7 @@ export default function ProfilePage() {
     analyserRef.current = null;
     mediaStreamRef.current = null;
     setMicLevel(0);
+    setIsMicTesting(false);
   };
 
   useEffect(() => {
@@ -70,7 +73,7 @@ export default function ProfilePage() {
   }, []);
 
   const startMicTest = async () => {
-    if (audioContextRef.current) {
+    if (isMicTesting) {
       stopMicTest();
     }
     
@@ -86,6 +89,8 @@ export default function ProfilePage() {
         analyserRef.current.fftSize = 256;
         const bufferLength = analyserRef.current.frequencyBinCount;
         const dataArray = new Uint8Array(bufferLength);
+        
+        setIsMicTesting(true);
 
         const updateMicLevel = () => {
           if (analyserRef.current) {
@@ -162,10 +167,17 @@ export default function ProfilePage() {
                 <Label>Microphone Test</Label>
                 <div className="flex items-center gap-4 p-4 border rounded-lg">
                   <Mic className="h-5 w-5 text-muted-foreground" />
-                  <Progress value={micLevel} className="w-full" />
+                  <Progress value={micLevel} className={cn(
+                    "w-full transition-all duration-150",
+                    micLevel > 1 && "shadow-lg shadow-primary/50"
+                  )} 
+                  style={{
+                    boxShadow: `0 0 ${micLevel / 5}px ${micLevel / 3}px hsl(var(--primary) / 0.3)`
+                  }}
+                  />
                 </div>
                  <div className="flex gap-2">
-                    {!audioContextRef.current ? (
+                    {!isMicTesting ? (
                       <Button variant="outline" onClick={startMicTest}>
                         <Mic className="mr-2 h-4 w-4" />
                         Test Microphone
@@ -213,24 +225,24 @@ export default function ProfilePage() {
           </Card>
         </TabsContent>
         <TabsContent value="account" className="mt-6">
-          <Card className="border-destructive">
+           <Card className="border-destructive">
             <CardHeader>
               <CardTitle className="text-destructive font-headline">Danger Zone</CardTitle>
               <CardDescription>
                 These actions are permanent and cannot be undone.
               </CardDescription>
             </CardHeader>
-            <CardContent className="pt-6">
-               <p className="text-sm mb-4">
-                Delete your account and all associated data.
+            <CardContent className="space-y-4">
+               <p className="text-sm">
+                Delete your account and all associated data. This is a final action.
               </p>
             </CardContent>
-            <CardFooter className="flex justify-end items-center bg-destructive/10 py-3 px-6 rounded-b-lg">
+            <CardFooter className="flex justify-end items-center bg-destructive/10 py-4 px-6 rounded-b-lg">
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant="destructive">
                     <Trash2 className="mr-2 h-4 w-4" />
-                    Delete Account
+                    Delete My Account
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
