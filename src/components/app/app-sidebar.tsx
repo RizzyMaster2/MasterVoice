@@ -1,12 +1,12 @@
 'use client';
 
+import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
   Shield,
   User,
-  Settings,
 } from 'lucide-react';
 
 import {
@@ -32,11 +32,6 @@ const menuItems = [
     href: '/profile',
     label: 'Profile',
     icon: User,
-  },
-  {
-    href: '/settings',
-    label: 'Settings',
-    icon: Settings,
   },
 ];
 
