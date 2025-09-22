@@ -14,6 +14,7 @@ import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { createClient } from '@/lib/supabase/server';
 import { HeaderButtons } from '@/components/app/header-buttons';
+import { CurrentYear } from '@/components/app/current-year';
 
 const features = [
   {
@@ -48,7 +49,6 @@ export default async function Home() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const year = new Date().getFullYear();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -197,7 +197,7 @@ export default async function Home() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © {year} MasterVoice. All rights reserved.
+            © <CurrentYear /> MasterVoice. All rights reserved.
           </p>
         </div>
       </footer>
