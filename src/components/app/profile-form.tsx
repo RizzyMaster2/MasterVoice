@@ -29,7 +29,6 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from '@/app/actions/user';
-import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
@@ -202,11 +201,10 @@ export function ProfileForm() {
               </FormItem>
             )}
           />
-          <div className="flex justify-between">
-            <Button type="submit" className="group-disabled:pointer-events-none">
-              <Save className="mr-2 h-4 w-4" />
-              Save Changes
-            </Button>
+          <Button type="submit" className="group-disabled:pointer-events-none">
+            <Save className="mr-2 h-4 w-4" />
+            Save Changes
+          </Button>
         </fieldset>
         
         <div className="flex justify-end pt-8 border-t">
