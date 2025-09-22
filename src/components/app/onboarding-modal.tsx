@@ -66,7 +66,6 @@ export function OnboardingModal() {
         }
       } catch (error) {
         console.error('Could not access localStorage:', error);
-        // If localStorage is not available, we can default to not showing the modal.
       }
     }
   }, [isMounted]);
@@ -119,7 +118,7 @@ export function OnboardingModal() {
           <CarouselNext />
         </Carousel>
         <DialogFooter>
-          <Button onClick={handleClose}>Get Started</Button>
+          <Button onClick={handleClose} className="w-full">Get Started</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
