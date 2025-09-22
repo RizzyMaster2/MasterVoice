@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Shield,
   User,
+  Settings,
 } from 'lucide-react';
 
 import {
@@ -31,6 +32,11 @@ const menuItems = [
     href: '/profile',
     label: 'Profile',
     icon: User,
+  },
+  {
+    href: '/settings',
+    label: 'Settings',
+    icon: Settings,
   },
 ];
 
@@ -58,6 +64,7 @@ export function AppSidebar() {
         <SidebarMenu>
           {isLoading ? (
             <div className="space-y-2 px-2">
+              <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
               <Skeleton className="h-8 w-full" />
             </div>

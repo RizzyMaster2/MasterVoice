@@ -13,15 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { CreditCard, LogOut, Settings, User } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { LogOut, Settings, User } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { logout } from '@/app/(auth)/actions';
 import { Skeleton } from '../ui/skeleton';
 
 export function UserNav() {
   const router = useRouter();
-  const { toast } = useToast();
   const { user, isLoading } = useUser();
 
   if (isLoading) {
@@ -75,14 +73,12 @@ export function UserNav() {
               <span>Profile</span>
             </DropdownMenuItem>
           </Link>
-          <DropdownMenuItem>
-            <CreditCard className="mr-2 h-4 w-4" />
-            <span>Billing</span>
-          </DropdownMenuItem>
-          <DropdownMenuItem>
-            <Settings className="mr-2 h-4 w-4" />
-            <span>Settings</span>
-          </DropdownMenuItem>
+          <Link href="/settings" passHref>
+            <DropdownMenuItem>
+              <Settings className="mr-2 h-4 w-4" />
+              <span>Settings</span>
+            </DropdownMenuItem>
+          </Link>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem onClick={handleLogout}>
