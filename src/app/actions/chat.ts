@@ -35,7 +35,7 @@ export async function getUsers(): Promise<UserProfile[]> {
     status: 'online',
   };
 
-  return [botUser, ...data];
+  return [botUser, ...data.filter(u => u.id !== botUser.id)];
 }
 
 // Fetch all chats for the current user
@@ -63,7 +63,7 @@ export async function getChats(): Promise<Chat[]> {
   // 2. Get all chat details for those chat_ids
   const { data: chats, error: chatsError } = await supabase
     .from('chats')
-    .select('*, chat_participants(user_id)')
+    .select('*, chat_participants(user_id, profiles(*))')
     .in('id', chatIds);
 
   if (chatsError) {
@@ -72,8 +72,7 @@ export async function getChats(): Promise<Chat[]> {
   }
 
   // 3. Process chats to add participant profiles
-   const processedChats = await Promise.all(
-    (chats ?? []).map(async (chat) => {
+   const processedChats = (chats ?? []).map((chat) => {
       const participantIds = chat.chat_participants.map(p => p.user_id);
       
       const fullChat: Chat = {
@@ -86,47 +85,25 @@ export async function getChats(): Promise<Chat[]> {
       };
 
       if (chat.is_group) {
-        // For groups, fetch all participant profiles
-        const { data: profiles, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .in('id', participantIds);
-        if (profileError) {
-            console.error(`Error fetching profiles for group ${chat.id}:`, profileError);
-        } else {
-            fullChat.participantProfiles = profiles as UserProfile[];
-        }
+        fullChat.participantProfiles = chat.chat_participants.map(p => p.profiles as UserProfile);
       } else {
         // For 1-on-1 chats, find the other participant's profile
-        const otherParticipantId = participantIds.find(p => p !== userId);
-        if (otherParticipantId) {
-            if (otherParticipantId === 'ai-bot-voicebot') {
-                 fullChat.otherParticipant = {
-                    id: 'ai-bot-voicebot',
-                    display_name: 'VoiceBot',
-                    photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
-                    created_at: new Date().toISOString(),
-                    email: 'bot@mastervoice.ai',
-                    status: 'online',
-                };
-            } else {
-                const { data: profile, error: profileError } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', otherParticipantId)
-                    .single();
-
-                if (profileError) {
-                    console.error(`Error fetching profile for user ${otherParticipantId}:`, profileError);
-                } else {
-                    fullChat.otherParticipant = profile as UserProfile;
-                }
-            }
+        const otherParticipantProfile = chat.chat_participants.find(p => p.user_id !== userId)?.profiles;
+        if (otherParticipantProfile) {
+            fullChat.otherParticipant = otherParticipantProfile as UserProfile;
+        } else if (participantIds.find(p => p === 'ai-bot-voicebot')) {
+            fullChat.otherParticipant = {
+                id: 'ai-bot-voicebot',
+                display_name: 'VoiceBot',
+                photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
+                created_at: new Date().toISOString(),
+                email: 'bot@mastervoice.ai',
+                status: 'online',
+            };
         }
       }
       return fullChat;
-    })
-  );
+    });
 
   return processedChats;
 }
@@ -319,7 +296,3 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   // The client will get the new message via real-time subscription.
   return data;
 }
-
-
-
-  

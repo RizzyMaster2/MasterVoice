@@ -1,6 +1,6 @@
-
 -- 1. Create Profiles Table
-create table if not exists public.profiles (
+-- This table stores public user data.
+create table public.profiles (
   id uuid not null primary key references auth.users on delete cascade,
   created_at timestamptz not null default now(),
   display_name text,
@@ -11,7 +11,8 @@ create table if not exists public.profiles (
 comment on table public.profiles is 'Public user profiles.';
 
 -- 2. Create Chats Table
-create table if not exists public.chats (
+-- This table stores information about chat rooms.
+create table public.chats (
   id uuid not null default gen_random_uuid() primary key,
   created_at timestamptz not null default now(),
   name text,
@@ -21,7 +22,8 @@ create table if not exists public.chats (
 comment on table public.chats is 'Chat rooms.';
 
 -- 3. Create Chat Participants Table
-create table if not exists public.chat_participants (
+-- This is a junction table between users and chats.
+create table public.chat_participants (
   chat_id uuid not null references public.chats on delete cascade,
   user_id uuid not null references public.profiles on delete cascade,
   created_at timestamptz not null default now(),
@@ -30,7 +32,8 @@ create table if not exists public.chat_participants (
 comment on table public.chat_participants is 'Users who are members of a chat.';
 
 -- 4. Create Messages Table
-create table if not exists public.messages (
+-- This table stores all chat messages.
+create table public.messages (
   id uuid not null default gen_random_uuid() primary key,
   created_at timestamptz not null default now(),
   content text not null,
@@ -42,6 +45,7 @@ create table if not exists public.messages (
 comment on table public.messages is 'Individual chat messages.';
 
 -- 5. Set up Trigger to Create Profile on New User Signup
+-- This function is called when a new user signs up.
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin
@@ -51,26 +55,22 @@ begin
 end;
 $$ language plpgsql security definer;
 
--- Drop existing trigger if it exists
-drop trigger if exists on_auth_user_created on auth.users;
+-- This trigger calls the function when a new user is created.
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- 6. Create function to find existing 1-on-1 chats
+-- 6. Create RPC to check for existing 1-on-1 chats
 create or replace function public.get_existing_chat(user1_id uuid, user2_id uuid)
 returns setof uuid
 language sql
 as $$
   select c.chat_id
   from chat_participants as c
-  where c.user_id = user1_id
-  intersect
-  select c.chat_id
-  from chat_participants as c
-  where c.user_id = user2_id;
+  join chat_participants as c2 on c.chat_id = c2.chat_id
+  where c.user_id = user1_id and c2.user_id = user2_id
+  and not (select is_group from chats where id = c.chat_id);
 $$;
-
 
 -- 7. Enable Row Level Security (RLS) on all tables
 alter table public.profiles enable row level security;
@@ -85,8 +85,8 @@ drop policy if exists "Users can insert their own profile." on public.profiles;
 drop policy if exists "Users can update own profile." on public.profiles;
 drop policy if exists "Users can view chats they are a member of." on public.chats;
 drop policy if exists "Users can create chats." on public.chats;
-drop policy if exists "Users can see their own chat memberships." on public.chat_participants;
-drop policy if exists "Users can join chats." on public.chat_participants;
+drop policy if exists "Users can view participants of chats they are a member of." on public.chat_participants;
+drop policy if exists "Users can insert participants for chats they are members of." on public.chat_participants;
 drop policy if exists "Users can view messages in chats they are a member of." on public.messages;
 drop policy if exists "Users can insert messages in chats they are a member of." on public.messages;
 drop policy if exists "Authenticated users can upload files." on storage.objects;
@@ -95,15 +95,15 @@ drop policy if exists "Anyone can see files." on storage.objects;
 -- Create policies for profiles
 create policy "Public profiles are viewable by everyone." on public.profiles for select using (true);
 create policy "Users can insert their own profile." on public.profiles for insert with check (auth.uid() = id);
-create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id);
+create policy "Users can update own profile." on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
 -- Create policies for chats
 create policy "Users can view chats they are a member of." on public.chats for select using (id in (select chat_id from public.chat_participants where user_id = auth.uid()));
 create policy "Users can create chats." on public.chats for insert with check (auth.role() = 'authenticated');
 
 -- Create policies for chat_participants
-create policy "Users can see their own chat memberships." on public.chat_participants for select using (user_id = auth.uid());
-create policy "Users can join chats." on public.chat_participants for insert with check (user_id = auth.uid());
+create policy "Users can view participants of chats they are a member of." on public.chat_participants for select using (chat_id in (select chat_id from public.chat_participants where user_id = auth.uid()));
+create policy "Users can insert participants for chats they are members of." on public.chat_participants for insert with check (auth.role() = 'authenticated');
 
 -- Create policies for messages
 create policy "Users can view messages in chats they are a member of." on public.messages for select using (chat_id in (select chat_id from public.chat_participants where user_id = auth.uid()));
