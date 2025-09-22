@@ -191,7 +191,7 @@ export function ProfileForm() {
                 <AvatarFallback className="text-4xl">{getInitials(form.getValues('name'))}</AvatarFallback>
               </Avatar>
               <FormControl>
-                <>
+                <div>
                  <Input
                     type="file"
                     accept="image/*"
@@ -209,7 +209,7 @@ export function ProfileForm() {
                     <Upload className="mr-2 h-4 w-4" />
                     Upload Image
                   </Button>
-                </>
+                </div>
               </FormControl>
               <FormMessage />
           </div>
