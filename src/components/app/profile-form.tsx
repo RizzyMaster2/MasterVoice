@@ -147,7 +147,7 @@ export function ProfileForm() {
           <AlertTitle>Account Not Verified</AlertTitle>
           <AlertDescription>
             Please verify your email address to enable profile editing and unlock all features.
-          </AlertDescription>
+          </Aler'tDescription>
         </Alert>
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
