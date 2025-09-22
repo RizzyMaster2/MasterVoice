@@ -14,24 +14,22 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { User, Message } from '@/lib/data';
-import { users as allUsers } from '@/lib/data';
-import { Send, Search } from 'lucide-react';
+import { Send, Search, UserPlus } from 'lucide-react';
 
 interface ChatLayoutProps {
   currentUser: User;
+  contacts: User[];
 }
 
 export function ChatLayout({
   currentUser,
+  contacts,
 }: ChatLayoutProps) {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [messages, setMessages] =
     useState<Record<string, Message[]>>({});
   const [newMessage, setNewMessage] = useState('');
   
-  // For demonstration, use mock users as contacts, excluding the current user.
-  const contacts = allUsers.filter(u => u.id !== currentUser.id);
-
   const getInitials = (name: string | undefined | null) =>
     name
       ?.split(' ')
@@ -69,30 +67,37 @@ export function ChatLayout({
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {contacts.map((user) => (
-            <div
-              key={user.id}
-              onClick={() => setSelectedUser(user)}
-              className={cn(
-                'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
-                selectedUser?.id === user.id && 'bg-accent'
-              )}
-            >
-              <Avatar className="h-10 w-10 relative">
-                <AvatarImage src={user.avatarUrl} alt={user.name} />
-                <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
-                {user.isOnline && (
-                  <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+          {contacts.length > 0 ? (
+            contacts.map((user) => (
+              <div
+                key={user.id}
+                onClick={() => setSelectedUser(user)}
+                className={cn(
+                  'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
+                  selectedUser?.id === user.id && 'bg-accent'
                 )}
-              </Avatar>
-              <div className="flex-1">
-                <p className="font-semibold">{user.name}</p>
-                <p className="text-sm text-muted-foreground truncate">
-                  {messages[user.id]?.[messages[user.id].length - 1]?.text || 'No messages yet'}
-                </p>
+              >
+                <Avatar className="h-10 w-10 relative">
+                  <AvatarImage src={user.avatarUrl} alt={user.name} />
+                  <AvatarFallback>{getInitials(user.name)}</AvatarFallback>
+                  {user.isOnline && (
+                    <span className="absolute bottom-0 right-0 block h-2.5 w-2.5 rounded-full bg-green-500 ring-2 ring-background" />
+                  )}
+                </Avatar>
+                <div className="flex-1">
+                  <p className="font-semibold">{user.name}</p>
+                  <p className="text-sm text-muted-foreground truncate">
+                    {messages[user.id]?.[messages[user.id].length - 1]?.text || 'No messages yet'}
+                  </p>
+                </div>
               </div>
+            ))
+          ) : (
+            <div className="p-4 text-center text-sm text-muted-foreground">
+                <p className="mb-2">No contacts yet.</p>
+                <p>Add friends from the suggestions!</p>
             </div>
-          ))}
+          )}
         </ScrollArea>
       </div>
       <div className="w-2/3 flex flex-col">
@@ -176,7 +181,8 @@ export function ChatLayout({
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
-              <p className="text-lg font-semibold">Select a contact</p>
+              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground/50" />
+              <p className="mt-4 text-lg font-semibold">Select a contact</p>
               <p className="text-muted-foreground">
                 Start a conversation from your contact list.
               </p>

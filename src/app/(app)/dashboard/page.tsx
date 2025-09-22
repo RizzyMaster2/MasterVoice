@@ -8,14 +8,15 @@ import { UnverifiedAccountWarning } from '@/components/app/unverified-account-wa
 import { useUser } from '@/hooks/use-user';
 import { redirect } from 'next/navigation';
 import { useEffect, useState } from 'react';
-import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
+import { users as allUsers } from '@/lib/data';
 
 export default function DashboardPage() {
   const { user: authUser, isLoading: isUserLoading } = useUser();
   const [appUser, setAppUser] = useState<AppUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [contacts, setContacts] = useState<AppUser[]>([]);
 
   useEffect(() => {
     const setupUser = async () => {
@@ -41,6 +42,20 @@ export default function DashboardPage() {
     setupUser();
   }, [authUser, isUserLoading]);
 
+  const handleAddFriend = (friend: AppUser) => {
+    if (!contacts.find(c => c.id === friend.id)) {
+      setContacts(prev => [...prev, friend]);
+    }
+  };
+
+  // Mock suggestions - in a real app this would come from an API
+  const suggestedUsers = allUsers.filter(u => {
+    if (!appUser || u.id === appUser.id) return false;
+    if (contacts.find(c => c.id === u.id)) return false;
+    return ['user5', 'user6', 'user7'].includes(u.id);
+  });
+
+
   if (isLoading || !appUser) {
     return (
       <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
@@ -60,10 +75,13 @@ export default function DashboardPage() {
         {!isVerified && <UnverifiedAccountWarning />}
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
           <div className="flex-1 h-full">
-            <ChatLayout currentUser={appUser} />
+            <ChatLayout currentUser={appUser} contacts={contacts} />
           </div>
           <div className="w-full lg:w-[320px] flex flex-col gap-6">
-            <SuggestedFriends currentUser={appUser} />
+            <SuggestedFriends 
+              suggestedUsers={suggestedUsers} 
+              onAddFriend={handleAddFriend}
+            />
           </div>
         </div>
       </div>
