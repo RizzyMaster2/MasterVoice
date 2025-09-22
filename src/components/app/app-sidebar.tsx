@@ -43,7 +43,7 @@ const adminMenuItem = {
 
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isAdmin, isLoading } = useUser();
+  const { isAdmin } = useUser();
 
   return (
     <>
@@ -57,44 +57,36 @@ export function AppSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          {isLoading ? (
-            <div className="space-y-2 px-2">
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-              <Skeleton className="h-8 w-full" />
-            </div>
-          ) : (
-            <>
-              {menuItems.map((item) => (
-                <SidebarMenuItem key={item.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === item.href}
-                    tooltip={{ children: item.label }}
-                  >
-                    <Link href={item.href}>
-                      <item.icon />
-                      <span>{item.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-              {isAdmin && (
-                <SidebarMenuItem key={adminMenuItem.href}>
-                  <SidebarMenuButton
-                    asChild
-                    isActive={pathname === adminMenuItem.href}
-                    tooltip={{ children: adminMenuItem.label }}
-                  >
-                  <Link href={adminMenuItem.href}>
-                    <adminMenuItem.icon />
-                    <span>{adminMenuItem.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
+          <>
+            {menuItems.map((item) => (
+              <SidebarMenuItem key={item.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === item.href}
+                  tooltip={{ children: item.label }}
+                >
+                  <Link href={item.href}>
+                    <item.icon />
+                    <span>{item.label}</span>
+                  </Link>
+                </SidebarMenuButton>
               </SidebarMenuItem>
-              )}
-            </>
-          )}
+            ))}
+            {isAdmin && (
+              <SidebarMenuItem key={adminMenuItem.href}>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === adminMenuItem.href}
+                  tooltip={{ children: adminMenuItem.label }}
+                >
+                <Link href={adminMenuItem.href}>
+                  <adminMenuItem.icon />
+                  <span>{adminMenuItem.label}</span>
+                  </Link>
+                </SidebarMenuButton>
+            </SidebarMenuItem>
+            )}
+          </>
         </SidebarMenu>
       </SidebarContent>
       <SidebarFooter className="group-data-[collapsible=icon]:hidden">

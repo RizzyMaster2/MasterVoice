@@ -21,13 +21,13 @@ import { Skeleton } from '../ui/skeleton';
 
 export function UserNav() {
   const router = useRouter();
-  const { user, isLoading } = useUser();
+  const { user } = useUser();
 
-  if (isLoading) {
+  if (!user) {
+    // Render a skeleton or null while the user is being fetched to avoid layout shifts
+    // and hydration errors. Null is safer for hydration.
     return <Skeleton className="h-10 w-10 rounded-full" />;
   }
-  
-  if (!user) return null;
   
   const userName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email || 'User';
   const userEmail = user.email || 'No email provided';
