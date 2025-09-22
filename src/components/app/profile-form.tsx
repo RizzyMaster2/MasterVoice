@@ -1,7 +1,7 @@
 'use client';
 
 import type { FormEvent } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -23,12 +23,19 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { User, Save, ShieldAlert } from 'lucide-react';
+import { User, Save, ShieldAlert, Upload } from 'lucide-react';
+import { Card, CardContent, CardHeader } from '../ui/card';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
-  bio: z.string().max(160, { message: 'Bio cannot exceed 160 characters.' }).optional(),
-  avatarUrl: z.string().url({ message: 'Please enter a valid URL.' }).optional(),
+  bio: z
+    .string()
+    .max(160, { message: 'Bio cannot exceed 160 characters.' })
+    .optional(),
+  avatarUrl: z
+    .string()
+    .url({ message: 'Please enter a valid URL.' })
+    .optional(),
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -37,6 +44,9 @@ export function ProfileForm() {
   const { toast } = useToast();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
   const form = useForm<ProfileFormValues>({
@@ -50,35 +60,69 @@ export function ProfileForm() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (!error && data.user) {
-        setUser(data.user);
-        setIsVerified(!!data.user.email_confirmed_at);
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
+      if (!error && user) {
+        setUser(user);
+        setIsVerified(!!user.email_confirmed_at);
+        const metadata = user.user_metadata;
         form.reset({
-          name: data.user.user_metadata?.full_name || '',
-          bio: data.user.user_metadata?.bio || '',
-          avatarUrl: data.user.user_metadata?.avatar_url || '',
+          name: metadata?.full_name || '',
+          bio: metadata?.bio || '',
+          avatarUrl: metadata?.avatar_url || '',
         });
-        if (!data.user.email_confirmed_at) {
+        setPreviewUrl(metadata?.avatar_url || null);
+        if (!user.email_confirmed_at) {
           form.disable();
         }
       }
     };
     fetchUser();
   }, [form, supabase]);
-  
-  const avatarUrl = form.watch('avatarUrl');
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (event.target.files && event.target.files[0]) {
+      const file = event.target.files[0];
+      setSelectedFile(file);
+      setPreviewUrl(URL.createObjectURL(file));
+    }
+  };
 
   async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
-    
+    let newAvatarUrl = values.avatarUrl;
+
+    if (selectedFile) {
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `public/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, selectedFile);
+      
+      if (uploadError) {
+        toast({
+          title: 'Avatar Upload Failed',
+          description: uploadError.message,
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      newAvatarUrl = data.publicUrl;
+    }
+
     const { error } = await supabase.auth.updateUser({
       data: {
         full_name: values.name,
         bio: values.bio,
-        avatar_url: values.avatarUrl,
-      }
-    })
+        avatar_url: newAvatarUrl,
+      },
+    });
 
     if (error) {
       toast({
@@ -91,96 +135,134 @@ export function ProfileForm() {
         title: 'Profile Updated',
         description: 'Your changes have been saved successfully.',
       });
+       // Reset the file input state after successful submission
+      setSelectedFile(null);
     }
   }
+  
+  const getInitials = (name: string | undefined | null) =>
+    name
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('') || 'U';
 
   if (!user) {
     return (
       <div className="space-y-8">
-        <div className="flex items-center gap-4">
-          <Skeleton className="h-20 w-20 rounded-full" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-10 w-full" />
-        </div>
-        <div className="space-y-2">
-          <Skeleton className="h-4 w-20" />
-          <Skeleton className="h-20 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div className="col-span-1 flex flex-col items-center gap-4">
+                <Skeleton className="h-32 w-32 rounded-full" />
+                <Skeleton className="h-10 w-32" />
+            </div>
+            <div className="col-span-2 space-y-8">
+                 <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-10 w-full" />
+                </div>
+                <div className="space-y-2">
+                    <Skeleton className="h-4 w-20" />
+                    <Skeleton className="h-20 w-full" />
+                </div>
+            </div>
         </div>
       </div>
-    )
+    );
   }
 
   return (
     <Form {...form}>
       {!isVerified && (
-        <Alert variant="destructive" className="mb-6 bg-amber-50 border-amber-200 text-amber-800 [&>svg]:text-amber-600">
+        <Alert
+          variant="destructive"
+          className="mb-6 bg-amber-50 border-amber-200 text-amber-800 [&>svg]:text-amber-600"
+        >
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Account Not Verified</AlertTitle>
           <AlertDescription>
-            Please verify your email address to enable profile editing and unlock all features.
+            Please verify your email address to enable profile editing and unlock
+            all features.
           </AlertDescription>
         </Alert>
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <div className="space-y-8" aria-disabled={!isVerified}>
-          <FormField
-            control={form.control}
-            name="avatarUrl"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Avatar</FormLabel>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={avatarUrl} alt={form.getValues('name')} />
-                    <AvatarFallback><User className="h-10 w-10" /></AvatarFallback>
-                  </Avatar>
-                  <FormControl>
-                    <Input placeholder="https://example.com/avatar.png" {...field} disabled={!isVerified} />
-                  </FormControl>
-                </div>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input placeholder="Your Name" {...field} disabled={!isVerified} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="bio"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Bio</FormLabel>
-                <FormControl>
-                  <Textarea
-                    placeholder="Tell us a little bit about yourself"
-                    className="resize-none"
-                    {...field}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start" aria-disabled={!isVerified}>
+          {/* Avatar Section */}
+          <div className="col-span-1 flex flex-col items-center text-center gap-4">
+             <FormLabel>Avatar</FormLabel>
+              <Avatar className="h-32 w-32">
+                <AvatarImage src={previewUrl || undefined} alt={form.getValues('name')} />
+                <AvatarFallback className="text-4xl">{getInitials(form.getValues('name'))}</AvatarFallback>
+              </Avatar>
+              <FormControl>
+                <>
+                 <Input
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    className="hidden"
                     disabled={!isVerified}
                   />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={!isVerified}
+                  >
+                    <Upload className="mr-2 h-4 w-4" />
+                    Upload Image
+                  </Button>
+                </>
+              </FormControl>
+              <FormMessage />
+          </div>
+
+          {/* Name and Bio Section */}
+          <div className="col-span-2 space-y-6">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Your Name"
+                      {...field}
+                      disabled={!isVerified}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="bio"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Bio</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="Tell us a little bit about yourself"
+                      className="resize-none h-24"
+                      {...field}
+                      disabled={!isVerified}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
         </div>
-        <Button type="submit" disabled={!isVerified}>
-          <Save className="mr-2 h-4 w-4" />
-          Save Changes
-        </Button>
+
+        <div className="flex justify-end">
+            <Button type="submit" disabled={!isVerified}>
+                <Save className="mr-2 h-4 w-4" />
+                Save Changes
+            </Button>
+        </div>
       </form>
     </Form>
   );
