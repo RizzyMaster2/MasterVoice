@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useTransition, useRef } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ChangeEvent } from 'react';
 import {
   Card,
   CardContent,
@@ -16,10 +16,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/actions/chat';
-import { Send, Search, UserPlus } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -34,8 +35,10 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { user: authUser } = useUser();
+  const { toast } = useToast();
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -132,6 +135,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
       chat_id: selectedChat.id,
       type: 'text',
       profiles: currentUser,
+      file_url: null,
     };
     setMessages(prev => [...prev, optimisticMessage]);
     setTimeout(scrollToBottom, 100);
@@ -146,6 +150,49 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
       }
     });
   };
+
+  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
+    if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
+      return;
+    }
+    const file = event.target.files[0];
+    startSendingTransition(async () => {
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${authUser.id}-${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('files')
+          .upload(filePath, file);
+
+        if (uploadError) {
+          throw uploadError;
+        }
+
+        const { data } = supabase.storage.from('files').getPublicUrl(filePath);
+        
+        if (!data.publicUrl) {
+            throw new Error('Could not get public URL for the uploaded file.');
+        }
+
+        await sendMessage(selectedChat.id, data.publicUrl, 'file');
+
+        toast({
+          title: 'File Sent',
+          description: 'Your file has been sent successfully.',
+        });
+      } catch (error) {
+        console.error('Failed to upload and send file:', error);
+        toast({
+          title: 'Upload Failed',
+          description: (error as Error).message,
+          variant: 'destructive',
+        });
+      }
+    });
+  };
+
   
   const filteredChats = chats.filter((chat) =>
     chat.otherParticipant?.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -258,7 +305,19 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                                 : 'bg-muted'
                             )}
                         >
-                            <p>{msg.content}</p>
+                             {msg.type === 'file' && msg.file_url ? (
+                                <a
+                                  href={msg.file_url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2 underline"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  {msg.file_url.split('/').pop()}
+                                </a>
+                              ) : (
+                                <p>{msg.content}</p>
+                              )}
                             <p className="text-xs opacity-70 mt-1 text-right">
                                 {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                             </p>
@@ -275,6 +334,23 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                 className="flex w-full items-center space-x-2"
               >
                 <Input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  disabled={isSending}
+                />
+                 <Button
+                    type="button"
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isSending}
+                  >
+                    <Paperclip className="h-4 w-4" />
+                    <span className="sr-only">Attach file</span>
+                  </Button>
+                <Input
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder="Type a message..."
@@ -282,7 +358,7 @@ export function ChatLayout({ currentUser, chats }: ChatLayoutProps) {
                   autoComplete="off"
                   disabled={isSending}
                 />
-                <Button type="submit" size="icon" disabled={isSending}>
+                <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
                   <Send className="h-4 w-4" />
                 </Button>
               </form>

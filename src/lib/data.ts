@@ -26,7 +26,8 @@ export type Message = {
   content: string;
   sender_id: string;
   chat_id: string;
-  type: string;
+  type: 'text' | 'file';
+  file_url: string | null;
   profiles?: UserProfile | null; // Associated sender profile
 };
 

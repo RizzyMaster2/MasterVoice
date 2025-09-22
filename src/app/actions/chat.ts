@@ -134,12 +134,30 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 }
 
 // Send a new message
-export async function sendMessage(chatId: string, content: string) {
+export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
   const supabase = createClient();
   const userId = await getCurrentUserId();
+  
+  const messageData: {
+    chat_id: string;
+    sender_id: string;
+    content: string;
+    type: string;
+    file_url?: string;
+  } = {
+    chat_id: chatId,
+    sender_id: userId,
+    content: type === 'file' ? 'Attachment' : content,
+    type: type,
+  };
+
+  if (type === 'file') {
+    messageData.file_url = content;
+  }
+
   const { data, error } = await supabase
     .from('messages')
-    .insert([{ chat_id: chatId, sender_id: userId, content: content, type: 'text' }]);
+    .insert([messageData]);
 
   if (error) {
     console.error('Error sending message:', error);
