@@ -151,20 +151,20 @@ export function ProfileForm() {
         </Alert>
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-        <fieldset disabled={!isVerified} className="space-y-8 group">
+        <div className="space-y-8 group-disabled:opacity-50" aria-disabled={!isVerified}>
           <FormField
             control={form.control}
             name="avatarUrl"
             render={({ field }) => (
               <FormItem>
                 <FormLabel>Avatar</FormLabel>
-                <div className="flex items-center gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-4">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={avatarUrl} alt={form.getValues('name')} />
                     <AvatarFallback><User className="h-10 w-10" /></AvatarFallback>
                   </Avatar>
                   <FormControl>
-                    <Input placeholder="https://example.com/avatar.png" {...field} />
+                    <Input placeholder="https://example.com/avatar.png" {...field} disabled={!isVerified} />
                   </FormControl>
                 </div>
                 <FormMessage />
@@ -178,7 +178,7 @@ export function ProfileForm() {
               <FormItem>
                 <FormLabel>Name</FormLabel>
                 <FormControl>
-                  <Input placeholder="Your Name" {...field} />
+                  <Input placeholder="Your Name" {...field} disabled={!isVerified} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
@@ -195,17 +195,18 @@ export function ProfileForm() {
                     placeholder="Tell us a little bit about yourself"
                     className="resize-none"
                     {...field}
+                    disabled={!isVerified}
                   />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
-          <Button type="submit" className="group-disabled:pointer-events-none">
+          <Button type="submit" disabled={!isVerified}>
             <Save className="mr-2 h-4 w-4" />
             Save Changes
           </Button>
-        </fieldset>
+        </div>
         
         <div className="flex justify-end pt-8 border-t">
           <AlertDialog>
