@@ -25,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { deleteUser } from '@/app/actions/user';
-import { Mic, Trash2, Volume2 } from 'lucide-react';
+import { Mic, Trash2, Volume2, MicOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
@@ -46,22 +46,34 @@ export default function ProfilePage() {
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
 
+  const stopMicTest = () => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+    }
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getTracks().forEach(track => track.stop());
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+    }
+    audioContextRef.current = null;
+    analyserRef.current = null;
+    mediaStreamRef.current = null;
+    setMicLevel(0);
+  };
+
   useEffect(() => {
+    // Cleanup on unmount
     return () => {
-      // Cleanup on unmount
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-      }
-      if (mediaStreamRef.current) {
-        mediaStreamRef.current.getTracks().forEach(track => track.stop());
-      }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
-      }
+      stopMicTest();
     };
   }, []);
 
   const startMicTest = async () => {
+    if (audioContextRef.current) {
+      stopMicTest();
+    }
+    
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
@@ -152,9 +164,19 @@ export default function ProfilePage() {
                   <Mic className="h-5 w-5 text-muted-foreground" />
                   <Progress value={micLevel} className="w-full" />
                 </div>
-                 <Button variant="outline" onClick={startMicTest} disabled={!!audioContextRef.current}>
-                  Test Microphone
-                </Button>
+                 <div className="flex gap-2">
+                    {!audioContextRef.current ? (
+                      <Button variant="outline" onClick={startMicTest}>
+                        <Mic className="mr-2 h-4 w-4" />
+                        Test Microphone
+                      </Button>
+                    ) : (
+                      <Button variant="destructive" onClick={stopMicTest}>
+                        <MicOff className="mr-2 h-4 w-4" />
+                        Stop Test
+                      </Button>
+                    )}
+                  </div>
               </div>
 
               <div className="flex items-center gap-4">
