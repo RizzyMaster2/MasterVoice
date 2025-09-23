@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
+  MessageSquareText,
   Shield,
 } from 'lucide-react';
 
@@ -23,11 +24,11 @@ const menuItems = [
     label: 'Home',
     icon: Home,
   },
-  // {
-  //   href: '/profile',
-  //   label: 'Profile',
-  //   icon: User,
-  // },
+  {
+    href: '/home/sms',
+    label: 'SMS',
+    icon: MessageSquareText,
+  }
 ];
 
 const adminMenuItem = {
