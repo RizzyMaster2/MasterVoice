@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -48,13 +47,8 @@ export function SignupForm() {
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
 
-    const formData = new FormData();
-    formData.append('name', values.name);
-    formData.append('email', values.email);
-    formData.append('password', values.password);
-
     try {
-      await signup(formData);
+      await signup(values);
     } catch (error) {
        toast({
             title: 'Signup Failed',

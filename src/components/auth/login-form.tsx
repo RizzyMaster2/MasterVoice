@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -45,13 +44,8 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-
-    const formData = new FormData();
-    formData.append('email', values.email);
-    formData.append('password', values.password);
-
     try {
-      await login(formData);
+      await login(values);
     } catch (error) {
         toast({
             title: 'Login Failed',
