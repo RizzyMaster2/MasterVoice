@@ -4,7 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-function getSupabaseClient() {
+async function getSupabaseClient() {
   const cookieStore = cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -50,7 +50,7 @@ export async function login(data: {
       return { success: false, message: 'Email and password are required.' };
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
@@ -80,7 +80,7 @@ export async function signup(data: {
       return { success: false, message: 'Name, email, and password are required.' };
     }
 
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -102,7 +102,7 @@ export async function signup(data: {
 
 export async function logout(): Promise<ActionResult> {
   try {
-    const supabase = getSupabaseClient();
+    const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signOut();
 
     if (error) {
