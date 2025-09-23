@@ -55,15 +55,12 @@ export function SignupForm() {
 
     try {
       await signup(formData);
-      // On success, the server action will redirect.
     } catch (error) {
        toast({
             title: 'Signup Failed',
-            description: 'An unexpected response was received from the server.',
+            description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
-    } finally {
-        // This will run even if a redirect is attempted.
         setIsLoading(false);
     }
   }

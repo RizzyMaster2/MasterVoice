@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -17,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useSearchParams } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -29,7 +31,8 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
@@ -42,24 +45,17 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    setErrorMessage(null);
 
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
 
     try {
-      const result = await login(formData);
-
-      if (result?.error) {
-        setErrorMessage(result.error);
-        setIsLoading(false);
-      }
-      // On success, the server action redirects, so no need to call setIsLoading(false).
+      await login(formData);
     } catch (error) {
         toast({
             title: 'Login Failed',
-            description: 'An unexpected response was received from the server.',
+            description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
         setIsLoading(false);
