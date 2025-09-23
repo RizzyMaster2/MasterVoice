@@ -20,9 +20,8 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  // Instead of redirecting here, we'll let the client-side handle it optimistically.
-  revalidatePath('/dashboard');
-  return { success: true, message: 'Login successful' };
+  revalidatePath('/dashboard', 'layout');
+  redirect('/dashboard');
 }
 
 export async function signup(formData: FormData) {
@@ -45,8 +44,7 @@ export async function signup(formData: FormData) {
     return { success: false, message: error.message }
   }
   
-  // Return success and let the client handle the redirect.
-  return { success: true, message: 'Signup successful, please confirm your email.' }
+  redirect('/confirm');
 }
 
 export async function logout() {

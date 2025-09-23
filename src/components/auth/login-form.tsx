@@ -47,26 +47,19 @@ export function LoginForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    // Optimistically navigate to the dashboard
-    router.push('/dashboard');
-
     const result = await login(formData);
 
     if (result?.success === false) {
-       // If login fails, redirect back to login page with an error
-      router.push(`/login?error=${encodeURIComponent(result.message)}`);
       toast({
         title: 'Login Failed',
         description: result.message,
         variant: 'destructive',
       });
-      setIsLoading(false);
-    } else {
-        // On success, the user is already on the dashboard, so we just need to refresh
-        // to make sure they have the correct session data.
-        router.refresh();
-        setIsLoading(false);
     }
+    
+    // The server action will handle the redirect on success.
+    // If it returns, it's because of an error.
+    setIsLoading(false);
   }
 
   return (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -53,17 +54,16 @@ export function SignupForm() {
 
     const result = await signup(formData);
 
-    if (result?.success) {
-      // On success, redirect to the confirmation page.
-      router.push('/confirm');
-    } else {
+    if (result?.success === false) {
       toast({
         title: 'Signup Failed',
         description: result.message,
         variant: 'destructive',
       });
     }
-    
+
+    // The server action will handle the redirect on success.
+    // If it returns, it's because of an error.
     setIsLoading(false);
   }
 
