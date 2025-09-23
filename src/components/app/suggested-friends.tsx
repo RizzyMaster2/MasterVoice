@@ -25,11 +25,15 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
   const availableUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
 
   const filteredUsers = useMemo(() => {
-    if (!searchQuery) return availableUsers.slice(0, 5); // Show top 5 suggestions if no search
+    const usersToFilter = availableUsers;
     
-    return availableUsers.filter(user => 
+    if (!searchQuery) {
+        return usersToFilter.slice(0, 5); // Show top 5 suggestions if no search
+    }
+    
+    return usersToFilter.filter(user => 
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      )
+      );
   }, [searchQuery, availableUsers]);
 
 
