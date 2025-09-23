@@ -49,15 +49,12 @@ export function LoginForm() {
 
     // Optimistically navigate to the dashboard
     router.push('/dashboard');
-    router.refresh();
-
 
     const result = await login(formData);
 
     if (result?.success === false) {
        // If login fails, redirect back to login page with an error
       router.push(`/login?error=${encodeURIComponent(result.message)}`);
-      // We can use toast here as a fallback if the user somehow stays on the page
       toast({
         title: 'Login Failed',
         description: result.message,
@@ -68,6 +65,7 @@ export function LoginForm() {
         // On success, the user is already on the dashboard, so we just need to refresh
         // to make sure they have the correct session data.
         router.refresh();
+        setIsLoading(false);
     }
   }
 
