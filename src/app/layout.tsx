@@ -1,3 +1,4 @@
+
 import type { Metadata, Viewport } from 'next';
 import { Poppins, PT_Sans, Fira_Code } from 'next/font/google';
 import './globals.css';
@@ -45,6 +46,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body
+        suppressHydrationWarning={true}
         className={cn(
           'min-h-screen bg-background font-body antialiased',
           fontPoppins.variable,
