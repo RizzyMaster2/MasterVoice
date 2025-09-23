@@ -44,20 +44,18 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
-    const formData = new FormData();
-    formData.append('name', values.name);
-    formData.append('email', values.email);
-    formData.append('password', values.password);
-
+    
     try {
       // The server action will handle the redirect on success or failure.
-      await signup(formData);
+      await signup(values);
     } catch (error) {
       // This is a fallback for network errors. 
       // The primary error is displayed from the URL.
       console.error("Signup form submission error:", error);
-      setIsLoading(false);
     }
+    // We don't necessarily need to set loading to false if a redirect is expected.
+    // But as a fallback in case of an uncaught client error:
+    setIsLoading(false);
   }
 
   return (
