@@ -16,13 +16,11 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    // Return to the login page with an error message
-    return redirect(`/login?message=${encodeURIComponent(error.message)}`)
+    return { success: false, message: error.message }
   }
 
-  // On success, redirect to the dashboard. Revalidation is not needed
-  // as the redirect will cause a full page load.
-  redirect('/dashboard');
+  revalidatePath('/dashboard', 'layout');
+  return { success: true, message: 'Login successful' }
 }
 
 export async function signup(formData: FormData) {
@@ -42,12 +40,10 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
-    // Return to the signup page with an error message
-    return redirect(`/signup?message=${encodeURIComponent(error.message)}`)
+    return { success: false, message: error.message }
   }
   
-  // On success, redirect to the confirmation page.
-  redirect('/confirm');
+  return { success: true, message: 'Signup successful, please check your email.' }
 }
 
 export async function logout() {

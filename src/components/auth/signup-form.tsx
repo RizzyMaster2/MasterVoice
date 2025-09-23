@@ -64,12 +64,19 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    // The server action will handle the redirect.
-    await signup(formData);
+    const result = await signup(formData);
 
-    // This part should not be reached on successful signup because of the redirect.
-    // Setting loading to false in case of an unhandled error.
     setIsLoading(false);
+
+    if (result.success) {
+      router.push('/confirm');
+    } else {
+      toast({
+        title: 'Signup Failed',
+        description: result.message,
+        variant: 'destructive',
+      });
+    }
   }
 
   return (

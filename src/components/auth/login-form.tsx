@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { login } from '@/app/(auth)/actions';
 import { LogIn } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -31,6 +31,7 @@ export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -58,14 +59,20 @@ export function LoginForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    // The server action will handle the redirect.
-    // If it returns, it's because of an error which is handled via redirect query param.
-    await login(formData);
+    const result = await login(formData);
 
-    // We only reach here if the redirect hasn't happened, which indicates an issue.
-    // In a typical success scenario, the user is redirected and this component unmounts.
-    // To be safe, we'll stop the loading indicator.
     setIsLoading(false);
+
+    if (result.success) {
+      router.push('/dashboard');
+      router.refresh(); // Refresh to update session state
+    } else {
+      toast({
+        title: 'Login Failed',
+        description: result.message,
+        variant: 'destructive',
+      });
+    }
   }
 
   return (
