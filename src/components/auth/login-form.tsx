@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -31,6 +32,7 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const router = useRouter();
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -41,15 +43,13 @@ export function LoginForm() {
     setIsLoading(true);
     setServerError(null);
   
-    const result = await login({
-      email: values.email,
-      password: values.password,
-    });
+    const result = await login(values);
   
     setIsLoading(false);
   
     if (result.success) {
-      router.push('/home'); // Navigate manually
+      router.push('/home');
+      router.refresh(); // Refresh to ensure logged-in state is reflected everywhere
     } else {
       setServerError(result.message ?? 'Login failed');
       toast({
