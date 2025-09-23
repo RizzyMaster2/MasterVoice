@@ -1,3 +1,4 @@
+
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -42,11 +43,13 @@ export async function login(data: {
   email: unknown;
   password: unknown;
 }): Promise<ActionResult> {
+  console.log('--- LOGIN ACTION START ---', { email: data.email });
   try {
     const email = typeof data.email === 'string' ? data.email : '';
     const password = typeof data.password === 'string' ? data.password : '';
 
     if (!email || !password) {
+      console.log('[Login Validation Failed] Email or password missing.');
       return { success: false, message: 'Email and password are required.' };
     }
 
@@ -54,14 +57,16 @@ export async function login(data: {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
 
     if (error) {
+      console.error('[Login Supabase Error]', error.message);
       return { success: false, message: error.message };
     }
 
+    console.log('--- LOGIN SUCCESS ---');
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
-    console.error('[Login Error]', message);
+    console.error('[Login Unexpected Error]', message);
     return { success: false, message };
   }
 }
@@ -71,12 +76,14 @@ export async function signup(data: {
   email: unknown;
   password: unknown;
 }): Promise<ActionResult> {
+  console.log('--- SIGNUP ACTION START ---', { name: data.name, email: data.email });
   try {
     const name = typeof data.name === 'string' ? data.name : '';
     const email = typeof data.email === 'string' ? data.email : '';
     const password = typeof data.password === 'string' ? data.password : '';
 
     if (!name || !email || !password) {
+       console.log('[Signup Validation Failed] Name, email, or password missing.');
       return { success: false, message: 'Name, email, and password are required.' };
     }
 
@@ -88,31 +95,37 @@ export async function signup(data: {
     });
 
     if (error) {
+      console.error('[Signup Supabase Error]', error.message);
       return { success: false, message: error.message };
     }
 
+    console.log('--- SIGNUP SUCCESS ---');
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
-    console.error('[Signup Error]', message);
+    console.error('[Signup Unexpected Error]', message);
     return { success: false, message };
   }
 }
 
 export async function logout(): Promise<ActionResult> {
+  console.log('--- LOGOUT ACTION START ---');
   try {
     const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signOut();
 
     if (error) {
+      console.error('[Logout Supabase Error]', error.message);
       return { success: false, message: error.message };
     }
+
+    console.log('--- LOGOUT SUCCESS ---');
     revalidatePath('/', 'layout');
     return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected logout error';
-    console.error('[Logout Error]', message);
+    console.error('[Logout Unexpected Error]', message);
     return { success: false, message };
   }
 }
