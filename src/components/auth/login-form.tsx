@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -16,10 +15,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
-import { LogIn } from 'lucide-react';
+import { LogIn, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
@@ -48,24 +46,36 @@ export function LoginForm() {
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
-    
-    // The login action will handle success/error and redirect.
-    // A failed login will redirect back with a message on the URL.
-    // A successful login will redirect to the dashboard.
-    // We just need to wait for the action to complete.
+
     try {
-        await login(formData);
-    } catch (error) {
-        // This catch block might run if the server action itself throws an unhandled error.
-        toast({
-            title: 'Login Failed',
-            description: (error as Error).message || "An unexpected error occurred.",
-            variant: 'destructive',
-        });
-        setIsLoading(false);
+      const result = await login(formData);
+
+      toast({ title: 'Login successful', description: 'Redirecting...' });
+
+    } catch (error: unknown) {
+      let message = 'An unexpected error occurred.';
+      let isBadGateway = false;
+
+      if (error instanceof Error) {
+        message = error.message;
+        if (message.includes('502')) {
+          isBadGateway = true;
+          message = 'Server is unreachable. Try again shortly.';
+        }
+      }
+
+      toast({
+        title: 'Login Failed',
+        description: message,
+        variant: 'destructive',
+      });
+
+      if (isBadGateway) {
+        console.warn('502 intercepted. Try Again Shortly or message MasterDev.');
+      }
+
+      setIsLoading(false);
     }
-    // No need to set loading to false on success because the page will redirect.
-    // If the login fails, the page will reload with an error message, resetting the state.
   };
 
   return (

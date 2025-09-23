@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -21,13 +20,10 @@ import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
-
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
   email: z.string().email({ message: 'Please enter a valid email.' }),
-  password: z
-    .string()
-    .min(8, { message: 'Password must be at least 8 characters.' }),
+  password: z.string().min(8, { message: 'Password must be at least 8 characters.' }),
 });
 
 type SignupFormValues = z.infer<typeof formSchema>;
@@ -37,7 +33,6 @@ export function SignupForm() {
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
   const { toast } = useToast();
-
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -57,21 +52,35 @@ export function SignupForm() {
     formData.append('password', values.password);
 
     try {
-        await signup(formData);
-    } catch(error) {
-         toast({
-            title: 'Signup Failed',
-            description: (error as Error).message || "An unexpected error occurred.",
-            variant: 'destructive',
-        });
-        setIsLoading(false);
+      const result = await signup(formData);
+
+      toast({
+        title: 'Signup Successful',
+        description: 'Your account has been created.',
+      });
+
+      // Optional: redirect or reset form
+      // router.push('/dashboard');
+      form.reset();
+
+    } catch (error: unknown) {
+      const message =
+        error instanceof Error ? error.message : 'An unexpected error occurred.';
+
+      toast({
+        title: 'Signup Failed',
+        description: message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
     }
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-         {errorMessage && (
+        {errorMessage && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Signup Failed</AlertTitle>
