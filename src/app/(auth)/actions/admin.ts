@@ -49,7 +49,7 @@ export async function getAdminStats(): Promise<AdminStats> {
       totalMessages: totalMessages ?? 0,
       error,
     };
-  } catch(err: unknown) {
+  } catch(err) {
       const message = err instanceof Error ? err.message : 'An unknown error occurred.';
       return { totalUsers: 0, totalChats: 0, totalMessages: 0, error: message };
   }
@@ -89,7 +89,7 @@ export async function getUserSignupsByDay(): Promise<{ data: TimeSeriesData[], e
 
 
         return { data: formattedData, error: null };
-    } catch (err: unknown) {
+    } catch (err) {
         const message = err instanceof Error ? err.message : 'An unknown error occurred.';
         return { data: [], error: message };
     }
@@ -129,7 +129,7 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return { data: formattedData, error: null };
-    } catch (err: unknown) {
+    } catch (err) {
         const message = err instanceof Error ? err.message : 'An unknown error occurred.';
         return { data: [], error: message };
     }

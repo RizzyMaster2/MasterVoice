@@ -11,8 +11,13 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 
+type TimeSeriesData = {
+    date: string;
+    [key: string]: string | number;
+};
+
 type TimeSeriesChartProps = {
-  data: { date: string; [key: string]: string | number }[];
+  data: TimeSeriesData[];
   dataKey: string;
 };
 

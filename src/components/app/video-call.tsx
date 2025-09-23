@@ -87,8 +87,7 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
     return () => {
       localStream?.getTracks().forEach(track => track.stop());
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [handleClose, localStream, toast]);
 
   useEffect(() => {
     if (!localStream || !otherParticipantId) return;
