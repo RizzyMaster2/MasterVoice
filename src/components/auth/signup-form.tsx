@@ -19,6 +19,7 @@ import { signup } from '@/app/(auth)/actions';
 import { UserPlus, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 
 const formSchema = z.object({
@@ -35,6 +36,7 @@ export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
+  const { toast } = useToast();
 
 
   const form = useForm<SignupFormValues>({
@@ -54,11 +56,17 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    await signup(formData);
-    
-    // This line is only reached if the server action throws an unhandled error
-    // before it can redirect. We set loading to false to allow another attempt.
-    setIsLoading(false);
+    try {
+        await signup(formData);
+    } catch(error) {
+         toast({
+            title: 'Signup Failed',
+            description: (error as Error).message || "An unexpected error occurred.",
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   }
 
   return (

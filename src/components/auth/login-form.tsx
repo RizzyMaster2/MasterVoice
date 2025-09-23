@@ -20,6 +20,7 @@ import { LogIn } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { AlertTriangle } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -32,6 +33,7 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -49,11 +51,18 @@ export function LoginForm() {
     
     // The login action will handle success/error and redirect.
     // The client just needs to call it.
-    await login(formData);
-
-    // This line is only reached if the server action throws an unhandled error
-    // before it can redirect. We set loading to false to allow another attempt.
-    setIsLoading(false);
+    // A failed login will redirect back with a message.
+    try {
+        await login(formData);
+    } catch (error) {
+        toast({
+            title: 'Login Failed',
+            description: (error as Error).message || "An unexpected error occurred.",
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
+    }
   };
 
   return (
