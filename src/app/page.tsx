@@ -164,7 +164,7 @@ export default function Home() {
                       data-ai-hint={heroImage.imageHint}
                       width={600}
                       height={400}
-                      className="rounded-lg aspect-video object-cover"
+                      className="rounded-lg object-cover"
                     />
                   )}
                 </CardContent>
