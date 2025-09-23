@@ -17,6 +17,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signup } from '@/app/(auth)/actions';
 import { UserPlus } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -31,6 +32,7 @@ type SignupFormValues = z.infer<typeof formSchema>;
 export function SignupForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const router = useRouter();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -51,14 +53,16 @@ export function SignupForm() {
 
     const result = await signup(formData);
 
-    if (result?.success === false) {
+    if (result?.success) {
+      // On success, redirect to the confirmation page.
+      router.push('/confirm');
+    } else {
       toast({
         title: 'Signup Failed',
         description: result.message,
         variant: 'destructive',
       });
     }
-    // The server action handles the redirect on success.
     
     setIsLoading(false);
   }

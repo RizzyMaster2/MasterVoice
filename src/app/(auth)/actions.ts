@@ -45,7 +45,8 @@ export async function signup(formData: FormData) {
     return { success: false, message: error.message }
   }
   
-  redirect('/confirm')
+  // Return success and let the client handle the redirect.
+  return { success: true, message: 'Signup successful, please confirm your email.' }
 }
 
 export async function logout() {
