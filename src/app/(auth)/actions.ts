@@ -20,7 +20,9 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  redirect('/dashboard');
+  // Instead of redirecting here, we'll let the client-side handle it optimistically.
+  revalidatePath('/dashboard');
+  return { success: true, message: 'Login successful' };
 }
 
 export async function signup(formData: FormData) {
