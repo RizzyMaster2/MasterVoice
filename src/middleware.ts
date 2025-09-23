@@ -1,34 +1,30 @@
-import { type NextRequest } from 'next/server'
+import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
-import { createClient } from '@/lib/supabase/server'
-import { NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  const { supabase, response } = await updateSession(request)
+  const response = await updateSession(request)
+  const supabase = (response as any).supabase // Workaround to get supabase instance from response
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
+  // This will be available in all server components
+  const { data: { user } } = await supabase.auth.getUser()
   const url = request.nextUrl.clone();
 
   const protectedPaths = ['/home', '/profile'];
   const isProtectedPath = protectedPaths.some((path) => url.pathname.startsWith(path));
   const isAuthPath = ['/login', '/signup', '/confirm'].includes(url.pathname);
-
+  
   if (user) {
-    // If user is logged in and tries to access an auth page, redirect to home.
     if (isAuthPath) {
       url.pathname = '/home';
       return NextResponse.redirect(url);
     }
   } else {
-    // If user is not logged in and tries to access a protected page, redirect to login.
     if (isProtectedPath) {
-      url.pathname = '/login';
-      return NextResponse.redirect(url);
+       url.pathname = '/login';
+       return NextResponse.redirect(url);
     }
   }
+
 
   return response
 }
