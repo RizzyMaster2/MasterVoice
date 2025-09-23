@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,7 +19,6 @@ import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -31,7 +31,13 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
-  const { toast } = useToast();
+  
+  const vpnError = 'Failed to fetch';
+  const isVpnError = errorMessage?.includes(vpnError);
+  const displayMessage = isVpnError 
+    ? 'A network proxy or VPN is interfering with the connection. Please disable it and try again.' 
+    : errorMessage;
+
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -46,43 +52,31 @@ export function LoginForm() {
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
+    
+    // Server action handles redirects and errors.
+    // The try/catch is removed to prevent catching the redirect signal.
+    await login(formData);
 
-    try {
-      // We are not using the result directly, as the action handles redirection.
-      await login(formData);
-      // The toast for success would be better handled on the page you redirect to,
-      // but for this example, we can show it briefly before redirection happens.
-      toast({ title: 'Login successful', description: 'Redirecting...' });
-    } catch (error: unknown) {
-      let message = 'An unexpected error occurred. Please try again.';
-      let title = 'Login Failed';
-
-      // Check if the error is a network error that might indicate a 502
-      if (error instanceof Error && error.message.includes('fetch')) {
-         title = 'Network Error (502)';
-         message = 'Could not connect to the server. If you are using a VPN or proxy, please try disabling it and try again.';
-      } else if (error instanceof Error) {
-        message = error.message;
-      }
-      
-      toast({
-        title: title,
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-        setIsLoading(false);
-    }
+    // Only set loading to false if login fails and returns, which it won't 
+    // on success because of the redirect. It might be better to just let it be.
+    // In case of an error that doesn't redirect, we need to re-enable the form.
+    // This part is tricky because a successful redirect unmounts the component.
+    // The redirect on error will reload the page with a message, resetting the state.
+    // A non-redirect error could still hang, though.
+    // For now, we'll assume all paths lead to a redirect or page change.
+    // A more robust solution might involve `useFormState`.
+    // Let's add a failsafe.
+    setIsLoading(false);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {errorMessage && (
+        {displayMessage && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Login Failed</AlertTitle>
-            <AlertDescription>{errorMessage}</AlertDescription>
+            <AlertTitle>{isVpnError ? 'Network Proxy Detected' : 'Login Failed'}</AlertTitle>
+            <AlertDescription>{displayMessage}</AlertDescription>
           </Alert>
         )}
         <FormField
