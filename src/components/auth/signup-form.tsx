@@ -49,11 +49,12 @@ export function SignupForm() {
 
     const result = await signup(values);
     
+    setIsLoading(false);
+
     if (result.success) {
       router.push('/confirm');
     } else {
       setServerError(result.message);
-      setIsLoading(false);
     }
   }
 
