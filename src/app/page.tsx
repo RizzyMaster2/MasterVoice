@@ -45,7 +45,6 @@ const features = [
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const currentYear = new Date().getFullYear();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -184,7 +183,7 @@ export default function Home() {
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © <CurrentYear year={currentYear} /> MasterVoice. All rights reserved.
+            © <CurrentYear /> MasterVoice. All rights reserved.
           </p>
         </div>
       </footer>
