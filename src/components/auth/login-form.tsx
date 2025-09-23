@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -29,8 +29,8 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const searchParams = useSearchParams();
-  const serverError = searchParams.get('message');
+  const [serverError, setServerError] = useState<string | null>(null);
+  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -39,8 +39,17 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    await login(values);
-    setIsLoading(false);
+    setServerError(null);
+    
+    const result = await login(values);
+    
+    if (result.success) {
+      router.push('/home');
+      // No need to set loading to false, we are navigating away
+    } else {
+      setServerError(result.message);
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -1,4 +1,3 @@
-
 'use client';
 
 import Link from 'next/link';
@@ -18,10 +17,12 @@ import { LogOut, User } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { logout } from '@/app/(auth)/actions';
 import { Skeleton } from '../ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
   const router = useRouter();
   const { user, isLoading } = useUser();
+  const { toast } = useToast();
 
   if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
@@ -46,8 +47,17 @@ export function UserNav() {
   };
 
   const handleLogout = async () => {
-    await logout();
-    router.refresh();
+    const result = await logout();
+    if (result.success) {
+      router.push('/');
+      router.refresh(); // Refresh to ensure logged-out state is reflected everywhere
+    } else {
+        toast({
+            title: "Logout Failed",
+            description: result.message,
+            variant: "destructive",
+        })
+    }
   };
 
   return (

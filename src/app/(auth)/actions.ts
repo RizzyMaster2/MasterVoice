@@ -3,7 +3,6 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 
 async function getSupabaseClient() {
   const cookieStore = cookies();
@@ -37,81 +36,83 @@ async function getSupabaseClient() {
   });
 }
 
+type ActionResult = { success: true } | { success: false; message: string };
+
 export async function login(data: {
   email: unknown;
   password: unknown;
-}) {
-  const email = typeof data.email === 'string' ? data.email : '';
-  const password = typeof data.password === 'string' ? data.password : '';
-  
-  let supabase;
+}): Promise<ActionResult> {
   try {
-    supabase = await getSupabaseClient();
-  } catch(err) {
+    const email = typeof data.email === 'string' ? data.email : '';
+    const password = typeof data.password === 'string' ? data.password : '';
+
+    if (!email || !password) {
+      return { success: false, message: 'Email and password are required.' };
+    }
+
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
-    return redirect(`/login?message=${encodeURIComponent(message)}`);
+    console.error('[Login Error]', message);
+    return { success: false, message };
   }
-
-  if (!email || !password) {
-    return redirect('/login?message=Email%20and%20password%20are%20required.');
-  }
-
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    return redirect(`/login?message=${encodeURIComponent(error.message)}`);
-  }
-
-  revalidatePath('/', 'layout');
-  redirect('/home');
 }
 
 export async function signup(data: {
   name: unknown;
   email: unknown;
   password: unknown;
-}) {
-  const name = typeof data.name === 'string' ? data.name : '';
-  const email = typeof data.email === 'string' ? data.email : '';
-  const password = typeof data.password === 'string' ? data.password : '';
-
-  let supabase;
+}): Promise<ActionResult> {
   try {
-    supabase = await getSupabaseClient();
-  } catch(err) {
+    const name = typeof data.name === 'string' ? data.name : '';
+    const email = typeof data.email === 'string' ? data.email : '';
+    const password = typeof data.password === 'string' ? data.password : '';
+
+    if (!name || !email || !password) {
+      return { success: false, message: 'Name, email, and password are required.' };
+    }
+
+    const supabase = await getSupabaseClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { data: { display_name: name } },
+    });
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
-    return redirect(`/signup?message=${encodeURIComponent(message)}`);
+    console.error('[Signup Error]', message);
+    return { success: false, message };
   }
-
-  if (!name || !email || !password) {
-    return redirect('/signup?message=Name,%20email,%20and%20password%20are%20required.');
-  }
-
-  const { error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: { data: { display_name: name } },
-  });
-
-  if (error) {
-    return redirect(`/signup?message=${encodeURIComponent(error.message)}`);
-  }
-
-  revalidatePath('/', 'layout');
-  redirect('/confirm');
 }
 
-export async function logout() {
+export async function logout(): Promise<ActionResult> {
   try {
     const supabase = await getSupabaseClient();
     const { error } = await supabase.auth.signOut();
 
     if (error) {
-      return redirect(`/?message=${encodeURIComponent(error.message)}`);
+      return { success: false, message: error.message };
     }
+    revalidatePath('/', 'layout');
+    return { success: true };
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected logout error';
-    return redirect(`/?message=${encodeURIComponent(message)}`);
+    console.error('[Logout Error]', message);
+    return { success: false, message };
   }
-  redirect('/');
 }
