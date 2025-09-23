@@ -42,70 +42,45 @@ export async function getChats(): Promise<Chat[]> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
   
-  // 1. Get all chat_ids the user is a part of.
-  const { data: chatParticipants, error: participantsError } = await supabase
-    .from('chat_participants')
-    .select('chat_id')
-    .eq('user_id', userId);
-
-  if (participantsError) {
-    console.error('Error fetching user chat memberships:', participantsError);
-    // Instead of retrying, which hides the real issue, we now return an empty array.
-    // The real fix is in the RLS policies.
-    return [];
-  }
-
-
-  if (!chatParticipants || chatParticipants.length === 0) {
-      return [];
-  }
-
-  const chatIds = chatParticipants.map(p => p.chat_id);
-
-  // 2. Get all chat details for those chat_ids
+  // New single-query approach to fetch chats and participants
   const { data: chats, error: chatsError } = await supabase
     .from('chats')
-    .select('*, chat_participants(user_id, profiles(*))')
-    .in('id', chatIds);
+    .select('*, chat_participants!inner(*, profiles(*))')
+    .eq('chat_participants.user_id', userId);
 
   if (chatsError) {
-    console.error('Error fetching chats:', chatsError);
+    console.error('Error fetching user chat memberships:', chatsError);
     return [];
   }
 
-  // 3. Process chats to add participant profiles
-   const processedChats = (chats ?? []).map((chat) => {
-      const participantIds = chat.chat_participants.map(p => p.user_id);
-      
-      const fullChat: Chat = {
-          id: chat.id,
-          created_at: chat.created_at,
-          name: chat.name,
-          is_group: chat.is_group,
-          admin_id: chat.admin_id,
-          participants: participantIds,
-      };
+  if (!chats) {
+    return [];
+  }
 
-      if (chat.is_group) {
-        fullChat.participantProfiles = chat.chat_participants.map(p => p.profiles as UserProfile);
-      } else {
-        // For 1-on-1 chats, find the other participant's profile
-        const otherParticipantProfile = chat.chat_participants.find(p => p.user_id !== userId)?.profiles;
-        if (otherParticipantProfile) {
-            fullChat.otherParticipant = otherParticipantProfile as UserProfile;
-        } else if (participantIds.includes('ai-bot-voicebot')) { // check if bot is a participant
-            fullChat.otherParticipant = {
-                id: 'ai-bot-voicebot',
-                display_name: 'VoiceBot',
-                photo_url: 'https://picsum.photos/seed/ai-bot/200/200',
-                created_at: new Date().toISOString(),
-                email: 'bot@mastervoice.ai',
-                status: 'online',
-            };
-        }
+  // Process the chats to structure the data correctly for the client
+  const processedChats = chats.map((chat) => {
+    const participantIds = chat.chat_participants.map(p => p.user_id);
+    
+    const fullChat: Chat = {
+        id: chat.id,
+        created_at: chat.created_at,
+        name: chat.name,
+        is_group: chat.is_group,
+        admin_id: chat.admin_id,
+        participants: participantIds,
+    };
+
+    if (chat.is_group) {
+      fullChat.participantProfiles = chat.chat_participants.map(p => p.profiles as UserProfile);
+    } else {
+      // For 1-on-1 chats, find the other participant's profile
+      const otherParticipantProfile = chat.chat_participants.find(p => p.user_id !== userId)?.profiles;
+      if (otherParticipantProfile) {
+          fullChat.otherParticipant = otherParticipantProfile as UserProfile;
       }
-      return fullChat;
-    });
+    }
+    return fullChat;
+  }).filter(Boolean) as Chat[]; // Filter out any chats that might be malformed
 
   return processedChats;
 }
