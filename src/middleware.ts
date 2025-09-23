@@ -1,46 +1,37 @@
 
-import { type NextRequest, NextResponse } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
-import { createServerClient } from '@supabase/ssr'
+import { NextResponse, type NextRequest } from 'next/server';
+import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
-  // updateSession will refresh the session and update the cookies
-  const response = await updateSession(request)
+  // This will refresh the session and update the cookies.
+  const { response, user } = await updateSession(request);
 
-  // Now, create a client to read the user session
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value
-        },
-      },
-    }
-  );
-
-  const { data: { user } } = await supabase.auth.getUser()
   const url = request.nextUrl.clone();
 
   const protectedPaths = ['/home', '/profile'];
-  const isProtectedPath = protectedPaths.some((path) => url.pathname.startsWith(path));
-  const isAuthPath = ['/login', '/signup', '/confirm'].includes(url.pathname);
+  const authPaths = ['/login', '/signup', '/confirm'];
   
+  const isProtectedPath = protectedPaths.some((path) => url.pathname.startsWith(path));
+  const isAuthPath = authPaths.includes(url.pathname);
+
+  // If the user is logged in
   if (user) {
+    // and they try to access an auth page, redirect them to the home page.
     if (isAuthPath) {
       url.pathname = '/home';
       return NextResponse.redirect(url);
     }
   } else {
+    // If the user is not logged in and tries to access a protected page,
+    // redirect them to the login page.
     if (isProtectedPath) {
-       url.pathname = '/login';
-       return NextResponse.redirect(url);
+      url.pathname = '/login';
+      return NextResponse.redirect(url);
     }
   }
 
-
-  return response
+  // Otherwise, continue with the request.
+  return response;
 }
 
 export const config = {
