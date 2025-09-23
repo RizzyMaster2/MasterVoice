@@ -59,7 +59,6 @@ export function SignupForm() {
             description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
-    } finally {
         setIsLoading(false);
     }
   }

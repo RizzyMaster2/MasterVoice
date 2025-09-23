@@ -49,17 +49,23 @@ export function LoginForm() {
     formData.append('password', values.password);
 
     try {
+      // The server action will handle the redirect on success.
+      // We are calling it, but not awaiting a return value that would be a redirect object.
       await login(formData);
-      // login will redirect, so we don't need to do anything here on success
     } catch (error) {
-        toast({
-            title: 'Login Failed',
-            description: 'An unexpected error occurred. Please try again.',
-            variant: 'destructive',
-        });
-    } finally {
-        setIsLoading(false);
+      // This catch block will handle network errors or other unexpected issues
+      // with the server action call itself. The server action's own try/catch
+      // handles errors within the action (like wrong password).
+      toast({
+        title: 'Login Failed',
+        description: 'An unexpected error occurred. Please try again.',
+        variant: 'destructive',
+      });
+      setIsLoading(false);
     }
+    // We don't necessarily need to set loading to false on success because
+    // the page will be redirecting. It can be useful to keep it true to prevent
+    // double-clicks.
   };
 
   return (
