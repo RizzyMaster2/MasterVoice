@@ -1,11 +1,25 @@
+
 import { type NextRequest, NextResponse } from 'next/server'
 import { updateSession } from '@/lib/supabase/middleware'
+import { createServerClient, type CookieOptions } from '@supabase/ssr'
 
 export async function middleware(request: NextRequest) {
+  // updateSession will refresh the session and update the cookies
   const response = await updateSession(request)
-  const supabase = (response as any).supabase // Workaround to get supabase instance from response
 
-  // This will be available in all server components
+  // Now, create a client to read the user session
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+      },
+    }
+  );
+
   const { data: { user } } = await supabase.auth.getUser()
   const url = request.nextUrl.clone();
 
