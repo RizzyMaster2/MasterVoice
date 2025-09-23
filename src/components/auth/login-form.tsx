@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { login } from '@/app/(auth)/actions';
 import { LogIn } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -30,7 +29,6 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -42,7 +40,7 @@ export function LoginForm() {
 
   async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
-    
+
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
@@ -56,8 +54,8 @@ export function LoginForm() {
         variant: 'destructive',
       });
     }
-    // No client-side redirect needed. Server action handles it.
-    // If it fails, we just re-enable the button.
+    // If there's an error, the server action returns, and we re-enable the button.
+    // If successful, the server action redirects, and this component is unmounted.
     setIsLoading(false);
   }
 

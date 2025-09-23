@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signup } from '@/app/(auth)/actions';
 import { UserPlus } from 'lucide-react';
-import { useSearchParams, useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -33,8 +32,6 @@ type SignupFormValues = z.infer<typeof formSchema>;
 export function SignupForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const searchParams = useSearchParams();
-  const router = useRouter();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -44,17 +41,6 @@ export function SignupForm() {
       password: '',
     },
   });
-
-  useEffect(() => {
-    const message = searchParams.get('message');
-    if (message) {
-      toast({
-        title: 'Signup Failed',
-        description: message,
-        variant: 'destructive',
-      });
-    }
-  }, [searchParams, toast]);
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
@@ -73,8 +59,9 @@ export function SignupForm() {
         variant: 'destructive',
       });
     }
-    // No client-side redirect needed. Server action handles it.
-    // If it fails, we just re-enable the button.
+    
+    // If there's an error, the server action returns, and we re-enable the button.
+    // If successful, the server action redirects, and this component is unmounted.
     setIsLoading(false);
   }
 
