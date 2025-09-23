@@ -50,19 +50,22 @@ export function LoginForm() {
     formData.append('password', values.password);
     
     // The login action will handle success/error and redirect.
-    // The client just needs to call it.
-    // A failed login will redirect back with a message.
+    // A failed login will redirect back with a message on the URL.
+    // A successful login will redirect to the dashboard.
+    // We just need to wait for the action to complete.
     try {
         await login(formData);
     } catch (error) {
+        // This catch block might run if the server action itself throws an unhandled error.
         toast({
             title: 'Login Failed',
             description: (error as Error).message || "An unexpected error occurred.",
             variant: 'destructive',
         });
-    } finally {
         setIsLoading(false);
     }
+    // No need to set loading to false on success because the page will redirect.
+    // If the login fails, the page will reload with an error message, resetting the state.
   };
 
   return (

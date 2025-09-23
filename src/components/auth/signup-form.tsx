@@ -64,7 +64,6 @@ export function SignupForm() {
             description: (error as Error).message || "An unexpected error occurred.",
             variant: 'destructive',
         });
-    } finally {
         setIsLoading(false);
     }
   }

@@ -1,30 +1,30 @@
 
-'use server'
+'use server';
 
-import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
-import { createClient } from '@/lib/supabase/server'
+import { revalidatePath } from 'next/cache';
+import { redirect } from 'next/navigation';
+import { createClient } from '@/lib/supabase/server';
 
 export async function login(formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const data = {
     email: formData.get('email') as string,
     password: formData.get('password') as string,
-  }
+  };
 
-  const { error } = await supabase.auth.signInWithPassword(data)
+  const { error } = await supabase.auth.signInWithPassword(data);
 
   if (error) {
-    return redirect(`/login?message=${error.message}`)
+    return redirect(`/login?message=${error.message}`);
   }
 
-  revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  revalidatePath('/', 'layout');
+  redirect('/dashboard');
 }
 
 export async function signup(formData: FormData) {
-  const supabase = createClient()
+  const supabase = createClient();
 
   const data = {
     email: formData.get('email') as string,
@@ -35,20 +35,20 @@ export async function signup(formData: FormData) {
         // photo_url will be set via profile page
       },
     },
-  }
+  };
 
-  const { error } = await supabase.auth.signUp(data)
+  const { error } = await supabase.auth.signUp(data);
 
   if (error) {
-    return redirect(`/signup?message=${error.message}`)
+    return redirect(`/signup?message=${error.message}`);
   }
-  
-  revalidatePath('/', 'layout')
-  redirect('/confirm')
+
+  revalidatePath('/', 'layout');
+  redirect('/confirm');
 }
 
 export async function logout() {
-  const supabase = createClient()
-  await supabase.auth.signOut()
-  redirect('/')
+  const supabase = createClient();
+  await supabase.auth.signOut();
+  redirect('/');
 }
