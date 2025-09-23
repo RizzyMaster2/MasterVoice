@@ -42,20 +42,8 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    
-    try {
-      // The server action will handle the redirect on success or failure.
-      await login(values);
-    } catch (error) {
-      // In most cases, the server action's redirect will happen before this.
-      // This is a fallback for unexpected client-side errors.
-      console.error("Login form submission error:", error);
-      // The primary error display is handled by the URL search param.
-    }
-
-    // We don't necessarily need to set loading to false if a redirect is expected.
-    // But as a fallback in case of an uncaught client error:
-    setIsLoading(false);
+    await login(values);
+    setIsLoading(false); // Set loading to false in case of client-side error
   };
 
   return (

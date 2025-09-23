@@ -44,17 +44,7 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
-    
-    try {
-      // The server action will handle the redirect on success or failure.
-      await signup(values);
-    } catch (error) {
-      // This is a fallback for network errors. 
-      // The primary error is displayed from the URL.
-      console.error("Signup form submission error:", error);
-    }
-    // We don't necessarily need to set loading to false if a redirect is expected.
-    // But as a fallback in case of an uncaught client error:
+    await signup(values);
     setIsLoading(false);
   }
 
