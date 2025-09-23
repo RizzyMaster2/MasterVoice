@@ -1,7 +1,7 @@
+
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +20,6 @@ import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 export function UserNav() {
-  const router = useRouter();
   const { user, isLoading } = useUser();
   const { toast } = useToast();
 
@@ -48,16 +47,14 @@ export function UserNav() {
 
   const handleLogout = async () => {
     const result = await logout();
-    if (result.success) {
-      router.push('/');
-      router.refresh(); // Refresh to ensure logged-out state is reflected everywhere
-    } else {
+    if (!result.success) {
         toast({
             title: "Logout Failed",
             description: result.message,
             variant: "destructive",
         })
     }
+    // The server action will handle the redirect
   };
 
   return (

@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -32,7 +31,6 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const router = useRouter();
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
@@ -48,10 +46,7 @@ export function LoginForm() {
   
     setIsLoading(false);
   
-    if (result.success) {
-      router.push('/home');
-      router.refresh(); // Refresh to ensure logged-in state is reflected everywhere
-    } else {
+    if (!result.success) {
       setServerError(result.message ?? 'Login failed');
       toast({
         title: 'Login Failed',
@@ -59,6 +54,7 @@ export function LoginForm() {
         variant: 'destructive',
       });
     }
+    // No need for router.push, the server action will handle the redirect
   };
   
 

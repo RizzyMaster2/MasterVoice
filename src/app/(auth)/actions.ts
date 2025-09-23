@@ -4,6 +4,7 @@
 import { revalidatePath } from 'next/cache';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
 async function getSupabaseClient() {
   const cookieStore = cookies();
@@ -63,7 +64,7 @@ export async function login(data: {
 
     console.log('--- LOGIN SUCCESS ---');
     revalidatePath('/', 'layout');
-    return { success: true };
+    redirect('/home');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
     console.error('[Login Unexpected Error]', message);
@@ -101,7 +102,7 @@ export async function signup(data: {
 
     console.log('--- SIGNUP SUCCESS ---');
     revalidatePath('/', 'layout');
-    return { success: true };
+    redirect('/confirm');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
     console.error('[Signup Unexpected Error]', message);
@@ -122,7 +123,7 @@ export async function logout(): Promise<ActionResult> {
 
     console.log('--- LOGOUT SUCCESS ---');
     revalidatePath('/', 'layout');
-    return { success: true };
+    redirect('/');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected logout error';
     console.error('[Logout Unexpected Error]', message);

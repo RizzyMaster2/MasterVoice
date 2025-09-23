@@ -5,7 +5,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -32,7 +31,6 @@ export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const router = useRouter();
 
 
   const form = useForm<SignupFormValues>({
@@ -52,11 +50,10 @@ export function SignupForm() {
     
     setIsLoading(false);
 
-    if (result.success) {
-      router.push('/confirm');
-    } else {
+    if (!result.success) {
       setServerError(result.message);
     }
+     // No need for router.push, the server action will handle the redirect
   }
 
   return (
