@@ -1,4 +1,3 @@
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -55,6 +54,7 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // refreshing the session before loading server components
   await supabase.auth.getUser()
 
   return response

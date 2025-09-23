@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -17,7 +16,7 @@ export async function login(formData: FormData) {
 
   if (error) {
     // Instead of redirecting, we return an error object.
-    if (error.message.includes('502')) {
+    if (error.message.includes('Failed to fetch')) {
       return { error: 'Network error. Please check your connection or VPN and try again.' };
     }
     return { error: error.message };
