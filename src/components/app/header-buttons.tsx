@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { User } from '@supabase/supabase-js';
@@ -9,14 +8,17 @@ import { ThemeToggle } from './theme-toggle';
 
 export function HeaderButtons({ user }: { user: User | null }) {
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex items-center gap-2">
       {user ? (
-        <Button asChild>
-          <Link href="/home">
-            <Rocket className="mr-2 h-4 w-4" />
-            Open App
-          </Link>
-        </Button>
+        <>
+          <ThemeToggle />
+          <Button asChild>
+            <Link href="/home">
+              <Rocket className="mr-2 h-4 w-4" />
+              Go to App
+            </Link>
+          </Button>
+        </>
       ) : (
         <>
           <ThemeToggle />

@@ -13,10 +13,8 @@ import { Logo } from '@/components/logo';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { createClient } from '@/lib/supabase/server';
-import { HeaderButtons } from '@/components/app/header-buttons';
 import { CurrentYear } from '@/components/app/current-year';
-import { ThemeToggle } from '@/components/app/theme-toggle';
+import { MainHeader } from '@/components/app/main-header';
 
 const features = [
   {
@@ -45,29 +43,13 @@ const features = [
   },
 ];
 
-export default async function Home() {
+export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const supabase = createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const currentYear = new Date().getFullYear();
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">
-          <Link href="/" className="flex items-center gap-2">
-            <Logo className="h-8 w-8 text-primary" />
-            <span className="font-headline text-2xl font-bold text-primary">
-              MasterVoice
-            </span>
-          </Link>
-          <div className="flex items-center gap-2">
-            <HeaderButtons user={user} />
-          </div>
-        </div>
-      </header>
+      <MainHeader />
 
       <main className="flex-1">
         <section className="relative py-20 md:py-32">
