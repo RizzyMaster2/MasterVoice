@@ -3,10 +3,28 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
+import { createServerClient } from '@supabase/ssr';
+import { cookies } from 'next/headers';
 
 export async function login(formData: FormData) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
   const data = {
     email: formData.get('email') as string,
@@ -16,7 +34,7 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data);
 
   if (error) {
-    return redirect(`/login?message=Could not authenticate user: ${error.message}`);
+    return redirect(`/login?message=${error.message}`);
   }
 
   revalidatePath('/', 'layout');
@@ -24,7 +42,24 @@ export async function login(formData: FormData) {
 }
 
 export async function signup(formData: FormData) {
-    const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
 
   const data = {
     email: formData.get('email') as string,
@@ -47,7 +82,24 @@ export async function signup(formData: FormData) {
 }
 
 export async function logout() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+   const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value;
+        },
+        set(name: string, value: string, options) {
+          cookieStore.set({ name, value, ...options });
+        },
+        remove(name: string, options) {
+          cookieStore.set({ name, value: '', ...options });
+        },
+      },
+    }
+  );
   await supabase.auth.signOut();
   redirect('/');
 }
