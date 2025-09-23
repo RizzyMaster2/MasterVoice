@@ -8,7 +8,7 @@ import type { Chat, Message, UserProfile } from '@/lib/data';
 
 // Get the current logged-in user's ID
 async function getCurrentUserId() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
@@ -18,7 +18,7 @@ async function getCurrentUserId() {
 
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data, error } = await supabase.from('profiles').select('*');
   if (error) {
     console.error('Error fetching users:', error);
@@ -31,7 +31,7 @@ export async function getUsers(): Promise<UserProfile[]> {
 // Fetch all chats for the current user
 export async function getChats(): Promise<Chat[]> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const userId = await getCurrentUserId();
     
     // New single-query approach to fetch chats and participants
@@ -85,7 +85,7 @@ export async function getChats(): Promise<Chat[]> {
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const userId = await getCurrentUserId();
 
     // Check if a chat already exists between the two users
@@ -155,7 +155,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
 export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
     try {
-        const supabase = createClient();
+        const supabase = await createClient();
         const userId = await getCurrentUserId();
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
@@ -202,7 +202,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase
       .from('messages')
       .select('*, profiles(*)')
@@ -223,7 +223,7 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 // Send a new message
 export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
   try {
-    const supabase = createClient();
+    const supabase = await createClient();
     const userId = await getCurrentUserId();
     
     const messageData: {
