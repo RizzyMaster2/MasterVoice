@@ -16,7 +16,7 @@ interface HomeClientLayoutProps {
 
 export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
-  const [isPending, startTransition] = useTransition();
+  const [, startTransition] = useTransition();
   const { toast } = useToast();
 
   const handleAddFriend = (friend: UserProfile) => {

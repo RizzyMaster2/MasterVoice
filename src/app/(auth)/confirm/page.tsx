@@ -19,7 +19,7 @@ export default function ConfirmPage() {
       <CardContent className="text-center p-4 bg-amber-50 border border-amber-200 rounded-md mx-6">
         <div className="flex items-center justify-center gap-2 mb-2">
             <ShieldAlert className="h-5 w-5 text-amber-600" />
-            <h3 className="font-semibold text-amber-800">Can't wait?</h3>
+            <h3 className="font-semibold text-amber-800">Can&apos;t wait?</h3>
         </div>
         <p className='text-sm text-amber-700 mb-3'>You can skip for now, but some features will be disabled.</p>
         <Button asChild variant="secondary" className='w-full'>

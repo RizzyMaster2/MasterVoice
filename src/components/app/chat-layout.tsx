@@ -1,11 +1,9 @@
 
 'use client';
 
-import { useState, useEffect, useTransition, useRef, useMemo } from 'react';
-import type { FormEvent, ChangeEvent, ReactNode } from 'react';
+import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode } from 'react';
 import {
   Card,
-  CardContent,
   CardFooter,
   CardHeader,
 } from '@/components/ui/card';

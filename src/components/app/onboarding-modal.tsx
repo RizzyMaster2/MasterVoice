@@ -1,7 +1,6 @@
 
 'use client';
 
-import type { ReactNode } from 'react';
 import { useState, useEffect } from 'react';
 import Image from 'next/image';
 import {
@@ -18,7 +17,6 @@ import {
   CarouselNext,
   CarouselPrevious,
 } from '@/components/ui/carousel';
-import { Button } from '@/components/ui/button';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 const ONBOARDING_STORAGE_KEY = 'mastervoice-onboarding-complete';

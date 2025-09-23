@@ -109,7 +109,7 @@ export function UserManagement({ users }: UserManagementProps) {
                       <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
                       <AlertDialogDescription>
                         This action cannot be undone. This will permanently delete
-                        this user's account and remove their data from our
+                        this user&apos;s account and remove their data from our
                         servers.
                       </AlertDialogDescription>
                     </AlertDialogHeader>

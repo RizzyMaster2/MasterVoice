@@ -23,7 +23,7 @@ export async function deleteUser(userId: string) {
 
   const supabaseAdmin = createAdminClient();
   
-  const { data: userToDelete, error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  const { error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
 
   if (getUserError) {
     console.error('Supabase get user error:', getUserError);

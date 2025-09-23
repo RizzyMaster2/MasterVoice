@@ -14,7 +14,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { UserPlus, Users, X } from 'lucide-react';
+import { Users, X } from 'lucide-react';
 import type { UserProfile } from '@/lib/data';
 import { createGroupChat } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';

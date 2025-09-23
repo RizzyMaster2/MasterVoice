@@ -1,5 +1,5 @@
 
-import type { UserProfile, Chat as AppChat } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { getUsers, getChats } from '@/app/(auth)/actions/chat';

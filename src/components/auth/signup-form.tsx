@@ -106,8 +106,7 @@ export function SignupForm() {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
-               <div className="relative">
+              <FormLabel>Password</FormLabel>               <div className="relative">
                 <FormControl>
                   <Input
                     type={showPassword ? 'text' : 'password'}

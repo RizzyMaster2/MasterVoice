@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile, Chat } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,6 @@ import {
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Mic, MicOff, Video, VideoOff, PhoneOff, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
 
 interface VideoCallProps {
   supabase: SupabaseClient;
@@ -46,6 +45,22 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
   const { toast } = useToast();
 
   const otherParticipantId = chat.participants.find(p => p !== currentUser.id);
+
+  const handleClose = useCallback(() => {
+    if (peerConnectionRef.current) {
+      peerConnectionRef.current.close();
+      peerConnectionRef.current = null;
+    }
+    localStream?.getTracks().forEach(track => track.stop());
+    const signalingChannel = supabase.channel('signaling-channel');
+     signalingChannel.send({
+        type: 'broadcast',
+        event: 'hangup',
+        payload: { target: otherParticipantId },
+    });
+    setIsOpen(false);
+    onClose();
+  }, [localStream, onClose, otherParticipantId, supabase]);
 
   useEffect(() => {
     const init = async () => {
@@ -177,23 +192,7 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
       supabase.removeChannel(signalingChannel);
     };
 
-  }, [supabase, currentUser.id, otherParticipantId]);
-
-  const handleClose = () => {
-    if (peerConnectionRef.current) {
-      peerConnectionRef.current.close();
-      peerConnectionRef.current = null;
-    }
-    localStream?.getTracks().forEach(track => track.stop());
-    const signalingChannel = supabase.channel('signaling-channel');
-     signalingChannel.send({
-        type: 'broadcast',
-        event: 'hangup',
-        payload: { target: otherParticipantId },
-    });
-    setIsOpen(false);
-    onClose();
-  };
+  }, [supabase, currentUser.id, otherParticipantId, handleClose]);
   
   const toggleMute = () => {
       if (localStream) {

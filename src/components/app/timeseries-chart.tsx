@@ -12,7 +12,7 @@ import {
 } from 'recharts';
 
 type TimeSeriesChartProps = {
-  data: { date: string; [key: string]: any }[];
+  data: { date: string; [key: string]: string | number }[];
   dataKey: string;
 };
 
