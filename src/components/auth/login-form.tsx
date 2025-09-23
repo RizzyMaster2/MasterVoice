@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
-import { LogIn, AlertTriangle } from 'lucide-react';
+import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
@@ -29,15 +29,9 @@ type LoginFormValues = z.infer<typeof formSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
-  
-  const vpnError = 'Failed to fetch';
-  const isVpnError = errorMessage?.includes(vpnError);
-  const displayMessage = isVpnError 
-    ? 'A network proxy or VPN is interfering with the connection. Please disable it and try again.' 
-    : errorMessage;
-
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -52,31 +46,25 @@ export function LoginForm() {
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
-    
-    // Server action handles redirects and errors.
-    // The try/catch is removed to prevent catching the redirect signal.
+
+    // The server action will handle redirects and errors.
+    // The error message will be passed as a URL query parameter.
     await login(formData);
 
-    // Only set loading to false if login fails and returns, which it won't 
-    // on success because of the redirect. It might be better to just let it be.
-    // In case of an error that doesn't redirect, we need to re-enable the form.
-    // This part is tricky because a successful redirect unmounts the component.
-    // The redirect on error will reload the page with a message, resetting the state.
-    // A non-redirect error could still hang, though.
-    // For now, we'll assume all paths lead to a redirect or page change.
-    // A more robust solution might involve `useFormState`.
-    // Let's add a failsafe.
+    // We don't necessarily need to set loading to false here
+    // because a redirect will happen. But in case it fails silently
+    // on the client for some reason, this is a safeguard.
     setIsLoading(false);
   };
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {displayMessage && (
+        {errorMessage && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>{isVpnError ? 'Network Proxy Detected' : 'Login Failed'}</AlertTitle>
-            <AlertDescription>{displayMessage}</AlertDescription>
+            <AlertTitle>Login Failed</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         )}
         <FormField
@@ -98,9 +86,31 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
+              <div className="relative">
+                <FormControl>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...field}
+                  />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span className="sr-only">
+                    {showPassword ? 'Hide password' : 'Show password'}
+                  </span>
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}

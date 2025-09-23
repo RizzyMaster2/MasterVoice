@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -15,10 +16,9 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { signup } from '@/app/(auth)/actions';
-import { UserPlus, AlertTriangle } from 'lucide-react';
+import { UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -30,9 +30,9 @@ type SignupFormValues = z.infer<typeof formSchema>;
 
 export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
-  const { toast } = useToast();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -51,30 +51,9 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    try {
-      const result = await signup(formData);
-
-      toast({
-        title: 'Signup Successful',
-        description: 'Your account has been created.',
-      });
-
-      // Optional: redirect or reset form
-      // router.push('/dashboard');
-      form.reset();
-
-    } catch (error: unknown) {
-      const message =
-        error instanceof Error ? error.message : 'An unexpected error occurred.';
-
-      toast({
-        title: 'Signup Failed',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    await signup(formData);
+    
+    setIsLoading(false);
   }
 
   return (
@@ -119,9 +98,31 @@ export function SignupForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
+               <div className="relative">
+                <FormControl>
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="••••••••"
+                    {...field}
+                  />
+                </FormControl>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
+                  onClick={() => setShowPassword((prev) => !prev)}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" aria-hidden="true" />
+                  ) : (
+                    <Eye className="h-4 w-4" aria-hidden="true" />
+                  )}
+                  <span className="sr-only">
+                    {showPassword ? 'Hide password' : 'Show password'}
+                  </span>
+                </Button>
+              </div>
               <FormMessage />
             </FormItem>
           )}
