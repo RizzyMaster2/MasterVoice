@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { signup } from '@/app/(auth)/actions';
 import { UserPlus } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useSearchParams, useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -33,6 +33,7 @@ type SignupFormValues = z.infer<typeof formSchema>;
 export function SignupForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
   const router = useRouter();
 
   const form = useForm<SignupFormValues>({
@@ -44,6 +45,17 @@ export function SignupForm() {
     },
   });
 
+  useEffect(() => {
+    const message = searchParams.get('message');
+    if (message) {
+      toast({
+        title: 'Signup Failed',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  }, [searchParams, toast]);
+
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
 
@@ -52,18 +64,11 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    const result = await signup(formData);
+    // The server action will handle the redirect.
+    await signup(formData);
 
-    if (result?.success === false) {
-      toast({
-        title: 'Signup Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
-
-    // The server action will handle the redirect on success.
-    // If it returns, it's because of an error.
+    // This part should not be reached on successful signup because of the redirect.
+    // Setting loading to false in case of an unhandled error.
     setIsLoading(false);
   }
 

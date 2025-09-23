@@ -1,3 +1,4 @@
+
 import {
   Card,
   CardContent,
@@ -7,8 +8,9 @@ import {
 } from '@/components/ui/card';
 import { LoginForm } from '@/components/auth/login-form';
 import Link from 'next/link';
+import { Suspense } from 'react';
 
-export default async function LoginPage() {
+function LoginPageContent() {
   return (
     <Card className="w-full max-w-sm shadow-xl relative">
       <CardHeader>
@@ -27,5 +29,13 @@ export default async function LoginPage() {
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+export default async function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginPageContent />
+    </Suspense>
   );
 }

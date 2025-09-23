@@ -1,8 +1,7 @@
 
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -19,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { login } from '@/app/(auth)/actions';
 import { LogIn } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -30,7 +30,7 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const router = useRouter();
+  const searchParams = useSearchParams();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -40,25 +40,31 @@ export function LoginForm() {
     },
   });
 
+  useEffect(() => {
+    const message = searchParams.get('message');
+    if (message) {
+      toast({
+        title: 'Login Failed',
+        description: message,
+        variant: 'destructive',
+      });
+    }
+  }, [searchParams, toast]);
+
   async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
-
+    
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    const result = await login(formData);
+    // The server action will handle the redirect.
+    // If it returns, it's because of an error which is handled via redirect query param.
+    await login(formData);
 
-    if (result?.success === false) {
-      toast({
-        title: 'Login Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
-    
-    // The server action will handle the redirect on success.
-    // If it returns, it's because of an error.
+    // We only reach here if the redirect hasn't happened, which indicates an issue.
+    // In a typical success scenario, the user is redirected and this component unmounts.
+    // To be safe, we'll stop the loading indicator.
     setIsLoading(false);
   }
 
