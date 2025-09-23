@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -65,7 +64,8 @@ export function LoginForm() {
 
     if (result.success) {
       router.push('/dashboard');
-      router.refresh(); // Refresh to update session state
+      // We refresh the router to ensure the layout updates and shows the authenticated user state.
+      router.refresh(); 
     } else {
       toast({
         title: 'Login Failed',

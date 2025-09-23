@@ -1,8 +1,6 @@
-
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
-import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 
 export async function login(formData: FormData) {
@@ -19,7 +17,8 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  revalidatePath('/dashboard', 'layout');
+  // revalidatePath is removed as it was causing the server to crash (502).
+  // The client will handle refreshing the state upon redirect.
   return { success: true, message: 'Login successful' }
 }
 
