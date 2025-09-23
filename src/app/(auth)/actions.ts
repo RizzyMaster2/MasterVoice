@@ -1,105 +1,117 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-// This helper function centralizes Supabase client creation for server actions.
-// It ensures that environment variables are present and sets up the cookie handling.
 function getSupabaseClient() {
   const cookieStore = cookies();
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  // The createServerClient function is the correct way to create a Supabase client
-  // for use in Server Components, Server Actions, and Route Handlers.
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value, ...options });
-          } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
-        remove(name: string, options: CookieOptions) {
-          try {
-            cookieStore.set({ name, value: '', ...options });
-          } catch (error) {
-            // The `delete` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
-          }
-        },
+  if (!url || !key) {
+    throw new Error('Supabase environment variables are missing');
+  }
+
+  return createServerClient(url, key, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
       },
-    }
-  );
-}
-
-export async function login(data: any) {
-  const { email, password } = data;
-
-  // Validate input data
-  if (!email || typeof email !== 'string' || !password || typeof password !== 'string') {
-    return redirect('/login?message=Invalid form data. Email and password are required.');
-  }
-
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signInWithPassword({
-    email,
-    password,
+      set(name: string, value: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value, ...options });
+        } catch (e) {
+          console.warn('[Cookie Set Error]', e);
+        }
+      },
+      remove(name: string, options: CookieOptions) {
+        try {
+          cookieStore.set({ name, value: '', ...options });
+        } catch (e) {
+          console.warn('[Cookie Remove Error]', e);
+        }
+      },
+    },
   });
-
-  if (error) {
-    return redirect(`/login?message=Could not authenticate user: ${error.message}`);
-  }
-
-  revalidatePath('/', 'layout');
-  return redirect('/home');
 }
 
-export async function signup(data: any) {
-    const { name, email, password } = data;
+type ActionResult = { success: true } | { success: false; message: string };
 
-    // Validate input data
-    if (!name || typeof name !== 'string' || !email || typeof email !== 'string' || !password || typeof password !== 'string') {
-        return redirect('/signup?message=Invalid form data. Name, email, and password are required.');
+export async function login(data: {
+  email: unknown;
+  password: unknown;
+}): Promise<ActionResult> {
+  try {
+    const email = typeof data.email === 'string' ? data.email : '';
+    const password = typeof data.password === 'string' ? data.password : '';
+
+    if (!email || !password) {
+      return { success: false, message: 'Email and password are required.' };
+    }
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      return { success: false, message: error.message };
+    }
+
+    revalidatePath('/', 'layout');
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected server error';
+    console.error('[Login Error]', message);
+    return { success: false, message };
+  }
+}
+
+export async function signup(data: {
+  name: unknown;
+  email: unknown;
+  password: unknown;
+}): Promise<ActionResult> {
+  try {
+    const name = typeof data.name === 'string' ? data.name : '';
+    const email = typeof data.email === 'string' ? data.email : '';
+    const password = typeof data.password === 'string' ? data.password : '';
+
+    if (!name || !email || !password) {
+      return { success: false, message: 'Name, email, and password are required.' };
     }
 
     const supabase = getSupabaseClient();
     const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-        data: {
-            display_name: name,
-        },
-        },
+      email,
+      password,
+      options: { data: { display_name: name } },
     });
 
     if (error) {
-        return redirect(`/signup?message=${error.message}`);
+      return { success: false, message: error.message };
     }
 
     revalidatePath('/', 'layout');
-    return redirect('/confirm');
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected server error';
+    console.error('[Signup Error]', message);
+    return { success: false, message };
+  }
 }
 
-export async function logout() {
-  const supabase = getSupabaseClient();
-  const { error } = await supabase.auth.signOut();
+export async function logout(): Promise<ActionResult> {
+  try {
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signOut();
 
-  if (error) {
-      console.error('[Logout Server Action Error]', error);
-      return redirect(`/?message=An unexpected server error occurred during logout.`);
+    if (error) {
+      return { success: false, message: error.message };
+    }
+    return { success: true };
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected logout error';
+    console.error('[Logout Error]', message);
+    return { success: false, message };
   }
-
-  return redirect('/');
 }
