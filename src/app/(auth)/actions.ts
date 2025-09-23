@@ -3,9 +3,11 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 export async function login(formData: FormData) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
   const data = {
     email: formData.get('email') as string,
@@ -22,12 +24,13 @@ export async function login(formData: FormData) {
     return { error: 'Invalid login credentials.' };
   }
 
-  revalidatePath('/');
+  revalidatePath('/', 'layout');
   redirect('/home');
 }
 
 export async function signup(formData: FormData) {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
 
   const data = {
     email: formData.get('email') as string,
@@ -46,12 +49,13 @@ export async function signup(formData: FormData) {
       return redirect(`/signup?message=${error.message}`);
     }
   
-    revalidatePath('/');
+    revalidatePath('/', 'layout');
     redirect('/confirm');
 }
 
 export async function logout() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   await supabase.auth.signOut();
   redirect('/');
 }
