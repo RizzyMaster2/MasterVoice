@@ -3,104 +3,103 @@
 
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
-import { createServerClient } from '@supabase/ssr';
-import type { CookieOptions } from '@supabase/ssr';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 
-export async function login(formData: FormData) {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
+function getSupabaseClient() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  };
-
-  const { error } = await supabase.auth.signInWithPassword(data);
-
-  if (error) {
-    return redirect(`/login?message=${error.message}`);
+  if (!url || !key) {
+    console.error('Supabase env vars missing');
+    throw new Error('Supabase configuration error');
   }
 
-  revalidatePath('/', 'layout');
-  redirect('/home');
+  const cookieStore = cookies();
+
+  return createServerClient(url, key, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        cookieStore.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        cookieStore.set({ name, value: '', ...options });
+      },
+    },
+  });
+}
+
+export async function login(formData: FormData) {
+  try {
+    const email = formData.get('email');
+    const password = formData.get('password');
+
+    if (typeof email !== 'string' || typeof password !== 'string') {
+      return redirect('/login?message=Invalid form data');
+    }
+
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      return redirect(`/login?message=Could not authenticate user: ${error.message}`);
+    }
+
+    revalidatePath('/', 'layout');
+    redirect('/home');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected server error';
+    console.error('[Login Error]', message);
+    redirect(`/login?message=${encodeURIComponent(message)}`);
+  }
 }
 
 export async function signup(formData: FormData) {
-  const cookieStore = cookies();
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
+  try {
+    const email = formData.get('email');
+    const password = formData.get('password');
+    const name = formData.get('name');
+
+    if (
+      typeof email !== 'string' ||
+      typeof password !== 'string' ||
+      typeof name !== 'string'
+    ) {
+      return redirect('/signup?message=Invalid form data');
     }
-  );
 
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-    options: {
-      data: {
-        display_name: formData.get('name') as string,
+    const supabase = getSupabaseClient();
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { display_name: name },
       },
-    },
-  };
+    });
 
-  const { error } = await supabase.auth.signUp(data);
+    if (error) {
+      return redirect(`/signup?message=${error.message}`);
+    }
 
-  if (error) {
-    return redirect(`/signup?message=${error.message}`);
+    revalidatePath('/', 'layout');
+    redirect('/confirm');
+  } catch (err: unknown) {
+    const message = err instanceof Error ? err.message : 'Unexpected server error';
+    console.error('[Signup Error]', message);
+    redirect(`/signup?message=${encodeURIComponent(message)}`);
   }
-
-  revalidatePath('/', 'layout');
-  redirect('/confirm');
 }
 
 export async function logout() {
-  const cookieStore = cookies();
-   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return cookieStore.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
-        },
-      },
-    }
-  );
-  await supabase.auth.signOut();
-  redirect('/');
+  try {
+    const supabase = getSupabaseClient();
+    await supabase.auth.signOut();
+    redirect('/');
+  } catch (err: unknown) {
+    console.error('[Logout Error]', err);
+    redirect('/?message=Logout failed');
+  }
 }

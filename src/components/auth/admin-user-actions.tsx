@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { deleteUser } from '@/app/actions/user';
+import { deleteUser } from '@/app/(auth)/actions/user';
 import { useToast } from '@/hooks/use-toast';
 import { Shield, Trash2, User as UserIcon } from 'lucide-react';
 

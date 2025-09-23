@@ -15,7 +15,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
-import { getMessages, sendMessage } from '@/app/actions/chat';
+import { getMessages, sendMessage } from '@/app/(auth)/actions/chat';
 import { Send, Search, UserPlus, Paperclip, Download, Video, Users } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';

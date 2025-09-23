@@ -2,7 +2,7 @@
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { getUsers, getChats } from '@/app/actions/chat';
+import { getUsers, getChats } from '@/app/(auth)/actions/chat';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { OnboardingModal } from '@/components/app/onboarding-modal';

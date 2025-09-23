@@ -5,7 +5,7 @@ import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition, useMemo } from 'react';
-import { createChat, getChats } from '@/app/actions/chat';
+import { createChat, getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 
 interface HomeClientLayoutProps {

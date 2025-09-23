@@ -24,7 +24,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
-import { deleteUser } from '@/app/actions/user';
+import { deleteUser } from '@/app/(auth)/actions/user';
 import { Mic, Trash2, Volume2, MicOff } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';

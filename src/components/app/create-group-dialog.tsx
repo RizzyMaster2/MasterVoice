@@ -16,7 +16,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { UserPlus, Users, X } from 'lucide-react';
 import type { UserProfile } from '@/lib/data';
-import { createGroupChat } from '@/app/actions/chat';
+import { createGroupChat } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { ScrollArea } from '../ui/scroll-area';

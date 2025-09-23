@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { MessagesSquare, MessageSquare, Shield, Users, LineChart, ShieldCheck, Terminal, PlayCircle } from 'lucide-react';
 import { UserManagement } from '@/components/app/user-management';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/actions/admin';
+import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/(auth)/actions/admin';
 import { TimeSeriesChart } from '@/components/app/timeseries-chart';
 import { Button } from '@/components/ui/button';
 
