@@ -19,6 +19,7 @@ import { signup } from '@/app/(auth)/actions';
 import { UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -33,6 +34,7 @@ export function SignupForm() {
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
+  const { toast } = useToast();
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -51,9 +53,19 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    await signup(formData);
-    
-    setIsLoading(false);
+    try {
+      await signup(formData);
+      // On success, the server action will redirect.
+    } catch (error) {
+       toast({
+            title: 'Signup Failed',
+            description: 'An unexpected response was received from the server.',
+            variant: 'destructive',
+        });
+    } finally {
+        // This will run even if a redirect is attempted.
+        setIsLoading(false);
+    }
   }
 
   return (

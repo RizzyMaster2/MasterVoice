@@ -18,6 +18,7 @@ import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -30,6 +31,7 @@ export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -47,16 +49,21 @@ export function LoginForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    const result = await login(formData);
+    try {
+      const result = await login(formData);
 
-    if (result?.error) {
-      setErrorMessage(result.error);
+      if (result?.error) {
+        setErrorMessage(result.error);
+      }
+    } catch (error) {
+        toast({
+            title: 'Login Failed',
+            description: 'An unexpected response was received from the server.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
     }
-    
-    // If successful, the server action will redirect, so we don't
-    // need to handle the success case here. The loading state
-    // will be cleared by the page navigation.
-    setIsLoading(false);
   };
 
   return (
