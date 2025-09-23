@@ -40,17 +40,26 @@ export function LoginForm() {
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
     setServerError(null);
-    
-    const result = await login(values);
-    
+  
+    const result = await login({
+      email: values.email,
+      password: values.password,
+    });
+  
+    setIsLoading(false);
+  
     if (result.success) {
-      router.push('/home');
-      // No need to set loading to false, we are navigating away
+      router.push('/home'); // Navigate manually
     } else {
-      setServerError(result.message);
-      setIsLoading(false);
+      setServerError(result.message ?? 'Login failed');
+      toast({
+        title: 'Login Failed',
+        description: result.message ?? 'An unexpected error occurred.',
+        variant: 'destructive',
+      });
     }
   };
+  
 
   return (
     <Form {...form}>

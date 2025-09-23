@@ -9,7 +9,7 @@ import { OnboardingModal } from '@/components/app/onboarding-modal';
 
 
 export default async function HomePage() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();
