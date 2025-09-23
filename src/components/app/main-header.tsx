@@ -5,7 +5,7 @@ import { HeaderButtons } from '@/components/app/header-buttons';
 import { Logo } from '@/components/logo';
 
 export async function MainHeader() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

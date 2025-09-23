@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { signup } from '@/app/(auth)/actions';
 import { UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -31,9 +30,9 @@ type SignupFormValues = z.infer<typeof formSchema>;
 export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-  const router = useRouter();
-  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const serverError = searchParams.get('message');
+
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -46,22 +45,8 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
-    setServerError(null);
-
-    const result = await signup(values);
-
+    await signup(values);
     setIsLoading(false);
-
-    if (result.success) {
-      router.push('/confirm');
-    } else {
-      setServerError(result.message);
-      toast({
-        title: 'Signup Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
   }
 
   return (
@@ -72,7 +57,7 @@ export function SignupForm() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Signup Failed</AlertTitle>
             <AlertDescription>{serverError}</AlertDescription>
-          </Alert>
+          </Aler
         )}
         <FormField
           control={form.control}

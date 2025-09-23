@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { useRouter } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import {
   Form,
   FormControl,
@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -30,9 +29,8 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-  const router = useRouter();
-  const { toast } = useToast();
+  const searchParams = useSearchParams();
+  const serverError = searchParams.get('message');
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -41,22 +39,8 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    setServerError(null);
-
-    const result = await login(values);
-
+    await login(values);
     setIsLoading(false);
-
-    if (result.success) {
-      router.push('/home');
-    } else {
-      setServerError(result.message);
-      toast({
-        title: 'Login Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
   };
 
   return (

@@ -8,7 +8,7 @@ import { redirect } from 'next/navigation';
 
 
 export async function deleteUser(userId: string) {
-  const supabase = createClient();
+  const supabase = await createClient();
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
   const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
