@@ -1,10 +1,29 @@
+
 'use server'
 
-import { createClient } from '@/lib/supabase/server'
+import { createServerClient } from '@supabase/ssr'
+import { cookies } from 'next/headers'
 import { redirect } from 'next/navigation'
 
 export async function login(formData: FormData) {
-  const supabase = createClient()
+  const cookieStore = cookies()
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return cookieStore.get(name)?.value
+        },
+        set(name: string, value: string, options) {
+          cookieStore.set({ name, value, ...options })
+        },
+        remove(name: string, options) {
+          cookieStore.set({ name, value: '', ...options })
+        },
+      },
+    }
+  )
 
   const data = {
     email: formData.get('email') as string,
@@ -17,13 +36,29 @@ export async function login(formData: FormData) {
     return { success: false, message: error.message }
   }
 
-  // revalidatePath is removed as it was causing the server to crash (502).
-  // The client will handle refreshing the state upon redirect.
+  // No revalidation or redirect needed here. The client will handle it.
   return { success: true, message: 'Login successful' }
 }
 
 export async function signup(formData: FormData) {
-  const supabase = createClient()
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+        cookies: {
+            get(name: string) {
+            return cookieStore.get(name)?.value
+            },
+            set(name: string, value: string, options) {
+            cookieStore.set({ name, value, ...options })
+            },
+            remove(name: string, options) {
+            cookieStore.set({ name, value: '', ...options })
+            },
+        },
+        }
+    )
 
   const data = {
     email: formData.get('email') as string,
@@ -46,7 +81,24 @@ export async function signup(formData: FormData) {
 }
 
 export async function logout() {
-    const supabase = createClient()
+    const cookieStore = cookies()
+    const supabase = createServerClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+        {
+        cookies: {
+            get(name: string) {
+            return cookieStore.get(name)?.value
+            },
+            set(name: string, value: string, options) {
+            cookieStore.set({ name, value, ...options })
+            },
+            remove(name: string, options) {
+            cookieStore.set({ name, value: '', ...options })
+            },
+        },
+        }
+    )
     await supabase.auth.signOut()
     redirect('/')
 }
