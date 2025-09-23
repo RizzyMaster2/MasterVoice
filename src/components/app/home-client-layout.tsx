@@ -32,20 +32,6 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
           return;
       }
 
-      // If the chat is with the AI bot, it won't be in the main chat list from getChats()
-      // So we handle it client-side.
-      if (result.id.startsWith('chat-ai-bot')) {
-         setChats(prev => {
-           if (prev.find(c => c.id === result.id)) return prev;
-           return [result, ...prev];
-         });
-         toast({
-            title: "Chat with VoiceBot started",
-            description: "You can now chat with the AI assistant.",
-        });
-        return;
-      }
-
 
       // Re-fetch chats to update the list, which is much faster
       // than revalidating the entire page.

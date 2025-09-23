@@ -24,17 +24,7 @@ export async function getUsers(): Promise<UserProfile[]> {
     return [];
   }
   
-  // Add the AI bot to the list of users
-  const botUser: UserProfile = {
-    id: 'ai-bot-voicebot',
-    display_name: 'VoiceBot',
-    photo_url: `https://picsum.photos/seed/ai-bot/200/200`,
-    created_at: new Date().toISOString(),
-    email: 'bot@mastervoice.ai',
-    status: 'online',
-  };
-
-  return [botUser, ...data.filter(u => u.id !== botUser.id)];
+  return data;
 }
 
 // Fetch all chats for the current user
@@ -90,27 +80,6 @@ export async function getChats(): Promise<Chat[]> {
 export async function createChat(otherUserId: string): Promise<Chat | null> {
   const supabase = createClient();
   const userId = await getCurrentUserId();
-
-  // If creating a chat with the bot, we don't persist it.
-  if (otherUserId === 'ai-bot-voicebot') {
-      const botChat: Chat = {
-        id: `chat-ai-bot-voicebot`,
-        created_at: new Date().toISOString(),
-        name: 'VoiceBot',
-        is_group: false,
-        participants: [userId, 'ai-bot-voicebot'],
-        admin_id: null,
-        otherParticipant: {
-             id: 'ai-bot-voicebot',
-            display_name: 'VoiceBot',
-            photo_url: `https://picsum.photos/seed/ai-bot/200/200`,
-            created_at: new Date().toISOString(),
-            email: 'bot@mastervoice.ai',
-            status: 'online',
-        }
-      };
-      return botChat;
-  }
 
   // Check if a chat already exists between the two users
     const { data: existingChats, error: existingError } = await supabase
@@ -216,27 +185,6 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
-   // If it's a chat with the bot, return a welcome message.
-  if (chatId === 'chat-ai-bot-voicebot') {
-    return [{
-      id: 'ai-welcome-message',
-      created_at: new Date().toISOString(),
-      content: "Hello! I'm VoiceBot, your friendly AI assistant. Ask me anything!",
-      sender_id: 'ai-bot-voicebot',
-      chat_id: chatId,
-      type: 'text',
-      file_url: null,
-      profiles: {
-            id: 'ai-bot-voicebot',
-            display_name: 'VoiceBot',
-            photo_url: `https://picsum.photos/seed/ai-bot/200/200`,
-            created_at: new Date().toISOString(),
-            email: 'bot@mastervoice.ai',
-            status: 'online',
-        }
-    }];
-  }
-
   const supabase = createClient();
   const { data, error } = await supabase
     .from('messages')

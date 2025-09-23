@@ -21,7 +21,6 @@ import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { voiceBot } from '@/ai/flows/voicebot-flow';
 import { CodeBlock } from './code-block';
 import { VideoCall } from './video-call';
 
@@ -71,10 +70,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-  const { user: authUser } = useUser();
+  const { user: authUser } = use-user();
   const { toast } = useToast();
-
-  const isBotChat = useMemo(() => selectedChat?.otherParticipant?.id === 'ai-bot-voicebot', [selectedChat]);
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -101,7 +98,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
 
   // Listen for new messages in real-time
   useEffect(() => {
-    if (!selectedChat || !authUser || isBotChat) return;
+    if (!selectedChat || !authUser) return;
 
     const channel = supabase
       .channel(`chat_${selectedChat.id}`)
@@ -137,28 +134,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, authUser, isBotChat, currentUser.id]);
+  }, [selectedChat, supabase, authUser, currentUser.id]);
   
-  useEffect(() => {
-    const hasBotChat = chats.some(c => c.otherParticipant?.id === 'ai-bot-voicebot');
-    if (!hasBotChat) {
-        const botUser = allUsers.find(u => u.id === 'ai-bot-voicebot');
-        if (botUser) {
-            const botChat: Chat = {
-                id: `chat-${botUser.id}`,
-                created_at: new Date().toISOString(),
-                name: botUser.display_name,
-                is_group: false,
-                participants: [currentUser.id, botUser.id],
-                admin_id: null,
-                otherParticipant: botUser,
-            };
-            setChats(prev => [botChat, ...prev]);
-        }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [chats, allUsers]);
-
   const getInitials = (name: string | undefined | null) =>
     name
       ?.split(' ')
@@ -190,32 +167,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
 
     startSendingTransition(async () => {
       try {
-        if (isBotChat) {
-            // Handle bot chat
-            const history = messages.map(m => ({
-                role: m.sender_id === currentUser.id ? 'user' as const : 'model' as const,
-                content: [{ text: m.content }]
-            }));
-
-            const response = await voiceBot({ history, message: messageContent });
-
-            const botMessage: Message = {
-                id: `bot-${Date.now()}`,
-                content: response,
-                created_at: new Date().toISOString(),
-                sender_id: 'ai-bot-voicebot',
-                chat_id: selectedChat.id,
-                type: 'text',
-                file_url: null,
-                profiles: selectedChat.otherParticipant,
-            };
-             setMessages(prev => [...prev.filter(m => m.id !== tempMessageId), optimisticMessage, botMessage]);
-
-        } else {
-            const sentMessage = await sendMessage(selectedChat.id, messageContent);
-            setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...m, ...sentMessage } : m));
-        }
-
+        const sentMessage = await sendMessage(selectedChat.id, messageContent);
+        setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...m, ...sentMessage } : m));
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -231,13 +184,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
-      return;
-    }
-     if (isBotChat) {
-      toast({
-        title: "Not supported",
-        description: "File uploads are not supported in chats with the bot.",
-      });
       return;
     }
     const file = event.target.files[0];
@@ -327,17 +273,13 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
                       <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
                     </>
                    )}
-                  {chat.otherParticipant?.id === 'ai-bot-voicebot' && (
-                    <span className="absolute bottom-0 right-0 block h-3 w-3 rounded-full bg-primary border-2 border-accent" />
-                  )}
                 </Avatar>
                 <div className="flex-1">
                   <p className="font-semibold flex items-center gap-2">
                     {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
-                    {chat.otherParticipant?.id === 'ai-bot-voicebot' && <Bot className="h-4 w-4 text-primary" />}
                   </p>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.is_group ? `${chat.participants.length} members` : (chat.otherParticipant?.id === 'ai-bot-voicebot' ? 'AI Assistant' : '...')}
+                    {chat.is_group ? `${chat.participants.length} members` : '...'}
                   </p>
                 </div>
               </div>
@@ -373,13 +315,12 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
               <div className="flex-1">
                 <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
                   {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
-                  {isBotChat && <Bot className="h-5 w-5 text-primary" />}
                 </h2>
                 {selectedChat.is_group && (
                     <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
                 )}
               </div>
-              {!isBotChat && !selectedChat.is_group && (
+              {!selectedChat.is_group && (
                 <Button size="icon" variant="ghost" onClick={() => setIsCalling(true)}>
                   <Video className="h-5 w-5" />
                   <span className="sr-only">Start Video Call</span>
@@ -465,7 +406,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
                     size="icon"
                     variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending || isBotChat}
+                    disabled={isSending}
                   >
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>
