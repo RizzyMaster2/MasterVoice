@@ -18,7 +18,6 @@ import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useSearchParams } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -32,7 +31,6 @@ export function LoginForm() {
   const [showPassword, setShowPassword] = useState(false);
   const searchParams = useSearchParams();
   const errorMessage = searchParams.get('message');
-  const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -49,23 +47,16 @@ export function LoginForm() {
     formData.append('password', values.password);
 
     try {
-      // The server action will handle the redirect on success.
-      // We are calling it, but not awaiting a return value that would be a redirect object.
+      // The server action will handle the redirect on success or failure.
+      // The catch block here is for network errors or other unexpected issues
+      // with the server action call itself, which are less common.
       await login(formData);
     } catch (error) {
-      // This catch block will handle network errors or other unexpected issues
-      // with the server action call itself. The server action's own try/catch
-      // handles errors within the action (like wrong password).
-      toast({
-        title: 'Login Failed',
-        description: 'An unexpected error occurred. Please try again.',
-        variant: 'destructive',
-      });
+      // In most cases, the server action's redirect will happen before this.
+      // This is a fallback. The most useful error is in the URL.
+      console.error("Login form submission error:", error);
       setIsLoading(false);
     }
-    // We don't necessarily need to set loading to false on success because
-    // the page will be redirecting. It can be useful to keep it true to prevent
-    // double-clicks.
   };
 
   return (
