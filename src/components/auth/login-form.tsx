@@ -48,11 +48,11 @@ export function LoginForm() {
     formData.append('password', values.password);
     
     // The login action will handle success/error and redirect.
-    // We just call it and let Next.js handle the form submission lifecycle.
-    // If it fails, it will redirect back with an error message.
+    // The client just needs to call it.
     await login(formData);
 
-    // This line might not be reached if redirect happens, but as a fallback:
+    // This line is only reached if the server action throws an unhandled error
+    // before it can redirect. We set loading to false to allow another attempt.
     setIsLoading(false);
   };
 

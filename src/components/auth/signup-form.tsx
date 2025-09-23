@@ -56,6 +56,8 @@ export function SignupForm() {
 
     await signup(formData);
     
+    // This line is only reached if the server action throws an unhandled error
+    // before it can redirect. We set loading to false to allow another attempt.
     setIsLoading(false);
   }
 
