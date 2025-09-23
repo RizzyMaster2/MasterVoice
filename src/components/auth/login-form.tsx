@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -16,7 +15,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
-import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
+import { LogIn, AlertTriangle } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { useToast } from '@/hooks/use-toast';
 
@@ -29,43 +29,63 @@ type LoginFormValues = z.infer<typeof formSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
   const { toast } = useToast();
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: { email: '', password: '' },
+    defaultValues: {
+      email: '',
+      password: '',
+    },
   });
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    setServerError(null);
-  
-    const result = await login(values);
-  
-    setIsLoading(false);
-  
-    if (!result.success) {
-      setServerError(result.message ?? 'Login failed');
+    const formData = new FormData();
+    formData.append('email', values.email);
+    formData.append('password', values.password);
+
+    try {
+      const result = await login(formData);
+
+      toast({ title: 'Login successful', description: 'Redirecting...' });
+
+    } catch (error: unknown) {
+      let message = 'An unexpected error occurred.';
+      let isBadGateway = false;
+
+      if (error instanceof Error) {
+        message = error.message;
+        if (message.includes('502')) {
+          isBadGateway = true;
+          message = 'Server is unreachable. Try again shortly.';
+        }
+      }
+
       toast({
         title: 'Login Failed',
-        description: result.message ?? 'An unexpected error occurred.',
+        description: message,
         variant: 'destructive',
       });
+
+      if (isBadGateway) {
+        console.warn('502 intercepted. Try Again Shortly or message MasterDev.');
+      }
+
+      setIsLoading(false);
     }
-    // No need for router.push, the server action will handle the redirect
   };
-  
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
-        {serverError && (
+        {errorMessage && (
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Login Failed</AlertTitle>
-            <AlertDescription>{serverError}</AlertDescription>
+            <AlertDescription>{errorMessage}</AlertDescription>
           </Alert>
         )}
         <FormField
@@ -87,38 +107,16 @@ export function LoginForm() {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Password</FormLabel>
-              <div className="relative">
-                <FormControl>
-                  <Input
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="••••••••"
-                    {...field}
-                  />
-                </FormControl>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="absolute top-0 right-0 h-full px-3 py-2 hover:bg-transparent"
-                  onClick={() => setShowPassword(prev => !prev)}
-                >
-                  {showPassword ? (
-                    <EyeOff className="h-4 w-4" aria-hidden="true" />
-                  ) : (
-                    <Eye className="h-4 w-4" aria-hidden="true" />
-                  )}
-                  <span className="sr-only">
-                    {showPassword ? 'Hide password' : 'Show password'}
-                  </span>
-                </Button>
-              </div>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+              </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="w-full" disabled={isLoading}>
           <LogIn className="mr-2 h-4 w-4" />
-          {isLoading ? 'Logging in…' : 'Login'}
+          {isLoading ? 'Logging in...' : 'Login'}
         </Button>
       </form>
     </Form>
