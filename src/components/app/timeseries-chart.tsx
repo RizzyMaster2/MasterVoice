@@ -1,6 +1,7 @@
 
 'use client';
 
+import { TimeSeriesData } from '@/app/(auth)/actions/admin';
 import {
   LineChart,
   Line,
@@ -10,11 +11,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-
-type TimeSeriesData = {
-    date: string;
-    [key: string]: string | number;
-};
 
 type TimeSeriesChartProps = {
   data: TimeSeriesData[];

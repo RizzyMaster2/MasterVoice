@@ -12,7 +12,7 @@ type AdminStats = {
     error: string | null;
 }
 
-type TimeSeriesData = {
+export type TimeSeriesData = {
     date: string;
     count: number;
 }
@@ -82,7 +82,7 @@ export async function getUserSignupsByDay(): Promise<{ data: TimeSeriesData[], e
             countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
         });
         
-        const formattedData = Array.from(countsByDay.entries()).map(([day, count]) => ({
+        const formattedData: TimeSeriesData[] = Array.from(countsByDay.entries()).map(([day, count]) => ({
             date: format(new Date(day), 'MMM d'),
             count: count,
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
@@ -123,7 +123,7 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
             countsByDay.set(day, (countsByDay.get(day) || 0) + 1);
         });
 
-        const formattedData = Array.from(countsByDay.entries()).map(([day, count]) => ({
+        const formattedData: TimeSeriesData[] = Array.from(countsByDay.entries()).map(([day, count]) => ({
             date: format(new Date(day), 'MMM d'),
             count: count,
         })).sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());

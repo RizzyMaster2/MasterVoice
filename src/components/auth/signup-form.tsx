@@ -46,15 +46,20 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
+    const formData = new FormData();
+    formData.append('name', values.name);
+    formData.append('email', values.email);
+    formData.append('password', values.password);
 
     try {
-      await signup(values);
+      await signup(formData);
     } catch (error) {
        toast({
             title: 'Signup Failed',
             description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
+    } finally {
         setIsLoading(false);
     }
   }

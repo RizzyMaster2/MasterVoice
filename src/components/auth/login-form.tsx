@@ -44,14 +44,20 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
+    const formData = new FormData();
+    formData.append('email', values.email);
+    formData.append('password', values.password);
+
     try {
-      await login(values);
+      await login(formData);
+      // login will redirect, so we don't need to do anything here on success
     } catch (error) {
         toast({
             title: 'Login Failed',
             description: 'An unexpected error occurred. Please try again.',
             variant: 'destructive',
         });
+    } finally {
         setIsLoading(false);
     }
   };
