@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -22,7 +21,7 @@ export async function login(formData: FormData) {
     return { error: 'Invalid login credentials.' };
   }
 
-  revalidatePath('/', 'layout');
+  revalidatePath('/');
   redirect('/home');
 }
 
@@ -46,7 +45,7 @@ export async function signup(formData: FormData) {
     return redirect(`/signup?message=${error.message}`);
   }
 
-  revalidatePath('/', 'layout');
+  revalidatePath('/');
   redirect('/confirm');
 }
 
