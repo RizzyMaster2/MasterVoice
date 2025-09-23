@@ -17,7 +17,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 
 const formSchema = z.object({
@@ -30,8 +29,7 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const searchParams = useSearchParams();
-  const errorMessage = searchParams.get('message');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -43,17 +41,21 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
+    setErrorMessage(null);
+
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    // The server action will handle redirects and errors.
-    // The error message will be passed as a URL query parameter.
-    await login(formData);
+    const result = await login(formData);
 
-    // We don't necessarily need to set loading to false here
-    // because a redirect will happen. But in case it fails silently
-    // on the client for some reason, this is a safeguard.
+    if (result?.error) {
+      setErrorMessage(result.error);
+    }
+    
+    // If successful, the server action will redirect, so we don't
+    // need to handle the success case here. The loading state
+    // will be cleared by the page navigation.
     setIsLoading(false);
   };
 
