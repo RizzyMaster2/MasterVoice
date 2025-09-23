@@ -63,10 +63,18 @@ function saveToStorage<T>(key: string, value: T) {
 
 // Generate a random US-style phone number
 function generatePhoneNumber(): string {
-  const areaCode = Math.floor(Math.random() * 800) + 200;
-  const firstPart = Math.floor(Math.random() * 900) + 100;
-  const secondPart = Math.floor(Math.random() * 9000) + 1000;
-  return `+1 (${areaCode}) ${firstPart}-${secondPart}`;
+    const areaCode = Math.floor(Math.random() * 800) + 200;
+    const firstPart = Math.floor(Math.random() * 900) + 100;
+    const secondPart = Math.floor(Math.random() * 9000) + 1000;
+    return `${areaCode}-${firstPart}-${secondPart}`;
+}
+
+// Format number as (XXX) XXX-XXXX for display
+function formatPhoneNumber(phone: string): string {
+    if (!phone) return '';
+    const parts = phone.split('-');
+    if (parts.length !== 3) return phone;
+    return `(${parts[0]}) ${parts[1]}-${parts[2]}`;
 }
 
 
@@ -166,7 +174,7 @@ export default function SmsPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-mono text-center bg-muted p-4 rounded-lg">
-                {virtualNumber || 'Generating...'}
+                {formatPhoneNumber(virtualNumber) || 'Generating...'}
             </p>
           </CardContent>
         </Card>
