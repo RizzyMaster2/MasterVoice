@@ -25,14 +25,14 @@ export async function middleware(request: NextRequest) {
 
   const url = request.nextUrl.clone();
 
-  const protectedPaths = ['/dashboard', '/profile'];
+  const protectedPaths = ['/home', '/profile'];
   const isProtectedPath = protectedPaths.some((path) => url.pathname.startsWith(path));
   const isAuthPath = ['/login', '/signup', '/confirm'].includes(url.pathname);
 
   if (user) {
-    // If user is logged in and tries to access an auth page, redirect to dashboard.
+    // If user is logged in and tries to access an auth page, redirect to home.
     if (isAuthPath) {
-      url.pathname = '/dashboard';
+      url.pathname = '/home';
       return NextResponse.redirect(url);
     }
   } else {

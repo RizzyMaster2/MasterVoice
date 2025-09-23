@@ -133,7 +133,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
           console.error('Could not fetch details for existing chat', detailsError);
           return null;
       }
-      revalidatePath('/dashboard');
+      revalidatePath('/home');
       return {
           ...existingChatDetails,
           participants: existingChatDetails.chat_participants.map(p => p.user_id)
@@ -169,7 +169,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
       throw new Error('Could not add participants to chat.');
   }
   
-  revalidatePath('/dashboard');
+  revalidatePath('/home');
   return { ...data, participants: [userId, otherUserId] };
 }
 
@@ -210,7 +210,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
         throw new Error('Could not add members to the group chat.');
     }
     
-    revalidatePath('/dashboard');
+    revalidatePath('/home');
     return { ...chatData, participants: allParticipantIds };
 }
 

@@ -12,7 +12,7 @@ export function HeaderButtons({ user }: { user: User | null }) {
     <div className="flex items-center gap-4">
       {user ? (
         <Button asChild>
-          <Link href="/dashboard">
+          <Link href="/home">
             <Rocket className="mr-2 h-4 w-4" />
             Open App
           </Link>

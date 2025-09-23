@@ -17,11 +17,14 @@ export async function login(formData: FormData) {
 
   if (error) {
     // Instead of redirecting, we return an error object.
+    if (error.message.includes('502')) {
+      return { error: 'Network error. Please check your connection or VPN and try again.' };
+    }
     return { error: error.message };
   }
 
   revalidatePath('/', 'layout');
-  redirect('/dashboard');
+  redirect('/home');
 }
 
 export async function signup(formData: FormData) {

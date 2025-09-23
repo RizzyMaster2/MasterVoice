@@ -23,7 +23,7 @@ export default function ConfirmPage() {
         </div>
         <p className='text-sm text-amber-700 mb-3'>You can skip for now, but some features will be disabled.</p>
         <Button asChild variant="secondary" className='w-full'>
-            <Link href="/dashboard">Continue to Dashboard</Link>
+            <Link href="/home">Continue to Home</Link>
         </Button>
       </CardContent>
       <CardFooter/>

@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
-  LayoutDashboard,
+  Home,
   Shield,
   User,
 } from 'lucide-react';
@@ -21,9 +21,9 @@ import { useUser } from '@/hooks/use-user';
 
 const menuItems = [
   {
-    href: '/dashboard',
-    label: 'Dashboard',
-    icon: LayoutDashboard,
+    href: '/home',
+    label: 'Home',
+    icon: Home,
   },
   // {
   //   href: '/profile',
@@ -33,7 +33,7 @@ const menuItems = [
 ];
 
 const adminMenuItem = {
-  href: '/dashboard/admin',
+  href: '/home/admin',
   label: 'Admin',
   icon: Shield,
 };
@@ -73,7 +73,7 @@ export function AppSidebar() {
               <SidebarMenuItem key={adminMenuItem.href}>
                 <SidebarMenuButton
                   asChild
-                  isActive={pathname === adminMenuItem.href}
+                  isActive={pathname.startsWith(adminMenuItem.href)}
                   tooltip={{ children: adminMenuItem.label }}
                 >
                 <Link href={adminMenuItem.href}>

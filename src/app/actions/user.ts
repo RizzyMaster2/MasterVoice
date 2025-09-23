@@ -47,6 +47,6 @@ export async function deleteUser(userId: string) {
         console.error('Supabase delete error:', deleteError);
         throw new Error('Could not delete user from the database.');
     }
-    revalidatePath('/dashboard/admin');
+    revalidatePath('/home/admin');
   }
 }
