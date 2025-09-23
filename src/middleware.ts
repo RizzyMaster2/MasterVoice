@@ -1,27 +1,14 @@
-import { NextResponse, type NextRequest } from 'next/server';
-import { updateSession } from '@/lib/supabase/middleware';
-import { createServerClient } from '@supabase/ssr';
+import { type NextRequest } from 'next/server'
+import { updateSession } from '@/lib/supabase/middleware'
+import { createClient } from '@/lib/supabase/server'
+import { NextResponse } from 'next/server'
 
 export async function middleware(request: NextRequest) {
-  // updateSession will take care of refreshing the session
-  const response = await updateSession(request);
-
-  // We need a client to check the user status
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        get(name: string) {
-          return request.cookies.get(name)?.value;
-        },
-      },
-    }
-  );
+  const { supabase, response } = await updateSession(request)
 
   const {
     data: { user },
-  } = await supabase.auth.getUser();
+  } = await supabase.auth.getUser()
 
   const url = request.nextUrl.clone();
 
@@ -43,7 +30,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  return response;
+  return response
 }
 
 export const config = {

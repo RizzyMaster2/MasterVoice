@@ -15,11 +15,10 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data);
 
   if (error) {
-    // Instead of redirecting, we return an error object.
     if (error.message.includes('Failed to fetch')) {
-      return { error: 'Network error. Please check your connection or VPN and try again.' };
+      return { error: 'Network error. Please check your connection and try again.' };
     }
-    return { error: error.message };
+    return { error: 'Invalid login credentials.' };
   }
 
   revalidatePath('/', 'layout');
