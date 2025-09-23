@@ -66,17 +66,16 @@ export function SignupForm() {
 
     const result = await signup(formData);
 
-    setIsLoading(false);
-
-    if (result.success) {
-      router.push('/confirm');
-    } else {
+    if (result?.success === false) {
       toast({
         title: 'Signup Failed',
         description: result.message,
         variant: 'destructive',
       });
     }
+    // No client-side redirect needed. Server action handles it.
+    // If it fails, we just re-enable the button.
+    setIsLoading(false);
   }
 
   return (

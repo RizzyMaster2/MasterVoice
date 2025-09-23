@@ -47,29 +47,18 @@ export function LoginForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    try {
-        const result = await login(formData);
+    const result = await login(formData);
 
-        if (result.success) {
-          router.push('/dashboard');
-          // We refresh the router to ensure the layout updates and shows the authenticated user state.
-          router.refresh(); 
-        } else {
-          toast({
-            title: 'Login Failed',
-            description: result.message,
-            variant: 'destructive',
-          });
-        }
-    } catch (error) {
-        toast({
-            title: 'Login Failed',
-            description: 'An unexpected error occurred. Please try again.',
-            variant: 'destructive',
-        });
-    } finally {
-        setIsLoading(false);
+    if (result?.success === false) {
+      toast({
+        title: 'Login Failed',
+        description: result.message,
+        variant: 'destructive',
+      });
     }
+    // No client-side redirect needed. Server action handles it.
+    // If it fails, we just re-enable the button.
+    setIsLoading(false);
   }
 
   return (
