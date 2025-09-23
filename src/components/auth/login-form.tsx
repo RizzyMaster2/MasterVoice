@@ -48,33 +48,30 @@ export function LoginForm() {
     formData.append('password', values.password);
 
     try {
-      const result = await login(formData);
-
+      // We are not using the result directly, as the action handles redirection.
+      await login(formData);
+      // The toast for success would be better handled on the page you redirect to,
+      // but for this example, we can show it briefly before redirection happens.
       toast({ title: 'Login successful', description: 'Redirecting...' });
-
     } catch (error: unknown) {
-      let message = 'An unexpected error occurred.';
-      let isBadGateway = false;
+      let message = 'An unexpected error occurred. Please try again.';
+      let title = 'Login Failed';
 
-      if (error instanceof Error) {
+      // Check if the error is a network error that might indicate a 502
+      if (error instanceof Error && error.message.includes('fetch')) {
+         title = 'Network Error (502)';
+         message = 'Could not connect to the server. If you are using a VPN or proxy, please try disabling it and try again.';
+      } else if (error instanceof Error) {
         message = error.message;
-        if (message.includes('502')) {
-          isBadGateway = true;
-          message = 'Server is unreachable. Try again shortly.';
-        }
       }
-
+      
       toast({
-        title: 'Login Failed',
+        title: title,
         description: message,
         variant: 'destructive',
       });
-
-      if (isBadGateway) {
-        console.warn('502 intercepted. Try Again Shortly or message MasterDev.');
-      }
-
-      setIsLoading(false);
+    } finally {
+        setIsLoading(false);
     }
   };
 
