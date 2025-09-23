@@ -16,7 +16,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Bot, Video, Users } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Video, Users } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -70,7 +70,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
-  const { user: authUser } = use-user();
+  const { user: authUser } = useUser();
   const { toast } = useToast();
 
   const scrollToBottom = () => {
