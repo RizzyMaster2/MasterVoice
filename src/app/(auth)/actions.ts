@@ -1,4 +1,3 @@
-
 'use server';
 
 import { revalidatePath } from 'next/cache';
@@ -19,6 +18,7 @@ export async function login(formData: FormData) {
     if (error.message.includes('Failed to fetch')) {
         return { error: 'Network error. Please check your connection and try again.' };
     }
+    // Default to invalid credentials for other auth errors.
     return { error: 'Invalid login credentials.' };
   }
 
@@ -39,15 +39,15 @@ export async function signup(formData: FormData) {
     },
   };
 
-  const { error } = await supabase.auth.signUp(data);
+    const { error } = await supabase.auth.signUp(data);
 
-  if (error) {
+    if (error) {
       // The redirect will handle showing the message on the signup page.
       return redirect(`/signup?message=${error.message}`);
-  }
+    }
   
-  revalidatePath('/');
-  redirect('/confirm');
+    revalidatePath('/');
+    redirect('/confirm');
 }
 
 export async function logout() {

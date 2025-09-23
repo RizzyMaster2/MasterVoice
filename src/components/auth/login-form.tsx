@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState } from 'react';
@@ -54,14 +53,15 @@ export function LoginForm() {
 
       if (result?.error) {
         setErrorMessage(result.error);
+        setIsLoading(false);
       }
+      // On success, the server action redirects, so no need to call setIsLoading(false).
     } catch (error) {
         toast({
             title: 'Login Failed',
             description: 'An unexpected response was received from the server.',
             variant: 'destructive',
         });
-    } finally {
         setIsLoading(false);
     }
   };
