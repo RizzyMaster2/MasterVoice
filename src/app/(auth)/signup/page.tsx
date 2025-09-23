@@ -34,7 +34,7 @@ function SignupPageContent() {
 }
 
 
-export default async function SignupPage() {
+export default function SignupPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
         <SignupPageContent />

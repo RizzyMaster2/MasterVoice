@@ -15,9 +15,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { signup } from '@/app/(auth)/actions';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, AlertTriangle } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -30,8 +32,10 @@ const formSchema = z.object({
 type SignupFormValues = z.infer<typeof formSchema>;
 
 export function SignupForm() {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
+
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -50,24 +54,21 @@ export function SignupForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    const result = await signup(formData);
-
-    if (result?.success === false) {
-      toast({
-        title: 'Signup Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
+    await signup(formData);
     
-    // If there's an error, the server action returns, and we re-enable the button.
-    // If successful, the server action redirects, and this component is unmounted.
     setIsLoading(false);
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+         {errorMessage && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Signup Failed</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
         <FormField
           control={form.control}
           name="name"

@@ -1,4 +1,3 @@
-
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
@@ -16,7 +15,7 @@ export async function login(formData: FormData) {
   const { error } = await supabase.auth.signInWithPassword(data)
 
   if (error) {
-    return { success: false, message: error.message }
+    redirect('/login?message=Could not authenticate user')
   }
 
   revalidatePath('/', 'layout')
@@ -40,7 +39,7 @@ export async function signup(formData: FormData) {
   const { error } = await supabase.auth.signUp(data)
 
   if (error) {
-    return { success: false, message: error.message }
+    redirect('/signup?message=Could not authenticate user')
   }
 
   revalidatePath('/', 'layout')

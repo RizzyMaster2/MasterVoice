@@ -32,7 +32,7 @@ function LoginPageContent() {
   );
 }
 
-export default async function LoginPage() {
+export default function LoginPage() {
   return (
     <Suspense fallback={<div>Loading...</div>}>
       <LoginPageContent />

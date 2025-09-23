@@ -15,9 +15,11 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/hooks/use-toast';
 import { login } from '@/app/(auth)/actions';
 import { LogIn } from 'lucide-react';
+import { useSearchParams } from 'next/navigation';
+import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { AlertTriangle } from 'lucide-react';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -27,8 +29,9 @@ const formSchema = z.object({
 type LoginFormValues = z.infer<typeof formSchema>;
 
 export function LoginForm() {
-  const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const errorMessage = searchParams.get('message');
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -38,30 +41,31 @@ export function LoginForm() {
     },
   });
 
-  async function onSubmit(values: LoginFormValues) {
+  const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-
     const formData = new FormData();
     formData.append('email', values.email);
     formData.append('password', values.password);
+    
+    // The login action will handle success/error and redirect.
+    // We just call it and let Next.js handle the form submission lifecycle.
+    // If it fails, it will redirect back with an error message.
+    await login(formData);
 
-    const result = await login(formData);
-
-    if (result?.success === false) {
-      toast({
-        title: 'Login Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
-    }
-    // If there's an error, the server action returns, and we re-enable the button.
-    // If successful, the server action redirects, and this component is unmounted.
+    // This line might not be reached if redirect happens, but as a fallback:
     setIsLoading(false);
-  }
+  };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6">
+        {errorMessage && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Login Failed</AlertTitle>
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
+        )}
         <FormField
           control={form.control}
           name="email"
