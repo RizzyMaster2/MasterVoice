@@ -1,6 +1,7 @@
+
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -17,7 +18,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { login } from '@/app/(auth)/actions';
 import { LogIn } from 'lucide-react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -29,7 +30,6 @@ type LoginFormValues = z.infer<typeof formSchema>;
 export function LoginForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
-  const searchParams = useSearchParams();
   const router = useRouter();
 
   const form = useForm<LoginFormValues>({
@@ -40,17 +40,6 @@ export function LoginForm() {
     },
   });
 
-  useEffect(() => {
-    const message = searchParams.get('message');
-    if (message) {
-      toast({
-        title: 'Login Failed',
-        description: message,
-        variant: 'destructive',
-      });
-    }
-  }, [searchParams, toast]);
-
   async function onSubmit(values: LoginFormValues) {
     setIsLoading(true);
     
@@ -58,20 +47,28 @@ export function LoginForm() {
     formData.append('email', values.email);
     formData.append('password', values.password);
 
-    const result = await login(formData);
+    try {
+        const result = await login(formData);
 
-    setIsLoading(false);
-
-    if (result.success) {
-      router.push('/dashboard');
-      // We refresh the router to ensure the layout updates and shows the authenticated user state.
-      router.refresh(); 
-    } else {
-      toast({
-        title: 'Login Failed',
-        description: result.message,
-        variant: 'destructive',
-      });
+        if (result.success) {
+          router.push('/dashboard');
+          // We refresh the router to ensure the layout updates and shows the authenticated user state.
+          router.refresh(); 
+        } else {
+          toast({
+            title: 'Login Failed',
+            description: result.message,
+            variant: 'destructive',
+          });
+        }
+    } catch (error) {
+        toast({
+            title: 'Login Failed',
+            description: 'An unexpected error occurred. Please try again.',
+            variant: 'destructive',
+        });
+    } finally {
+        setIsLoading(false);
     }
   }
 
