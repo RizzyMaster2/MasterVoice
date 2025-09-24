@@ -159,13 +159,14 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
     // If no chat exists, create a new one
     const { data, error } = await supabase
       .from('chats')
-      .insert([{ is_group: false }])
+      .insert([{ is_group: false, admin_id: userId }])
       .select()
       .single();
 
     if (error || !data) {
       console.error('Error creating chat:', error);
-      throw new Error(error?.message || 'Could not create chat.');
+      const message = error ? error.message : 'Could not create chat.';
+      throw new Error(message);
     }
 
     const newChatId = data.id;
