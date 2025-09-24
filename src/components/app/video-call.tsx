@@ -74,9 +74,15 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
       } catch (error) {
         console.error('Error accessing media devices.', error);
         setHasCameraPermission(false);
+        
+        let description = 'Please allow camera and microphone access to make calls.';
+        if (error instanceof Error && error.name === 'NotReadableError') {
+          description = 'Could not start video source. Is your camera already in use by another application?';
+        }
+
         toast({
-          title: 'Media Access Denied',
-          description: 'Please allow camera and microphone access to make calls.',
+          title: 'Media Access Error',
+          description: description,
           variant: 'destructive',
         });
         handleClose();
@@ -87,7 +93,7 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
     return () => {
       localStream?.getTracks().forEach(track => track.stop());
     };
-  }, [handleClose, toast]);
+  }, [handleClose, toast, localStream]);
 
   useEffect(() => {
     if (!localStream || !otherParticipantId) return;
