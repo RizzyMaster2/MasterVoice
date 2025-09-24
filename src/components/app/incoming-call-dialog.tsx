@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff } from 'lucide-react';
 import type { UserProfile } from '@/lib/data';
-import { useEffect, useRef } from 'react';
 
 interface IncomingCallDialogProps {
   caller: UserProfile;
@@ -22,21 +21,6 @@ interface IncomingCallDialogProps {
 }
 
 export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCallDialogProps) {
-    const audioRef = useRef<HTMLAudioElement>(null);
-
-    useEffect(() => {
-        // Play ringing sound
-        if (audioRef.current) {
-            audioRef.current.loop = true;
-            audioRef.current.play().catch(e => console.error("Ringtone playback failed:", e));
-        }
-        return () => {
-            if (audioRef.current) {
-                audioRef.current.pause();
-            }
-        }
-    }, []);
-
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?';
 
@@ -59,7 +43,6 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
             <Phone className="h-7 w-7" />
           </Button>
         </DialogFooter>
-        <audio ref={audioRef} src="/sounds/ringing.mp3" preload="auto" />
       </DialogContent>
     </Dialog>
   );
