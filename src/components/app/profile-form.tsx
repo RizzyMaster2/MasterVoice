@@ -75,9 +75,26 @@ export function ProfileForm() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       setSelectedFile(file);
-      setPreviewUrl(URL.createObjectURL(file));
+      const newPreviewUrl = URL.createObjectURL(file);
+      
+      // Revoke the old URL if it exists
+      if (previewUrl && !previewUrl.startsWith('https://')) {
+          URL.revokeObjectURL(previewUrl);
+      }
+
+      setPreviewUrl(newPreviewUrl);
     }
   };
+
+  useEffect(() => {
+    // Cleanup function to revoke the object URL
+    return () => {
+      if (previewUrl && !previewUrl.startsWith('https://')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
 
   async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
