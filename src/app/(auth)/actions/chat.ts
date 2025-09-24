@@ -29,7 +29,8 @@ export async function getUsers(): Promise<UserProfile[]> {
     }
 
     const userIds = users.map(u => u.id);
-    const { data: profiles, error: profilesError } = await createClient()
+    const supabase = await createClient();
+    const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
       .in('id', userIds);
