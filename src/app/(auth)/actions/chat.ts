@@ -5,11 +5,13 @@ import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { Chat, Message, UserProfile } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { cookies } from 'next/headers';
 
 
 // Get the current logged-in user's ID
 async function getCurrentUserId() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
@@ -29,7 +31,8 @@ export async function getUsers(): Promise<UserProfile[]> {
     }
 
     const userIds = users.map(u => u.id);
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
@@ -65,7 +68,8 @@ export async function getUsers(): Promise<UserProfile[]> {
 // Fetch all chats for the current user
 export async function getChats(): Promise<Chat[]> {
   try {
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return [];
     
@@ -120,7 +124,8 @@ export async function getChats(): Promise<Chat[]> {
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
   try {
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const userId = await getCurrentUserId();
 
     // Check if a chat already exists between the two users
@@ -190,7 +195,8 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
 export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
     try {
-        const supabase = createClient();
+        const cookieStore = cookies();
+        const supabase = createClient(cookieStore);
         const userId = await getCurrentUserId();
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
@@ -237,7 +243,8 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
   try {
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const { data, error } = await supabase
       .from('messages')
       .select('*, profiles(*)')
@@ -258,7 +265,8 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 // Send a new message
 export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
   try {
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const userId = await getCurrentUserId();
     
     const messageData: {

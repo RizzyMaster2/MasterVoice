@@ -6,10 +6,12 @@ import { getUsers, getChats } from '@/app/(auth)/actions/chat';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { OnboardingModal } from '@/components/app/onboarding-modal';
+import { cookies } from 'next/headers';
 
 
 export default async function HomePage() {
-  const supabase = createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const {
     data: { user: authUser },
   } = await supabase.auth.getUser();

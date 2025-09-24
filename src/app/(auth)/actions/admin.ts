@@ -4,6 +4,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
+import { cookies } from 'next/headers';
 
 type AdminStats = {
     totalUsers: number;
@@ -18,7 +19,8 @@ export type TimeSeriesData = {
 }
 
 async function checkAdminPermissions() {
-    const supabase = createClient();
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
     const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
     if (!user || !adminEmails.includes(user.email!)) {

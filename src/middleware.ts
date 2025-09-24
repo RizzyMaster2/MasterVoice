@@ -70,9 +70,10 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/', '/unauthenticated'];
+  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated'];
 
-  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+  // Check if the current path is the root or starts with any of the public paths.
+  const isPublicPath = request.nextUrl.pathname === '/' || publicPaths.some(path => request.nextUrl.pathname.startsWith(path));
 
   // if user is not logged in and is trying to access a protected route
   if (!user && !isPublicPath) {

@@ -8,9 +8,11 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/(auth)/actions/admin';
 import { TimeSeriesChart } from '@/components/app/timeseries-chart';
 import { Button } from '@/components/ui/button';
+import { cookies } from 'next/headers';
 
 export default async function AdminPage() {
-  const supabase = await createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();

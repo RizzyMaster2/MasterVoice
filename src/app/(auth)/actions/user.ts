@@ -5,10 +5,12 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { cookies } from 'next/headers';
 
 
 export async function deleteUser(userId: string) {
-  const supabase = await createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
   const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];

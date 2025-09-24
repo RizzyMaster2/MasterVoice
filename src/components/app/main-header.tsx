@@ -3,9 +3,11 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { HeaderButtons } from '@/components/app/header-buttons';
 import { Logo } from '@/components/logo';
+import { cookies } from 'next/headers';
 
 export async function MainHeader() {
-  const supabase = await createClient();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
   const {
     data: { user },
   } = await supabase.auth.getUser();
