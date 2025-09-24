@@ -73,23 +73,39 @@ export async function getChats(): Promise<Chat[]> {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return [];
     
+    // 1. Get all chat_ids the user is a part of.
+    const { data: userChatLinks, error: chatIdsError } = await supabase
+      .from('chat_participants')
+      .select('chat_id')
+      .eq('user_id', authUser.id);
+    
+    if (chatIdsError) {
+      console.error('Error fetching user chat links:', chatIdsError);
+      return [];
+    }
+
+    const chatIds = userChatLinks.map(link => link.chat_id);
+    if (chatIds.length === 0) {
+        return [];
+    }
+
+    // 2. Fetch all data for those chats, including all their participants
     const { data: chats, error: chatsError } = await supabase
       .from('chats')
-      .select('*, chat_participants!inner(*)')
-      .eq('chat_participants.user_id', authUser.id);
+      .select('*, chat_participants(user_id)')
+      .in('id', chatIds)
+      .order('created_at', { ascending: false });
 
     if (chatsError) {
-      console.error('Error fetching user chat memberships:', chatsError);
+      console.error('Error fetching chats details:', chatsError);
       return [];
     }
 
-    if (!chats) {
-      return [];
-    }
-
+    // 3. Get all users to map participant IDs to profiles
     const allUsers = await getUsers();
     const userMap = new Map(allUsers.map(u => [u.id, u]));
 
+    // 4. Process the chats to add participant profiles
     const processedChats = chats.map((chat) => {
       const participantIds = chat.chat_participants.map((p: { user_id: any; }) => p.user_id);
       
@@ -112,6 +128,7 @@ export async function getChats(): Promise<Chat[]> {
           fullChat.otherParticipant = userMap.get(otherParticipantId);
         }
       }
+
       // Ensure we only return chats where we could find the other participant for 1-on-1s
       if (!chat.is_group && !fullChat.otherParticipant) {
           return null;
