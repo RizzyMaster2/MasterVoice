@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -93,6 +92,7 @@ export function ProfileForm() {
         .from('files')
         .upload(filePath, selectedFile, {
             contentType: selectedFile.type,
+            upsert: true
         });
       
       if (uploadError) {
