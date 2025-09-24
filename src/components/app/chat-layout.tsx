@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode } from 'react';
@@ -26,10 +25,10 @@ import { VoiceCall } from './voice-call';
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
-  setChats: (chats: Chat[]) => void;
   allUsers: UserProfile[];
   selectedChat: Chat | null;
   setSelectedChat: (chat: Chat | null) => void;
+  listType: 'friend' | 'group';
 }
 
 const parseMessageContent = (content: string): ReactNode[] => {
@@ -59,7 +58,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedChat, setSelectedChat }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -243,7 +242,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search contacts or groups..."
+              placeholder={listType === 'friend' ? "Search friends..." : "Search groups..."}
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -285,7 +284,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
             ))
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              <p>No contacts found.</p>
+              <p>{listType === 'friend' ? 'No friends found.' : 'No groups found.'}</p>
             </div>
           )}
         </ScrollArea>
@@ -428,9 +427,9 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
               <UserPlus className="mx-auto h-12 w-12 text-muted-foreground/50" />
-              <p className="mt-4 text-lg font-semibold">Select a contact</p>
+              <p className="mt-4 text-lg font-semibold">{listType === 'friend' ? 'Select a friend' : 'Select a group'}</p>
               <p className="text-muted-foreground">
-                Start a conversation from your contact list.
+                {listType === 'friend' ? 'Start a conversation from your friends list.' : 'Select a group to see the conversation.'}
               </p>
             </div>
           </div>
@@ -439,5 +438,3 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
-
-    

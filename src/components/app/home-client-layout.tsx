@@ -1,4 +1,3 @@
-
 'use client';
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
@@ -22,15 +21,24 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
 
+  // Separate friends and groups
+  const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
+  const friendContactIds = useMemo(() => {
+    const ids = new Set<string>();
+    friends.forEach(c => {
+        c.participants.forEach(pId => ids.add(pId));
+    });
+    return ids;
+  }, [friends]);
+
   useEffect(() => {
     setIsClient(true);
-    if (initialChats.length > 0 && !selectedChat) {
-      // Find the most recent chat to select initially
-      const sortedChats = [...initialChats].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    if (friends.length > 0 && !selectedChat) {
+      const sortedChats = [...friends].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
       setSelectedChat(sortedChats[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialChats]);
+  }, [friends]);
 
   const refreshChats = async () => {
     const updatedChats = await getChats();
@@ -84,23 +92,10 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     });
   };
 
-  const contactIds = useMemo(() => {
-    const ids = new Set<string>();
-    chats.forEach(c => {
-        if (!c.is_group) {
-            c.participants.forEach(pId => ids.add(pId));
-        }
-    });
-    return ids;
-  }, [chats]);
-
   const handleGroupCreated = async () => {
-    const updatedChats = await refreshChats();
-     if (updatedChats.length > 0) {
-      // Find the most recent chat (the one just created) and select it
-      const sortedChats = [...updatedChats].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setSelectedChat(sortedChats[0]);
-    }
+    // No need to switch view, just refresh chats in the background. 
+    // The user will navigate to the groups page to see it.
+    await refreshChats();
   }
 
   if (!isClient) {
@@ -119,11 +114,11 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         <div className="flex-1 h-full">
             <ChatLayout 
                 currentUser={currentUser} 
-                chats={chats} 
-                setChats={setChats} 
+                chats={friends}
                 allUsers={allUsers}
                 selectedChat={selectedChat}
                 setSelectedChat={setSelectedChat}
+                listType="friend"
             />
         </div>
         <div className="w-full lg:w-[320px] flex flex-col gap-6">
@@ -131,7 +126,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 currentUser={currentUser}
                 allUsers={allUsers}
                 onAddFriend={handleAddFriend}
-                contactIds={contactIds}
+                contactIds={friendContactIds}
                 onGroupCreated={handleGroupCreated}
                 isAddingFriend={isAddingFriend}
             />

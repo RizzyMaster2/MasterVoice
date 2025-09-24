@@ -1,11 +1,10 @@
-
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  Mic,
+  Users,
   Shield,
 } from 'lucide-react';
 
@@ -22,13 +21,13 @@ import { useUser } from '@/hooks/use-user';
 const menuItems = [
   {
     href: '/home',
-    label: 'Home',
+    label: 'Friends',
     icon: Home,
   },
   {
-    href: '/home/voice-notes',
-    label: 'Voice Notes',
-    icon: Mic,
+    href: '/home/groups',
+    label: 'Groups',
+    icon: Users,
   }
 ];
 
@@ -89,5 +88,3 @@ export function AppSidebar() {
     </>
   );
 }
-
-    
