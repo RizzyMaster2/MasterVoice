@@ -73,7 +73,6 @@ export async function getChats(): Promise<Chat[]> {
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) return [];
     
-    // New single-query approach to fetch chats and participants
     const { data: chats, error: chatsError } = await supabase
       .from('chats')
       .select('*, chat_participants!inner(*, profiles(*))')
@@ -88,7 +87,9 @@ export async function getChats(): Promise<Chat[]> {
       return [];
     }
 
-    // Process the chats to structure the data correctly for the client
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
     const processedChats = chats.map((chat) => {
       const participantIds = chat.chat_participants.map((p: { user_id: any; }) => p.user_id);
       
@@ -104,14 +105,13 @@ export async function getChats(): Promise<Chat[]> {
       if (chat.is_group) {
         fullChat.participantProfiles = chat.chat_participants.map((p: { profiles: UserProfile; }) => p.profiles as UserProfile);
       } else {
-        // For 1-on-1 chats, find the other participant's profile
-        const otherParticipantProfile = chat.chat_participants.find((p: { user_id: string; }) => p.user_id !== authUser.id)?.profiles;
-        if (otherParticipantProfile) {
-            fullChat.otherParticipant = otherParticipantProfile as UserProfile;
+        const otherParticipantId = participantIds.find(id => id !== authUser.id);
+        if (otherParticipantId) {
+          fullChat.otherParticipant = userMap.get(otherParticipantId);
         }
       }
       return fullChat;
-    }).filter(Boolean) as Chat[]; // Filter out any chats that might be malformed
+    }).filter(Boolean) as Chat[];
 
     return processedChats;
   } catch (error) {
@@ -129,7 +129,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
   try {
     const userId = await getCurrentUserId();
 
-    // 1. Check if a chat already exists between the two users
     const { data: existingChat, error: existingError } = await supabase
         .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
 
@@ -139,7 +138,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
     }
 
     if (existingChat && existingChat.length > 0) {
-      // Chat already exists, fetch its details and return it.
       const { data: chatDetails, error: detailsError } = await supabase
         .from('chats')
         .select('*, chat_participants!inner(*, profiles(*))')
@@ -160,7 +158,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       return { chat: chatToReturn, isNew: false };
     }
 
-    // 2. If no chat exists, create a new one using the RPC function.
     const { data: newChatId, error: rpcError } = await supabase
       .rpc('create_chat_and_add_participants', { other_user_id: otherUserId });
 
@@ -173,22 +170,48 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error('Chat creation returned no ID.');
     }
 
-    // 3. Construct the chat object manually instead of re-fetching to avoid RLS race conditions.
-    const newChatObject: Chat = {
-        id: newChatId,
-        created_at: new Date().toISOString(),
-        is_group: false,
-        name: null,
-        admin_id: userId,
-        participants: [userId, otherUserId],
+    // Re-fetch the newly created chat to get all details
+    const { data: newChat, error: fetchError } = await supabase
+        .from('chats')
+        .select('*, chat_participants!inner(*, profiles(*))')
+        .eq('id', newChatId)
+        .single();
+    
+    if (fetchError || !newChat) {
+        console.error('Chat created, but failed to fetch details:', fetchError);
+        // Fallback: Manually construct a partial object if fetch fails.
+        // This can happen due to RLS delays.
+        const users = await getUsers();
+        const otherUser = users.find(u => u.id === otherUserId);
+
+        const fallbackChat: Chat = {
+            id: newChatId,
+            created_at: new Date().toISOString(),
+            is_group: false,
+            name: null,
+            admin_id: userId,
+            participants: [userId, otherUserId],
+            otherParticipant: otherUser,
+        };
+        revalidatePath('/home');
+        return { chat: fallbackChat, isNew: true };
+    }
+
+    const participantIds = newChat.chat_participants.map((p: { user_id: any; }) => p.user_id);
+    const otherParticipantProfile = newChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
+    
+    const finalNewChat: Chat = {
+      ...newChat,
+      participants: participantIds,
+      otherParticipant: otherParticipantProfile,
     };
     
     revalidatePath('/home');
-    return { chat: newChatObject, isNew: true };
+    return { chat: finalNewChat, isNew: true };
     
   } catch (error) {
-    console.error('createChat failed:', error);
     const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
+    console.error('createChat failed:', error);
     throw new Error(message);
   }
 }
@@ -201,7 +224,6 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
 
-        // Use RPC to create group and participants atomically
         const { data: newGroup, error: rpcError } = await supabase
             .rpc('create_group_chat_and_add_participants', {
                 group_name: name,
@@ -277,14 +299,13 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
       .single();
 
     if (error) {
-      console.error('Error sending message:', error);
       throw new Error(`Could not send message: ${error.message}`);
     }
     
-    // The client will get the new message via real-time subscription.
     return data;
   } catch (error) {
-    console.error('sendMessage failed:', error);
-    throw new Error(error instanceof Error ? error.message : 'You must be logged in to send a message.');
+    const message = error instanceof Error ? error.message : 'You must be logged in to send a message.';
+    console.error(`sendMessage failed:`, message);
+    throw new Error(message);
   }
 }
