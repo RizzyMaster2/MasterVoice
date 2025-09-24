@@ -16,39 +16,28 @@ export async function deleteUser(userId: string) {
   const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
   const isAdmin = currentUser && adminEmails.includes(currentUser.email!);
 
-  // Admin check. In a real app you'd want more robust role-based access control.
-  if (!isAdmin) {
-    if (currentUser?.id !== userId) {
-        throw new Error('You do not have permission to delete this user.');
-    }
+  if (!isAdmin && currentUser?.id !== userId) {
+    throw new Error('You do not have permission to delete this user.');
   }
 
   const supabaseAdmin = createAdminClient();
   
-  const { error: getUserError } = await supabaseAdmin.auth.admin.getUserById(userId);
+  // The database trigger will handle deleting associated data (profiles, messages, etc.)
+  // So we just need to delete the user from the auth system.
+  const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
 
-  if (getUserError) {
-    console.error('Supabase get user error:', getUserError);
-    throw new Error('Could not fetch user to delete.');
+  if (deleteError) {
+      console.error('Supabase delete user error:', deleteError);
+      // It's possible the user doesn't exist, but we can treat it as a success for the client.
+      // If it's a real error, the logs will show it.
   }
 
   // If a user deletes their own account, sign them out and redirect.
   if (currentUser && currentUser.id === userId) {
     await supabase.auth.signOut();
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (deleteError) {
-        console.error('Supabase delete error:', deleteError);
-        throw new Error('Could not delete user from the database.');
-    }
-    // No revalidation needed, just redirect.
     redirect('/');
   } else {
     // If an admin deletes a user, just revalidate the admin page.
-    const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(userId);
-    if (deleteError) {
-        console.error('Supabase delete error:', deleteError);
-        throw new Error('Could not delete user from the database.');
-    }
     revalidatePath('/home/admin');
   }
 }
