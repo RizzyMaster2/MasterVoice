@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -10,30 +11,32 @@ import { Plus, Search, Sparkles } from 'lucide-react';
 import { CreateGroupDialog } from './create-group-dialog';
 
 type SuggestedFriendsProps = {
+  currentUser: UserProfile;
   allUsers: UserProfile[];
   onAddFriend: (friend: UserProfile) => void;
   contactIds: Set<string>;
   onGroupCreated: () => void;
 };
 
-export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCreated }: SuggestedFriendsProps) {
+export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
-  const suggestedUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
-
   const filteredUsers = useMemo(() => {
-    const usersToFilter = searchQuery ? allUsers : suggestedUsers;
-    
-    if (!searchQuery) {
-        return usersToFilter.slice(0, 5); // Show top 5 suggestions if no search
-    }
-    
-    return usersToFilter.filter(user => 
+    const availableUsers = allUsers.filter(user => user.id !== currentUser.id);
+
+    if (searchQuery) {
+      return availableUsers.filter(user => 
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-  }, [searchQuery, allUsers, suggestedUsers]);
+    }
+    
+    // If no search query, show suggestions (users who are not contacts)
+    const suggested = availableUsers.filter(user => !contactIds.has(user.id));
+    return suggested.slice(0, 5);
+
+  }, [allUsers, currentUser.id, contactIds, searchQuery]);
 
 
   return (
@@ -45,7 +48,7 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
             Find Friends
           </div>
           <CreateGroupDialog
-            allUsers={allUsers}
+            allUsers={allUsers.filter(user => user.id !== currentUser.id)}
             onGroupCreated={onGroupCreated}
           />
         </CardTitle>

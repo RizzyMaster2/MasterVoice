@@ -49,9 +49,6 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     return ids;
   }, [chats, currentUser.id]);
 
-  const availableUsers = useMemo(() => allUsers.filter(user => user.id !== currentUser.id), [allUsers, currentUser.id]);
-
-
   const refreshChats = async () => {
     const updatedChats = await getChats();
     setChats(updatedChats);
@@ -64,7 +61,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         </div>
         <div className="w-full lg:w-[320px] flex flex-col gap-6">
         <SuggestedFriends
-            allUsers={availableUsers}
+            currentUser={currentUser}
+            allUsers={allUsers}
             onAddFriend={handleAddFriend}
             contactIds={contactIds}
             onGroupCreated={refreshChats}
