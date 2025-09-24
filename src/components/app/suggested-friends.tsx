@@ -15,11 +15,11 @@ type SuggestedFriendsProps = {
   allUsers: UserProfile[];
   onAddFriend: (friend: UserProfile) => void;
   contactIds: Set<string>;
-  onChatCreated: () => void;
+  onGroupCreated: () => void;
   isAddingFriend: boolean;
 };
 
-export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onChatCreated, isAddingFriend }: SuggestedFriendsProps) {
+export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated, isAddingFriend }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userBeingAdded, setUserBeingAdded] = useState<string | null>(null);
 
@@ -60,7 +60,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
           </div>
           <CreateGroupDialog
             allUsers={allUsers.filter(user => user.id !== currentUser.id)}
-            onGroupCreated={onChatCreated}
+            onGroupCreated={onGroupCreated}
           />
         </CardTitle>
       </CardHeader>
@@ -109,5 +109,3 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
     </Card>
   );
 }
-
-    

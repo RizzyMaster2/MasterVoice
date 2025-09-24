@@ -24,10 +24,10 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
 
   useEffect(() => {
     setIsClient(true);
-    if (initialChats.length > 0) {
+    if (initialChats.length > 0 && !selectedChat) {
       setSelectedChat(initialChats[0]);
     }
-  }, [initialChats]);
+  }, [initialChats, selectedChat]);
 
   const refreshChats = async () => {
     const updatedChats = await getChats();
@@ -46,7 +46,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 description: `You can now chat with ${friend.display_name}.`,
                 variant: 'success'
             });
-            // Refresh the list and find the new chat to select it
+            // After adding, refresh the chat list and find the new chat to select it.
             const updatedChats = await refreshChats();
             const chatToSelect = updatedChats.find(c => c.id === newChat.id);
             if (chatToSelect) {
@@ -58,8 +58,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
               description: "You already have a conversation with this user.",
           });
            // If the chat exists, find and select it
-           const chatToSelect = chats.find(c => c.participants.includes(friend.id) && !c.is_group);
-           if(chatToSelect) setSelectedChat(chatToSelect);
+           const existingChat = chats.find(c => c.participants.includes(friend.id) && !c.is_group);
+           if(existingChat) setSelectedChat(existingChat);
         }
       } catch (error) {
           console.error("Failed to create chat:", error);
@@ -107,12 +107,10 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 allUsers={allUsers}
                 onAddFriend={handleAddFriend}
                 contactIds={contactIds}
-                onChatCreated={refreshChats}
+                onGroupCreated={refreshChats}
                 isAddingFriend={isAddingFriend}
             />
         </div>
     </div>
   );
 }
-
-    

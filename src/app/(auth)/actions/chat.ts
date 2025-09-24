@@ -105,7 +105,7 @@ export async function getChats(): Promise<Chat[]> {
       if (chat.is_group) {
         fullChat.participantProfiles = chat.chat_participants.map((p: { profiles: UserProfile; }) => p.profiles as UserProfile);
       } else {
-        const otherParticipantId = participantIds.find(id => id !== authUser.id);
+        const otherParticipantId = participantIds.find((id: string) => id !== authUser.id);
         if (otherParticipantId) {
           fullChat.otherParticipant = userMap.get(otherParticipantId);
         }
