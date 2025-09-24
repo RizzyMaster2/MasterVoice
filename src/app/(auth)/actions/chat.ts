@@ -134,7 +134,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
     if (existingError) {
       console.error('Error checking for existing chats:', existingError);
-      throw new Error('Could not check for existing chats.');
+      throw new Error(`Could not check for existing chats: ${existingError.message}`);
     }
 
     if (existingChats && existingChats.length > 0) {
@@ -165,7 +165,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
     if (error || !data) {
       console.error('Error creating chat:', error);
-      throw new Error('Could not create chat.');
+      throw new Error(error?.message || 'Could not create chat.');
     }
 
     const newChatId = data.id;
@@ -182,14 +182,16 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
         console.error('Error adding participants:', participantsError);
         // Clean up created chat if participant insertion fails
         await supabase.from('chats').delete().eq('id', newChatId);
-        throw new Error('Could not add participants to chat.');
+        throw new Error(`Could not add participants to chat: ${participantsError.message}`);
     }
     
     revalidatePath('/home');
     return { ...data, participants: [userId, otherUserId] };
   } catch (error) {
     console.error('createChat failed:', error);
-    throw error;
+    // Ensure we throw the original error message if it's an Error instance
+    const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
+    throw new Error(message);
   }
 }
 

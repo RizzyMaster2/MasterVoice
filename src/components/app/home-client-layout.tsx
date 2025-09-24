@@ -21,25 +21,31 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
 
   const handleAddFriend = (friend: UserProfile) => {
     startTransition(async () => {
-      const result = await createChat(friend.id);
-      
-      // If the chat already existed, createChat returns null
-      if (result === null) {
+      try {
+        const result = await createChat(friend.id);
+        
+        // If the chat already existed, createChat returns a populated object
+        if (result) {
+            await refreshChats();
+            toast({
+                title: "Friend Added",
+                description: `You can now chat with ${friend.display_name}.`,
+                variant: 'success'
+            });
+        } else {
+             toast({
+                title: "Chat already exists",
+                description: "You already have a conversation with this user.",
+            });
+        }
+      } catch (error) {
+          console.error("Failed to create chat:", error);
           toast({
-              title: "Chat already exists",
-              description: "You already have a conversation with this user.",
+              title: "Failed to Add Friend",
+              description: error instanceof Error ? error.message : "An unknown error occurred.",
+              variant: "destructive",
           });
-          return;
       }
-
-
-      // Re-fetch chats to update the list, which is much faster
-      // than revalidating the entire page.
-      await refreshChats();
-      toast({
-          title: "Friend Added",
-          description: `You can now chat with ${friend.display_name}.`,
-      });
     });
   };
 
