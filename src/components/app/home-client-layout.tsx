@@ -4,9 +4,10 @@
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useTransition, useMemo, useEffect } from 'react';
 import { createChat, getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '../ui/skeleton';
 
 interface HomeClientLayoutProps {
     currentUser: UserProfile;
@@ -18,6 +19,11 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [isAddingFriend, startTransition] = useTransition();
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const handleAddFriend = (friend: UserProfile) => {
     startTransition(async () => {
@@ -26,9 +32,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         
         if (chat) {
           if (isNew) {
-            // Manually add the new chat to the state to avoid a full refresh
-            // and potentially losing client-side state.
-             const newChatWithProfile: AppChat = {
+            const newChatWithProfile: AppChat = {
                 ...chat,
                 otherParticipant: friend
             };
@@ -41,7 +45,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             });
           } else {
              toast({
-                title: "Chat Already Exists",
+                title: "Chat already exists",
                 description: "You already have a conversation with this user.",
             });
           }
@@ -67,6 +71,18 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     const updatedChats = await getChats();
     setChats(updatedChats);
   };
+  
+  if (!isClient) {
+    return (
+        <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
+            <Skeleton className="flex-1 h-full" />
+            <div className="w-full lg:w-[320px] flex flex-col gap-6">
+                <Skeleton className="w-full h-96" />
+            </div>
+        </div>
+    );
+  }
+
 
   return (
     <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
