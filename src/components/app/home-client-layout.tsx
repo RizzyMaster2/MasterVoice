@@ -22,21 +22,22 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   const handleAddFriend = (friend: UserProfile) => {
     startTransition(async () => {
       try {
-        const result = await createChat(friend.id);
+        const { chat, isNew } = await createChat(friend.id);
         
-        // If the chat already existed, createChat returns a populated object
-        if (result) {
-            await refreshChats();
+        if (chat) {
+          if (isNew) {
+            refreshChats();
             toast({
                 title: "Friend Added",
                 description: `You can now chat with ${friend.display_name}.`,
                 variant: 'success'
             });
-        } else {
+          } else {
              toast({
                 title: "Chat already exists",
                 description: "You already have a conversation with this user.",
             });
+          }
         }
       } catch (error) {
           console.error("Failed to create chat:", error);

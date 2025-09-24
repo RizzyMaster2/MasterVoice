@@ -122,80 +122,66 @@ export async function getChats(): Promise<Chat[]> {
 
 
 // Create a new one-on-one chat
-export async function createChat(otherUserId: string): Promise<Chat | null> {
+export async function createChat(otherUserId: string): Promise<{ chat: Chat | null, isNew: boolean }> {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  let newChatId: string | null = null;
   
   try {
     const userId = await getCurrentUserId();
 
-    // Check if a chat already exists between the two users
-      const { data: existingChats, error: existingError } = await supabase
-          .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
+    // 1. Check if a chat already exists between the two users
+    const { data: existingChat, error: existingError } = await supabase
+        .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
 
     if (existingError) {
       console.error('Error checking for existing chats:', existingError);
       throw new Error(`Could not check for existing chats: ${existingError.message}`);
     }
 
-    if (existingChats && existingChats.length > 0) {
-        console.log('Chat already exists.');
-        // Find and return the existing chat details
-        const { data: existingChatDetails, error: detailsError } = await supabase
-          .from('chats')
-          .select('*, chat_participants(user_id, profiles(*))')
-          .in('id', existingChats)
-          .single();
-        if (detailsError) {
-            console.error('Could not fetch details for existing chat', detailsError);
-            return null;
-        }
-        revalidatePath('/home');
-        return {
-            ...existingChatDetails,
-            participants: existingChatDetails.chat_participants.map((p: { user_id: any; }) => p.user_id)
-        };
+    if (existingChat && existingChat.length > 0) {
+      // Chat already exists, fetch its details and return it.
+      const { data: chatDetails, error: detailsError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('id', existingChat[0])
+        .single();
+      
+      if (detailsError) throw detailsError;
+
+      revalidatePath('/home');
+      return { chat: { ...chatDetails, participants: [userId, otherUserId] }, isNew: false };
     }
 
-    // If no chat exists, create a new one
-    const { data, error } = await supabase
-      .from('chats')
-      .insert([{ is_group: false, admin_id: userId }])
-      .select()
-      .single();
+    // 2. If no chat exists, create a new one using the RPC function.
+    const { data: newChatId, error: rpcError } = await supabase
+      .rpc('create_chat_and_add_participants', { other_user_id: otherUserId });
 
-    if (error || !data) {
-      console.error('Error creating chat:', error);
-      const message = error ? error.message : 'Could not create chat.';
-      throw new Error(message);
+    if (rpcError) {
+      console.error('Error creating chat via RPC:', rpcError);
+      throw new Error(`Could not create chat: ${rpcError.message}`);
     }
 
-    newChatId = data.id;
-    const participantsToInsert = [
-        { chat_id: newChatId, user_id: userId },
-        { chat_id: newChatId, user_id: otherUserId }
-    ];
+     if (!newChatId) {
+      throw new Error('Chat creation returned no ID.');
+    }
 
-    const { error: participantsError } = await supabase
-        .from('chat_participants')
-        .insert(participantsToInsert);
-    
-    if (participantsError) {
-        console.error('Error adding participants:', participantsError);
-        // Clean up created chat if participant insertion fails
-        if (newChatId) {
-            const adminClient = createAdminClient();
-            await adminClient.from('chats').delete().eq('id', newChatId);
-        }
-        throw new Error(`Could not add participants to chat: ${participantsError.message}`);
+    // 3. Fetch the newly created chat details to return to the client.
+    const { data: newChat, error: newChatError } = await supabase
+        .from('chats')
+        .select('*')
+        .eq('id', newChatId)
+        .single();
+
+    if (newChatError) {
+      console.error('Failed to fetch newly created chat', newChatError);
+      throw new Error('Chat created, but failed to fetch details.');
     }
     
     revalidatePath('/home');
-    return { ...data, participants: [userId, otherUserId] };
+    return { chat: { ...newChat, participants: [userId, otherUserId] }, isNew: true };
+    
   } catch (error) {
     console.error('createChat failed:', error);
-    // Ensure we throw the original error message if it's an Error instance
     const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
     throw new Error(message);
   }
@@ -244,7 +230,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
         return { ...chatData, participants: allParticipantIds };
     } catch (error) {
         console.error('createGroupChat failed:', error);
-        throw new Error('You must be logged in to create a group chat.');
+        throw new Error(error instanceof Error ? error.message : 'You must be logged in to create a group chat.');
     }
 }
 
@@ -309,6 +295,6 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     return data;
   } catch (error) {
     console.error('sendMessage failed:', error);
-    throw new Error('You must be logged in to send a message.');
+    throw new Error(error instanceof Error ? error.message : 'You must be logged in to send a message.');
   }
 }
