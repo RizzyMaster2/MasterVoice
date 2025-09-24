@@ -170,26 +170,33 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error('Chat creation returned no ID.');
     }
 
-    // After creating, construct the chat object to return without another fetch
-    const users = await getUsers();
-    const otherUser = users.find(u => u.id === otherUserId);
+    // After creating, fetch the full chat to return
+     const { data: finalNewChat, error: newChatError } = await supabase
+        .from('chats')
+        .select('*, chat_participants!inner(*, profiles(*))')
+        .eq('id', newChatId)
+        .single();
     
-    if (!otherUser) {
-        throw new Error('Failed to find profile for the other user.');
+    if (newChatError || !finalNewChat) {
+      throw new Error('Failed to fetch newly created chat.');
     }
-    
-    const finalNewChat: Chat = {
-        id: newChatId,
-        created_at: new Date().toISOString(),
-        is_group: false,
-        name: null,
-        admin_id: userId,
-        participants: [userId, otherUserId],
-        otherParticipant: otherUser,
+
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const otherParticipantId = finalNewChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.user_id;
+
+    const chatToReturn: Chat = {
+        id: finalNewChat.id,
+        created_at: finalNewChat.created_at,
+        is_group: finalNewChat.is_group,
+        name: finalNewChat.name,
+        admin_id: finalNewChat.admin_id,
+        participants: finalNewChat.chat_participants.map((p: { user_id: any; }) => p.user_id),
+        otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
     };
     
     revalidatePath('/home');
-    return { chat: finalNewChat, isNew: true };
+    return { chat: chatToReturn, isNew: true };
     
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
@@ -294,4 +301,5 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     throw new Error(message);
   }
 }
+
 
