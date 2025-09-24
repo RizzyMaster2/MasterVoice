@@ -9,7 +9,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 // Get the current logged-in user's ID
 async function getCurrentUserId() {
-  const supabase = await createClient();
+  const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
@@ -29,7 +29,7 @@ export async function getUsers(): Promise<UserProfile[]> {
     }
 
     const userIds = users.map(u => u.id);
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*')
@@ -65,14 +65,15 @@ export async function getUsers(): Promise<UserProfile[]> {
 // Fetch all chats for the current user
 export async function getChats(): Promise<Chat[]> {
   try {
-    const supabase = await createClient();
-    const userId = await getCurrentUserId();
+    const supabase = createClient();
+    const { data: { user: authUser } } = await supabase.auth.getUser();
+    if (!authUser) return [];
     
     // New single-query approach to fetch chats and participants
     const { data: chats, error: chatsError } = await supabase
       .from('chats')
       .select('*, chat_participants!inner(*, profiles(*))')
-      .eq('chat_participants.user_id', userId);
+      .eq('chat_participants.user_id', authUser.id);
 
     if (chatsError) {
       console.error('Error fetching user chat memberships:', chatsError);
@@ -100,7 +101,7 @@ export async function getChats(): Promise<Chat[]> {
         fullChat.participantProfiles = chat.chat_participants.map((p: { profiles: UserProfile; }) => p.profiles as UserProfile);
       } else {
         // For 1-on-1 chats, find the other participant's profile
-        const otherParticipantProfile = chat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
+        const otherParticipantProfile = chat.chat_participants.find((p: { user_id: string; }) => p.user_id !== authUser.id)?.profiles;
         if (otherParticipantProfile) {
             fullChat.otherParticipant = otherParticipantProfile as UserProfile;
         }
@@ -119,7 +120,7 @@ export async function getChats(): Promise<Chat[]> {
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const userId = await getCurrentUserId();
 
     // Check if a chat already exists between the two users
@@ -189,7 +190,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
 
 export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
     try {
-        const supabase = await createClient();
+        const supabase = createClient();
         const userId = await getCurrentUserId();
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
@@ -236,7 +237,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const { data, error } = await supabase
       .from('messages')
       .select('*, profiles(*)')
@@ -257,7 +258,7 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 // Send a new message
 export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
   try {
-    const supabase = await createClient();
+    const supabase = createClient();
     const userId = await getCurrentUserId();
     
     const messageData: {
