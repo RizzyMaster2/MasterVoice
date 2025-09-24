@@ -176,7 +176,7 @@ export default function ProfilePage() {
       <Tabs defaultValue="profile">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
-          <TabsTrigger value="friends">Friends</TabsTrigger>
+          <TabsTrigger value="friends">Friends ({friends.length})</TabsTrigger>
           <TabsTrigger value="audio">Audio & Voice</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>

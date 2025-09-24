@@ -63,7 +63,14 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 });
                 // If the chat exists, find and select it from the current state
                 const existingChat = chats.find(c => c.id === newChat.id);
-                if(existingChat) setSelectedChat(existingChat);
+                if(existingChat) {
+                  setSelectedChat(existingChat)
+                } else {
+                  // If it doesn't exist in local state for some reason, refresh and select
+                  const updatedChats = await refreshChats();
+                  const chatToSelect = updatedChats.find(c => c.id === newChat.id);
+                  if (chatToSelect) setSelectedChat(chatToSelect);
+                }
             }
         }
       } catch (error) {

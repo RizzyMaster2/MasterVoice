@@ -23,11 +23,11 @@ async function getCurrentUserId() {
 export async function getUsers(): Promise<UserProfile[]> {
   try {
     const supabaseAdmin = createAdminClient();
-    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+    const { data: { users }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
     
-    if (error) {
-      console.error('Error fetching users from auth:', error);
-      return [];
+    if (authUsersError) {
+      console.error('Error fetching users from auth:', authUsersError);
+      throw new Error('Could not fetch users from authentication system.');
     }
 
     const userIds = users.map(u => u.id);
@@ -52,7 +52,7 @@ export async function getUsers(): Promise<UserProfile[]> {
         created_at: profile?.created_at || user.created_at,
         display_name: profile?.display_name || user.user_metadata?.display_name || user.email || 'User',
         email: user.email || profile?.email || null,
-        photo_url: profile?.photo_url || user.user_metadata?.photo_url || null,
+        photo_url: profile?.photo_url || user.user_metadata?.photo_url || user.user_metadata?.avatar_url || null,
         status: profile?.status || 'offline',
       };
     });
@@ -75,7 +75,7 @@ export async function getChats(): Promise<Chat[]> {
     
     const { data: chats, error: chatsError } = await supabase
       .from('chats')
-      .select('*, chat_participants!inner(*, profiles(*))')
+      .select('*, chat_participants!inner(*)')
       .eq('chat_participants.user_id', authUser.id);
 
     if (chatsError) {
@@ -103,12 +103,18 @@ export async function getChats(): Promise<Chat[]> {
       };
 
       if (chat.is_group) {
-        fullChat.participantProfiles = chat.chat_participants.map((p: { profiles: UserProfile; }) => p.profiles as UserProfile);
+        fullChat.participantProfiles = participantIds
+            .map((id: string) => userMap.get(id))
+            .filter((p): p is UserProfile => !!p);
       } else {
         const otherParticipantId = participantIds.find((id: string) => id !== authUser.id);
         if (otherParticipantId) {
           fullChat.otherParticipant = userMap.get(otherParticipantId);
         }
+      }
+      // Ensure we only return chats where we could find the other participant for 1-on-1s
+      if (!chat.is_group && !fullChat.otherParticipant) {
+          return null;
       }
       return fullChat;
     }).filter(Boolean) as Chat[];
@@ -137,22 +143,25 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error(`Could not check for existing chats: ${existingError.message}`);
     }
 
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
     if (existingChat && existingChat.length > 0) {
       const { data: chatDetails, error: detailsError } = await supabase
         .from('chats')
-        .select('*, chat_participants!inner(*, profiles(*))')
+        .select('*, chat_participants!inner(*)')
         .eq('id', existingChat[0].chat_id)
         .single();
       
       if (detailsError) throw detailsError;
 
        const participantIds = chatDetails.chat_participants.map((p: { user_id: any; }) => p.user_id);
-       const otherParticipantProfile = chatDetails.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
+       const otherParticipantId = participantIds.find((id: string) => id !== userId);
 
       const chatToReturn: Chat = {
         ...chatDetails,
         participants: participantIds,
-        otherParticipant: otherParticipantProfile,
+        otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
       }
 
       return { chat: chatToReturn, isNew: false };
@@ -173,7 +182,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
     // After creating, fetch the full chat to return
      const { data: finalNewChat, error: newChatError } = await supabase
         .from('chats')
-        .select('*, chat_participants!inner(*, profiles(*))')
+        .select('*, chat_participants!inner(*)')
         .eq('id', newChatId)
         .single();
     
@@ -181,8 +190,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error('Failed to fetch newly created chat.');
     }
 
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
     const otherParticipantId = finalNewChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.user_id;
 
     const chatToReturn: Chat = {
@@ -301,8 +308,3 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     throw new Error(message);
   }
 }
-
-
-
-
-    
