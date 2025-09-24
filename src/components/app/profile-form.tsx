@@ -88,7 +88,7 @@ export function ProfileForm() {
     if (selectedFile) {
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `public/${fileName}`; 
+      const filePath = `public/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('files')

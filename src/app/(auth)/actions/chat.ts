@@ -51,7 +51,7 @@ export async function getChats(): Promise<Chat[]> {
 
     // Process the chats to structure the data correctly for the client
     const processedChats = chats.map((chat) => {
-      const participantIds = chat.chat_participants.map(p => p.user_id);
+      const participantIds = chat.chat_participants.map((p: { user_id: any; }) => p.user_id);
       
       const fullChat: Chat = {
           id: chat.id,
@@ -63,10 +63,10 @@ export async function getChats(): Promise<Chat[]> {
       };
 
       if (chat.is_group) {
-        fullChat.participantProfiles = chat.chat_participants.map(p => p.profiles as UserProfile);
+        fullChat.participantProfiles = chat.chat_participants.map((p: { profiles: UserProfile; }) => p.profiles as UserProfile);
       } else {
         // For 1-on-1 chats, find the other participant's profile
-        const otherParticipantProfile = chat.chat_participants.find(p => p.user_id !== userId)?.profiles;
+        const otherParticipantProfile = chat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
         if (otherParticipantProfile) {
             fullChat.otherParticipant = otherParticipantProfile as UserProfile;
         }
@@ -112,7 +112,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
         revalidatePath('/home');
         return {
             ...existingChatDetails,
-            participants: existingChatDetails.chat_participants.map(p => p.user_id)
+            participants: existingChatDetails.chat_participants.map((p: { user_id: any; }) => p.user_id)
         };
     }
 

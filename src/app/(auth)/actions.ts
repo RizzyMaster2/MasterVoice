@@ -7,7 +7,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 async function getSupabaseClient() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
