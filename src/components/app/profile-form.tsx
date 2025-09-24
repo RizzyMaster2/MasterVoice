@@ -30,7 +30,6 @@ const formSchema = z.object({
     .string()
     .max(160, { message: 'Bio cannot exceed 160 characters.' })
     .optional(),
-  // avatarUrl is handled separately via file upload
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -110,7 +109,6 @@ export function ProfileForm() {
       data: {
         display_name: values.name,
         bio: values.bio,
-        // Only include photo_url if it's being updated
         ...(newAvatarUrl && { photo_url: newAvatarUrl }),
       },
     });
@@ -126,9 +124,7 @@ export function ProfileForm() {
         title: 'Profile Updated',
         description: 'Your changes have been saved successfully.',
       });
-       // Reset the file input state after successful submission
       setSelectedFile(null);
-      // Optionally refresh the page or user state to show new avatar immediately in other components
       window.location.reload();
     }
   }
@@ -180,7 +176,6 @@ export function ProfileForm() {
       )}
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
-          {/* Avatar Section */}
           <div className="col-span-1 flex flex-col items-center text-center gap-4">
              <FormLabel>Avatar</FormLabel>
               <Avatar className="h-32 w-32">
@@ -211,7 +206,6 @@ export function ProfileForm() {
               <FormMessage />
           </div>
 
-          {/* Name and Bio Section */}
           <div className="col-span-2 space-y-6">
             <FormField
               control={form.control}
