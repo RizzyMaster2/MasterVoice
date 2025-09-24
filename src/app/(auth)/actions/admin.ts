@@ -141,47 +141,38 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
 
 export async function getFriendsForUser(userId: string): Promise<UserProfile[]> {
   try {
-    const supabaseAdmin = await checkAdminPermissions();
+    await checkAdminPermissions();
     
-    // 1. Get all chats the user is in
-    const { data: userChats, error: chatsError } = await supabaseAdmin
-      .from('chat_participants')
-      .select('chat_id')
-      .eq('user_id', userId);
+    // This function will execute a raw SQL query to get friends.
+    // 1. Find all 1-on-1 chats the user is in.
+    // 2. For each chat, find the OTHER participant.
+    // 3. Get the profile of that other participant.
+    const supabaseAdmin = createAdminClient();
+    const { data: friends, error } = await supabaseAdmin.rpc('get_user_friends', { p_user_id: userId });
 
-    if (chatsError) throw chatsError;
+    if (error) {
+        console.error(`Error fetching friends for user ${userId} via RPC:`, error);
+        throw new Error(error.message);
+    }
 
-    const chatIds = userChats.map(c => c.chat_id);
-
-    // 2. Filter for 1-on-1 chats
-    const { data: oneOnOneChats, error: oneOnOneError } = await supabaseAdmin
-        .from('chats')
-        .select('id, chat_participants(user_id)')
-        .in('id', chatIds)
-        .eq('is_group', false);
+    // The RPC returns user objects which should match the UserProfile structure.
+    // We need to fetch the full profiles from the `users` (auth) and `profiles` tables
+    // to build the complete UserProfile object.
     
-    if (oneOnOneError) throw oneOnOneError;
-
-    const otherParticipantIds = oneOnOneChats.flatMap(chat => 
-        chat.chat_participants.map(p => p.user_id)
-    ).filter(id => id !== userId);
-
-    if (otherParticipantIds.length === 0) return [];
-    
-    // 3. Get profiles for the other participants
     const allUsers = await getUsers();
     const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    const friendIds = friends.map((f: { friend_id: string }) => f.friend_id);
     
-    const friends = Array.from(new Set(otherParticipantIds)) // Deduplicate
-      .map(id => userMap.get(id))
-      .filter((p): p is UserProfile => !!p);
+    const friendProfiles = friendIds
+        .map(id => userMap.get(id))
+        .filter((p): p is UserProfile => !!p);
       
-    return friends;
+    return friendProfiles;
 
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    console.error(`Error fetching friends for user ${userId}:`, message);
-    // In an admin context, it might be better to throw to signal a server-side problem
+    console.error(`Error in getFriendsForUser for user ${userId}:`, message);
     throw new Error(message);
   }
 }
