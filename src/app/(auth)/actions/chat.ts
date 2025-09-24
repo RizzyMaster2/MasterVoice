@@ -304,7 +304,7 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     
     return data;
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'You must be logged in to send a message.';
+    const message = error instanceof Error ? error.message : 'An unknown error occurred while sending the message.';
     console.error(`sendMessage failed:`, message);
     throw new Error(message);
   }
