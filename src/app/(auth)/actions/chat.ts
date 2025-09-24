@@ -189,7 +189,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
     return { ...data, participants: [userId, otherUserId] };
   } catch (error) {
     console.error('createChat failed:', error);
-    throw new Error('You must be logged in to create a chat.');
+    throw new Error(error instanceof Error ? error.message : 'Unknown error');
   }
 }
 

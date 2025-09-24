@@ -66,14 +66,13 @@ export async function middleware(request: NextRequest) {
     }
   )
 
+  // This is the crucial step to refresh the session cookie
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated'];
-
-  // Check if the current path is the root or starts with any of the public paths.
-  const isPublicPath = request.nextUrl.pathname === '/' || publicPaths.some(path => request.nextUrl.pathname.startsWith(path));
+  const publicPaths = ['/', '/login', '/signup', '/confirm', '/unauthenticated'];
+  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname === path);
 
   // if user is not logged in and is trying to access a protected route
   if (!user && !isPublicPath) {
@@ -82,19 +81,16 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // if user is logged in and is trying to access the marketing page
-  if (user && request.nextUrl.pathname === '/') {
-      const url = request.nextUrl.clone()
-      url.pathname = '/home'
-      return NextResponse.redirect(url)
+  // if user is logged in and is trying to access an auth page or the marketing page
+  if (user) {
+    const authPaths = ['/login', '/signup', '/confirm'];
+    const isAuthPath = authPaths.some(path => request.nextUrl.pathname.startsWith(path));
+    if (isAuthPath || request.nextUrl.pathname === '/') {
+       const url = request.nextUrl.clone()
+       url.pathname = '/home'
+       return NextResponse.redirect(url)
+    }
   }
-  
-  // if user is logged in and is trying to access an auth route
-   if (user && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup') || request.nextUrl.pathname.startsWith('/confirm'))) {
-      const url = request.nextUrl.clone()
-      url.pathname = '/home'
-      return NextResponse.redirect(url)
-   }
 
   return response;
 }
