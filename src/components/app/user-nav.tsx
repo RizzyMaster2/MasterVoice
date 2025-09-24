@@ -15,21 +15,21 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { LogOut, User } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
-import { logout } from '@/app/(auth)/actions';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 export function UserNav() {
   const { user, isLoading } = useUser();
   const { toast } = useToast();
+  const router = useRouter();
 
   if (isLoading) {
     return <Skeleton className="h-10 w-10 rounded-full" />;
   }
 
   if (!user) {
-    // This case might not be strictly necessary if middleware handles redirection,
-    // but it's a good safeguard.
     return null;
   }
   
@@ -46,15 +46,18 @@ export function UserNav() {
   };
 
   const handleLogout = async () => {
-    const result = await logout();
-    if (!result.success) {
+    const supabase = createClient();
+    const { error } = await supabase.auth.signOut();
+    if (error) {
         toast({
             title: "Logout Failed",
-            description: result.message,
+            description: error.message,
             variant: "destructive",
         })
+    } else {
+        router.refresh();
+        router.push('/');
     }
-    // The server action will handle the redirect
   };
 
   return (

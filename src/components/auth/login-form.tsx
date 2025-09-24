@@ -1,3 +1,4 @@
+
 'use client';
  
 import { useForm } from 'react-hook-form';
@@ -18,8 +19,7 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
   password: z.string().min(1, { message: 'Password is required.' }),
 });
- 
-export function LoginForm() {
+ export function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
   const form = useForm<z.infer<typeof formSchema>>({
