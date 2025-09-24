@@ -123,9 +123,11 @@ export async function getChats(): Promise<Chat[]> {
 
 // Create a new one-on-one chat
 export async function createChat(otherUserId: string): Promise<Chat | null> {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  let newChatId: string | null = null;
+  
   try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
     const userId = await getCurrentUserId();
 
     // Check if a chat already exists between the two users
@@ -169,7 +171,7 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
       throw new Error(message);
     }
 
-    const newChatId = data.id;
+    newChatId = data.id;
     const participantsToInsert = [
         { chat_id: newChatId, user_id: userId },
         { chat_id: newChatId, user_id: otherUserId }
@@ -182,7 +184,10 @@ export async function createChat(otherUserId: string): Promise<Chat | null> {
     if (participantsError) {
         console.error('Error adding participants:', participantsError);
         // Clean up created chat if participant insertion fails
-        await supabase.from('chats').delete().eq('id', newChatId);
+        if (newChatId) {
+            const adminClient = createAdminClient();
+            await adminClient.from('chats').delete().eq('id', newChatId);
+        }
         throw new Error(`Could not add participants to chat: ${participantsError.message}`);
     }
     
