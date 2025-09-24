@@ -7,7 +7,7 @@ import type { UserProfile } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Plus, Search, Sparkles } from 'lucide-react';
+import { Plus, Search, Sparkles, Loader2 } from 'lucide-react';
 import { CreateGroupDialog } from './create-group-dialog';
 
 type SuggestedFriendsProps = {
@@ -16,10 +16,12 @@ type SuggestedFriendsProps = {
   onAddFriend: (friend: UserProfile) => void;
   contactIds: Set<string>;
   onGroupCreated: () => void;
+  isAddingFriend: boolean;
 };
 
-export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated }: SuggestedFriendsProps) {
+export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated, isAddingFriend }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
+  const [userBeingAdded, setUserBeingAdded] = useState<string | null>(null);
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
@@ -38,6 +40,15 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
 
   }, [allUsers, currentUser.id, contactIds, searchQuery]);
 
+  const handleAddClick = (user: UserProfile) => {
+    setUserBeingAdded(user.id);
+    onAddFriend(user);
+  }
+
+  // Reset the specific user's loading state when the global transition finishes
+  if (!isAddingFriend && userBeingAdded) {
+    setUserBeingAdded(null);
+  }
 
   return (
     <Card>
@@ -77,8 +88,12 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
                   </div>
                 </div>
                 {!contactIds.has(user.id) && (
-                    <Button variant="ghost" size="icon" onClick={() => onAddFriend(user)}>
+                    <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isAddingFriend}>
+                       {isAddingFriend && userBeingAdded === user.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                       ) : (
                         <Plus className="h-4 w-4" />
+                       )}
                         <span className="sr-only">Add friend</span>
                     </Button>
                 )}

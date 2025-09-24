@@ -41,7 +41,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             });
           } else {
              toast({
-                title: "Chat Already Exists",
+                title: "Chat already exists",
                 description: "You already have a conversation with this user.",
             });
           }

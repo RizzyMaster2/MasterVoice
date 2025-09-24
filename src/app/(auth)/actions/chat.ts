@@ -142,14 +142,22 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       // Chat already exists, fetch its details and return it.
       const { data: chatDetails, error: detailsError } = await supabase
         .from('chats')
-        .select('*')
+        .select('*, chat_participants!inner(*, profiles(*))')
         .eq('id', existingChat[0])
         .single();
       
       if (detailsError) throw detailsError;
 
-      revalidatePath('/home');
-      return { chat: { ...chatDetails, participants: [userId, otherUserId] }, isNew: false };
+       const participantIds = chatDetails.chat_participants.map((p: { user_id: any; }) => p.user_id);
+       const otherParticipantProfile = chatDetails.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
+
+      const chatToReturn: Chat = {
+        ...chatDetails,
+        participants: participantIds,
+        otherParticipant: otherParticipantProfile,
+      }
+
+      return { chat: chatToReturn, isNew: false };
     }
 
     // 2. If no chat exists, create a new one using the RPC function.
@@ -165,20 +173,18 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error('Chat creation returned no ID.');
     }
 
-    // 3. Fetch the newly created chat details to return to the client.
-    const { data: newChat, error: newChatError } = await supabase
-        .from('chats')
-        .select('*')
-        .eq('id', newChatId)
-        .single();
-
-    if (newChatError) {
-      console.error('Failed to fetch newly created chat', newChatError);
-      throw new Error('Chat created, but failed to fetch details.');
-    }
+    // 3. Construct the chat object manually instead of re-fetching to avoid RLS race conditions.
+    const newChatObject: Chat = {
+        id: newChatId,
+        created_at: new Date().toISOString(),
+        is_group: false,
+        name: null,
+        admin_id: userId,
+        participants: [userId, otherUserId],
+    };
     
     revalidatePath('/home');
-    return { chat: { ...newChat, participants: [userId, otherUserId] }, isNew: true };
+    return { chat: newChatObject, isNew: true };
     
   } catch (error) {
     console.error('createChat failed:', error);
@@ -207,7 +213,11 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
         if (chatError || !chatData) {
             console.error('Error creating group chat:', chatError);
-            throw new Error('Could not create group chat.');
+            // Attempt to clean up...
+            if (chatData) {
+                await supabase.from('chats').delete().eq('id', chatData.id);
+            }
+            throw new Error('Could not create group chat. This may be due to database security policies.');
         }
 
         const participantsToInsert = allParticipantIds.map(pId => ({
