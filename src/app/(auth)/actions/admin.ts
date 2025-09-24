@@ -5,6 +5,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
 import { cookies } from 'next/headers';
+import type { UserProfile } from '@/lib/data';
+import { getUsers } from './chat';
 
 type AdminStats = {
     totalUsers: number;
@@ -135,4 +137,51 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
         const message = err instanceof Error ? err.message : 'An unknown error occurred.';
         return { data: [], error: message };
     }
+}
+
+export async function getFriendsForUser(userId: string): Promise<UserProfile[]> {
+  try {
+    const supabaseAdmin = await checkAdminPermissions();
+    
+    // 1. Get all chats the user is in
+    const { data: userChats, error: chatsError } = await supabaseAdmin
+      .from('chat_participants')
+      .select('chat_id')
+      .eq('user_id', userId);
+
+    if (chatsError) throw chatsError;
+
+    const chatIds = userChats.map(c => c.chat_id);
+
+    // 2. Filter for 1-on-1 chats
+    const { data: oneOnOneChats, error: oneOnOneError } = await supabaseAdmin
+        .from('chats')
+        .select('id, chat_participants(user_id)')
+        .in('id', chatIds)
+        .eq('is_group', false);
+    
+    if (oneOnOneError) throw oneOnOneError;
+
+    const otherParticipantIds = oneOnOneChats.flatMap(chat => 
+        chat.chat_participants.map(p => p.user_id)
+    ).filter(id => id !== userId);
+
+    if (otherParticipantIds.length === 0) return [];
+    
+    // 3. Get profiles for the other participants
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    
+    const friends = Array.from(new Set(otherParticipantIds)) // Deduplicate
+      .map(id => userMap.get(id))
+      .filter((p): p is UserProfile => !!p);
+      
+    return friends;
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`Error fetching friends for user ${userId}:`, message);
+    // In an admin context, it might be better to throw to signal a server-side problem
+    throw new Error(message);
+  }
 }
