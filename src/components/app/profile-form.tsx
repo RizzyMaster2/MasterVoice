@@ -128,6 +128,7 @@ export function ProfileForm() {
         description: 'Your changes have been saved successfully.',
       });
       setSelectedFile(null);
+      // Refresh the page to show the new avatar in the header
       window.location.reload();
     }
   }
