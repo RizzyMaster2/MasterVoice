@@ -1,10 +1,11 @@
+
 'use client';
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home,
-  MessageSquareText,
+  Mic,
   Shield,
 } from 'lucide-react';
 
@@ -25,9 +26,9 @@ const menuItems = [
     icon: Home,
   },
   {
-    href: '/home/sms',
-    label: 'SMS',
-    icon: MessageSquareText,
+    href: '/home/voice-notes',
+    label: 'Voice Notes',
+    icon: Mic,
   }
 ];
 
@@ -88,3 +89,5 @@ export function AppSidebar() {
     </>
   );
 }
+
+    

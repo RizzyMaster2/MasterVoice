@@ -14,10 +14,11 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Mic, MicOff, Video, VideoOff, PhoneOff, AlertTriangle } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, AlertTriangle, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 
-interface VideoCallProps {
+interface VoiceCallProps {
   supabase: SupabaseClient;
   currentUser: UserProfile;
   chat: Chat;
@@ -31,20 +32,19 @@ const PEER_CONNECTION_CONFIG: RTCConfiguration = {
   ],
 };
 
-export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallProps) {
+export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
-  const [hasCameraPermission, setHasCameraPermission] = useState<boolean | null>(null);
+  const [hasPermission, setHasPermission] = useState<boolean | null>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
-  const [isVideoOff, setIsVideoOff] = useState(false);
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
 
-  const otherParticipantId = chat.participants.find(p => p !== currentUser.id);
+  const otherParticipant = chat.otherParticipant;
+  const otherParticipantId = otherParticipant?.id;
 
   const handleClose = useCallback(() => {
     if (peerConnectionRef.current) {
@@ -52,12 +52,14 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
       peerConnectionRef.current = null;
     }
     localStream?.getTracks().forEach(track => track.stop());
-    const signalingChannel = supabase.channel('signaling-channel');
-     signalingChannel.send({
-        type: 'broadcast',
-        event: 'hangup',
-        payload: { target: otherParticipantId },
-    });
+    if (otherParticipantId) {
+        const signalingChannel = supabase.channel('signaling-channel');
+         signalingChannel.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { target: otherParticipantId },
+        });
+    }
     setIsOpen(false);
     onClose();
   }, [localStream, onClose, otherParticipantId, supabase]);
@@ -65,19 +67,16 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
   useEffect(() => {
     const init = async () => {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         setLocalStream(stream);
-        setHasCameraPermission(true);
-        if (localVideoRef.current) {
-          localVideoRef.current.srcObject = stream;
-        }
+        setHasPermission(true);
       } catch (error) {
         console.error('Error accessing media devices.', error);
-        setHasCameraPermission(false);
+        setHasPermission(false);
         
-        let description = 'Please allow camera and microphone access to make calls.';
+        let description = 'Please allow microphone access to make calls.';
         if (error instanceof Error && error.name === 'NotReadableError') {
-          description = 'Could not start video source. Is your camera already in use by another application?';
+          description = 'Could not start audio source. Is your microphone already in use by another application?';
         }
 
         toast({
@@ -93,7 +92,8 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
     return () => {
       localStream?.getTracks().forEach(track => track.stop());
     };
-  }, [handleClose, toast, localStream]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!localStream || !otherParticipantId) return;
@@ -118,13 +118,12 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
     pc.ontrack = (event) => {
       if (event.streams && event.streams[0]) {
         setRemoteStream(event.streams[0]);
-        if (remoteVideoRef.current) {
-          remoteVideoRef.current.srcObject = event.streams[0];
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0];
         }
       }
     };
     
-    // Cleanup on unmount
     return () => {
         pc.close();
         peerConnectionRef.current = null;
@@ -132,6 +131,8 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
   }, [localStream, supabase, otherParticipantId]);
 
   useEffect(() => {
+    if (!otherParticipantId) return;
+
     const signalingChannel = supabase.channel('signaling-channel', {
         config: { broadcast: { self: false, ack: true } }
     });
@@ -180,7 +181,6 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
         })
         .subscribe(async (status) => {
           if (status === 'SUBSCRIBED') {
-              // Initiate call by sending offer
               if (peerConnectionRef.current) {
                   const offer = await peerConnectionRef.current.createOffer();
                   await peerConnectionRef.current.setLocalDescription(offer);
@@ -208,59 +208,54 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
       }
   };
 
-  const toggleVideo = () => {
-      if (localStream) {
-          localStream.getVideoTracks().forEach(track => {
-              track.enabled = !track.enabled;
-          });
-          setIsVideoOff(prev => !prev);
-      }
-  };
+  const getInitials = (name: string | undefined | null) =>
+    name
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase() || '?';
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="max-w-4xl h-[90vh] flex flex-col p-0">
-        <DialogHeader className="p-4 border-b">
-          <DialogTitle className="font-headline">Video Call with {chat.otherParticipant?.display_name}</DialogTitle>
+      <DialogContent className="max-w-md h-[70vh] flex flex-col p-0">
+        <DialogHeader className="p-4 border-b text-center">
+          <DialogTitle className="font-headline">Voice Call</DialogTitle>
           <DialogDescription>
-            {remoteStream ? 'Connected' : 'Connecting...'}
+            {remoteStream ? 'Connected' : `Calling ${otherParticipant?.display_name}...`}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-2 p-2 relative">
-             {hasCameraPermission === false && (
-                <div className="absolute inset-0 bg-background/80 flex items-center justify-center z-10">
-                    <Alert variant="destructive" className="max-w-sm">
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertTitle>Media Permissions Error</AlertTitle>
-                      <AlertDescription>
-                        MasterVoice needs access to your camera and microphone to make video calls. Please update your browser settings.
-                      </AlertDescription>
-                    </Alert>
+        <div className="flex-1 flex flex-col items-center justify-center gap-8 p-6">
+             {hasPermission === false ? (
+                <Alert variant="destructive" className="max-w-sm">
+                  <AlertTriangle className="h-4 w-4" />
+                  <AlertTitle>Microphone Permissions Error</AlertTitle>
+                  <AlertDescription>
+                    MasterVoice needs access to your microphone to make voice calls. Please update your browser settings.
+                  </AlertDescription>
+                </Alert>
+            ) : (
+                <>
+                <div className="flex flex-col items-center gap-4">
+                    <Avatar className="h-32 w-32 border-4 border-primary/20">
+                        <AvatarImage src={otherParticipant?.photo_url || undefined} alt={otherParticipant?.display_name || ''} />
+                        <AvatarFallback className="text-4xl">{getInitials(otherParticipant?.display_name)}</AvatarFallback>
+                    </Avatar>
+                    <p className="text-2xl font-bold">{otherParticipant?.display_name}</p>
                 </div>
+                 <audio ref={remoteAudioRef} autoPlay />
+                 <div className="flex items-center gap-2 text-muted-foreground">
+                    <Mic className="h-5 w-5" />
+                    <p>{isMicMuted ? "You are muted" : "Your microphone is on"}</p>
+                 </div>
+                </>
             )}
-            
-            {/* Remote Video */}
-            <div className="bg-muted rounded-lg overflow-hidden flex items-center justify-center relative">
-                 <video ref={remoteVideoRef} autoPlay className="w-full h-full object-cover" />
-                 {!remoteStream && (
-                    <div className="absolute text-muted-foreground">Waiting for peer...</div>
-                 )}
-            </div>
-
-            {/* Local Video */}
-            <div className="bg-muted rounded-lg overflow-hidden flex items-center justify-center absolute bottom-4 right-4 w-1/4 h-1/4 md:relative md:w-full md:h-full">
-                 <video ref={localVideoRef} autoPlay muted className="w-full h-full object-cover" />
-            </div>
         </div>
 
         <DialogFooter className="p-4 border-t bg-background/95 flex justify-center">
             <div className="flex items-center gap-4">
                 <Button variant={isMicMuted ? "destructive" : "secondary"} size="icon" className="rounded-full h-12 w-12" onClick={toggleMute}>
                    {isMicMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-                </Button>
-                <Button variant={isVideoOff ? "destructive" : "secondary"} size="icon" className="rounded-full h-12 w-12" onClick={toggleVideo}>
-                   {isVideoOff ? <VideoOff className="h-6 w-6" /> : <Video className="h-6 w-6" />}
                 </Button>
                 <Button variant="destructive" size="icon" className="rounded-full h-12 w-12" onClick={handleClose}>
                     <PhoneOff className="h-6 w-6" />
@@ -271,3 +266,5 @@ export function VideoCall({ supabase, currentUser, chat, onClose }: VideoCallPro
     </Dialog>
   );
 }
+
+    

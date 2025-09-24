@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -108,3 +109,5 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
     </Card>
   );
 }
+
+    

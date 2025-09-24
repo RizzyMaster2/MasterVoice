@@ -14,13 +14,13 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Video, Users } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Phone, Users } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { CodeBlock } from './code-block';
-import { VideoCall } from './video-call';
+import { VoiceCall } from './voice-call';
 
 
 interface ChatLayoutProps {
@@ -28,6 +28,8 @@ interface ChatLayoutProps {
   chats: Chat[];
   setChats: (chats: Chat[]) => void;
   allUsers: UserProfile[];
+  selectedChat: Chat | null;
+  setSelectedChat: (chat: Chat | null) => void;
 }
 
 const parseMessageContent = (content: string): ReactNode[] => {
@@ -57,8 +59,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayoutProps) {
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedChat, setSelectedChat }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -171,7 +172,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
         console.error("Failed to send message", error);
         toast({
           title: "Error",
-          description: "Failed to send message.",
+          description: error instanceof Error ? error.message : "Failed to send message.",
           variant: "destructive"
         });
         // Revert optimistic update on failure
@@ -230,7 +231,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
   return (
     <Card className="flex h-full w-full">
       {isCalling && selectedChat && !selectedChat.is_group && (
-        <VideoCall 
+        <VoiceCall
           supabase={supabase}
           currentUser={currentUser}
           chat={selectedChat}
@@ -320,8 +321,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
               </div>
               {!selectedChat.is_group && (
                 <Button size="icon" variant="ghost" onClick={() => setIsCalling(true)}>
-                  <Video className="h-5 w-5" />
-                  <span className="sr-only">Start Video Call</span>
+                  <Phone className="h-5 w-5" />
+                  <span className="sr-only">Start Voice Call</span>
                 </Button>
               )}
             </CardHeader>
@@ -438,3 +439,5 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers }: ChatLayou
     </Card>
   );
 }
+
+    
