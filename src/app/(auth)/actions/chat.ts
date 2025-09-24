@@ -252,9 +252,10 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 
 // Send a new message
 export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
   try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
     const userId = await getCurrentUserId();
     
     const messageData: {
@@ -281,6 +282,8 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
       .single();
 
     if (error) {
+      // The most likely error is an RLS violation.
+      console.error('Supabase sendMessage error:', error.message);
       throw new Error(`Could not send message: ${error.message}`);
     }
     
