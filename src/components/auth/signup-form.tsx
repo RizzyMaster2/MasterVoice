@@ -15,9 +15,10 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { signup } from '@/app/(auth)/actions';
-import { UserPlus, AlertTriangle, Eye, EyeOff } from 'lucide-react';
-import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
+import { UserPlus, Eye, EyeOff } from 'lucide-react';
+import { createClient } from '@/lib/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -28,10 +29,10 @@ const formSchema = z.object({
 type SignupFormValues = z.infer<typeof formSchema>;
 
 export function SignupForm() {
+  const { toast } = useToast();
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [serverError, setServerError] = useState<string | null>(null);
-
 
   const form = useForm<SignupFormValues>({
     resolver: zodResolver(formSchema),
@@ -44,28 +45,37 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
-    setServerError(null);
+    try {
+        const supabase = createClient();
+        const { error } = await supabase.auth.signUp({
+            email: values.email,
+            password: values.password,
+            options: {
+                data: {
+                    display_name: values.name,
+                }
+            }
+        });
 
-    const result = await signup(values);
-    
-    setIsLoading(false);
+        if (error) {
+            toast({ title: 'Signup failed', description: error.message, variant: 'destructive' });
+            setIsLoading(false);
+            return;
+        }
 
-    if (!result.success) {
-      setServerError(result.message);
+        toast({ title: 'Signup successful!', description: 'Please check your email to verify your account.'});
+        router.refresh();
+        router.push('/confirm');
+
+    } catch (error) {
+        toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
+        setIsLoading(false);
     }
-     // No need for router.push, the server action will handle the redirect
   }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        {serverError && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertTitle>Signup Failed</AlertTitle>
-            <AlertDescription>{serverError}</AlertDescription>
-          </Alert>
-        )}
         <FormField
           control={form.control}
           name="name"

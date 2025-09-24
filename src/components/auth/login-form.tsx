@@ -40,6 +40,7 @@ export function LoginForm() {
  
       if (error) {
         toast({ title: 'Login failed', description: error.message, variant: 'destructive' });
+        setLoading(false); // Stop loading on error
         return;
       }
  
@@ -47,8 +48,9 @@ export function LoginForm() {
       // If your dashboard is protected with auth on the server, refresh first:
       router.refresh();
       router.push('/home');
-    } finally {
-      setLoading(false);
+    } catch (error) {
+       toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
+       setLoading(false);
     }
   }
  
@@ -89,4 +91,3 @@ export function LoginForm() {
     </Form>
   );
 }
- 
