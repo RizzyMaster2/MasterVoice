@@ -1,0 +1,15 @@
+
+{
+  "hosting": {
+    "source": ".",
+    "ignore": [
+      "firebase.json",
+      "**/.*",
+      "**/node_modules/**"
+    ],
+    "frameworksBackend": {
+      "id": "mastervoice-app",
+      "region": "us-central1"
+    }
+  }
+}
