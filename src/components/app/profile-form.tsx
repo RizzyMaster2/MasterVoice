@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
+import { useRouter } from 'next/navigation';
 
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -36,6 +37,7 @@ type ProfileFormValues = z.infer<typeof formSchema>;
 
 export function ProfileForm() {
   const { toast } = useToast();
+  const router = useRouter();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -75,9 +77,10 @@ export function ProfileForm() {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
       setSelectedFile(file);
+      // Create a temporary URL for the preview
       const newPreviewUrl = URL.createObjectURL(file);
       
-      // Revoke the old URL if it exists
+      // If there's an old temporary URL, revoke it to prevent memory leaks
       if (previewUrl && !previewUrl.startsWith('https://')) {
           URL.revokeObjectURL(previewUrl);
       }
@@ -86,8 +89,8 @@ export function ProfileForm() {
     }
   };
 
+  // Effect to clean up the object URL when the component unmounts
   useEffect(() => {
-    // Cleanup function to revoke the object URL
     return () => {
       if (previewUrl && !previewUrl.startsWith('https://')) {
         URL.revokeObjectURL(previewUrl);
@@ -145,8 +148,8 @@ export function ProfileForm() {
         description: 'Your changes have been saved successfully.',
       });
       setSelectedFile(null);
-      // Refresh the page to show the new avatar in the header
-      window.location.reload();
+      // Refresh server components to show the new avatar in the header without a full page reload
+      router.refresh();
     }
   }
   
