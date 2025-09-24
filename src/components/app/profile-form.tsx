@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
@@ -90,7 +91,9 @@ export function ProfileForm() {
 
       const { error: uploadError } = await supabase.storage
         .from('files')
-        .upload(filePath, selectedFile);
+        .upload(filePath, selectedFile, {
+            contentType: selectedFile.type,
+        });
       
       if (uploadError) {
         toast({
