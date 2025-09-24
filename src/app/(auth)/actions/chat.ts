@@ -170,40 +170,22 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       throw new Error('Chat creation returned no ID.');
     }
 
-    // Re-fetch the newly created chat to get all details
-    const { data: newChat, error: fetchError } = await supabase
-        .from('chats')
-        .select('*, chat_participants!inner(*, profiles(*))')
-        .eq('id', newChatId)
-        .single();
+    // After creating, construct the chat object to return without another fetch
+    const users = await getUsers();
+    const otherUser = users.find(u => u.id === otherUserId);
     
-    if (fetchError || !newChat) {
-        console.error('Chat created, but failed to fetch details:', fetchError);
-        // Fallback: Manually construct a partial object if fetch fails.
-        // This can happen due to RLS delays.
-        const users = await getUsers();
-        const otherUser = users.find(u => u.id === otherUserId);
-
-        const fallbackChat: Chat = {
-            id: newChatId,
-            created_at: new Date().toISOString(),
-            is_group: false,
-            name: null,
-            admin_id: userId,
-            participants: [userId, otherUserId],
-            otherParticipant: otherUser,
-        };
-        revalidatePath('/home');
-        return { chat: fallbackChat, isNew: true };
+    if (!otherUser) {
+        throw new Error('Failed to find profile for the other user.');
     }
-
-    const participantIds = newChat.chat_participants.map((p: { user_id: any; }) => p.user_id);
-    const otherParticipantProfile = newChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.profiles;
     
     const finalNewChat: Chat = {
-      ...newChat,
-      participants: participantIds,
-      otherParticipant: otherParticipantProfile,
+        id: newChatId,
+        created_at: new Date().toISOString(),
+        is_group: false,
+        name: null,
+        admin_id: userId,
+        participants: [userId, otherUserId],
+        otherParticipant: otherUser,
     };
     
     revalidatePath('/home');

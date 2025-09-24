@@ -25,7 +25,9 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   useEffect(() => {
     setIsClient(true);
     if (initialChats.length > 0 && !selectedChat) {
-      setSelectedChat(initialChats[0]);
+      // Find the most recent chat to select initially
+      const sortedChats = [...initialChats].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setSelectedChat(sortedChats[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialChats]);
@@ -43,8 +45,11 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         
         if (newChat) {
             if (isNew) {
-                // Manually add the new chat to the state to get an immediate UI update
-                setChats(prev => [newChat, ...prev]);
+                // Manually add the new chat to the state for an immediate UI update
+                setChats(prev => {
+                    const updatedChats = [newChat, ...prev];
+                    return updatedChats.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+                });
                 setSelectedChat(newChat); // Immediately select the new chat
                 toast({
                     title: "Friend Added",
@@ -73,10 +78,23 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   };
 
   const contactIds = useMemo(() => {
-    const ids = new Set(chats.flatMap(c => c.participants));
-    ids.add(currentUser.id); // Ensure current user isn't in suggestions
+    const ids = new Set<string>();
+    chats.forEach(c => {
+        if (!c.is_group) {
+            c.participants.forEach(pId => ids.add(pId));
+        }
+    });
     return ids;
-  }, [chats, currentUser.id]);
+  }, [chats]);
+
+  const handleGroupCreated = async () => {
+    const updatedChats = await refreshChats();
+     if (updatedChats.length > 0) {
+      // Find the most recent chat (the one just created) and select it
+      const sortedChats = [...updatedChats].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setSelectedChat(sortedChats[0]);
+    }
+  }
 
   if (!isClient) {
     return (
@@ -107,7 +125,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 allUsers={allUsers}
                 onAddFriend={handleAddFriend}
                 contactIds={contactIds}
-                onGroupCreated={refreshChats}
+                onGroupCreated={handleGroupCreated}
                 isAddingFriend={isAddingFriend}
             />
         </div>

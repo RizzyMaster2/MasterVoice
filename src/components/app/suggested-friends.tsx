@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import type { UserProfile } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Plus, Search, Sparkles, Loader2 } from 'lucide-react';
+import { Plus, Search, Sparkles, Loader2, Users } from 'lucide-react';
 import { CreateGroupDialog } from './create-group-dialog';
 
 type SuggestedFriendsProps = {
@@ -44,11 +44,14 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
     setUserBeingAdded(user.id);
     onAddFriend(user);
   }
+  
+  useEffect(() => {
+    // When the global adding transition is finished, reset the local loading state.
+    if (!isAddingFriend) {
+        setUserBeingAdded(null);
+    }
+  }, [isAddingFriend]);
 
-  // Reset the specific user's loading state when the global transition finishes
-  if (!isAddingFriend && userBeingAdded) {
-    setUserBeingAdded(null);
-  }
 
   return (
     <Card>
@@ -59,7 +62,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
             Find Friends
           </div>
           <CreateGroupDialog
-            allUsers={allUsers.filter(user => user.id !== currentUser.id)}
+            allUsers={allUsers.filter(user => user.id !== currentUser.id && !contactIds.has(user.id))}
             onGroupCreated={onGroupCreated}
           />
         </CardTitle>
@@ -88,7 +91,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
                   </div>
                 </div>
                 {!contactIds.has(user.id) && (
-                    <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isAddingFriend}>
+                    <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isAddingFriend && userBeingAdded === user.id}>
                        {isAddingFriend && userBeingAdded === user.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                        ) : (
