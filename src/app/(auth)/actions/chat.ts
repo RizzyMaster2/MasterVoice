@@ -141,7 +141,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       const { data: chatDetails, error: detailsError } = await supabase
         .from('chats')
         .select('*, chat_participants!inner(*, profiles(*))')
-        .eq('id', existingChat[0])
+        .eq('id', existingChat[0].chat_id)
         .single();
       
       if (detailsError) throw detailsError;
@@ -303,3 +303,6 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
 }
 
 
+
+
+    
