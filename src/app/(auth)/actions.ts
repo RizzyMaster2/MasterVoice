@@ -43,7 +43,7 @@ type ActionResult = { success: true } | { success: false; message: string };
 export async function login(data: {
   email: unknown;
   password: unknown;
-}): Promise<ActionResult> {
+}): Promise<ActionResult | void> {
   console.log('--- LOGIN ACTION START ---', { email: data.email });
   try {
     const email = typeof data.email === 'string' ? data.email : '';
@@ -63,20 +63,21 @@ export async function login(data: {
     }
 
     console.log('--- LOGIN SUCCESS ---');
-    revalidatePath('/', 'layout');
-    redirect('/home');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
     console.error('[Login Unexpected Error]', message);
     return { success: false, message };
   }
+
+  revalidatePath('/', 'layout');
+  redirect('/home');
 }
 
 export async function signup(data: {
   name: unknown;
   email: unknown;
   password: unknown;
-}): Promise<ActionResult> {
+}): Promise<ActionResult | void> {
   console.log('--- SIGNUP ACTION START ---', { name: data.name, email: data.email });
   try {
     const name = typeof data.name === 'string' ? data.name : '';
@@ -101,16 +102,16 @@ export async function signup(data: {
     }
 
     console.log('--- SIGNUP SUCCESS ---');
-    revalidatePath('/', 'layout');
-    redirect('/confirm');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected server error';
     console.error('[Signup Unexpected Error]', message);
     return { success: false, message };
   }
+  revalidatePath('/', 'layout');
+  redirect('/confirm');
 }
 
-export async function logout(): Promise<ActionResult> {
+export async function logout(): Promise<ActionResult | void> {
   console.log('--- LOGOUT ACTION START ---');
   try {
     const supabase = await getSupabaseClient();
@@ -122,11 +123,11 @@ export async function logout(): Promise<ActionResult> {
     }
 
     console.log('--- LOGOUT SUCCESS ---');
-    revalidatePath('/', 'layout');
-    redirect('/');
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unexpected logout error';
     console.error('[Logout Unexpected Error]', message);
     return { success: false, message };
   }
+  revalidatePath('/', 'layout');
+  redirect('/');
 }

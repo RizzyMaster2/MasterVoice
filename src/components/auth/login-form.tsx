@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState } from 'react';
@@ -18,7 +19,6 @@ import { login } from '@/app/(auth)/actions';
 import { LogIn, AlertTriangle } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { useToast } from '@/hooks/use-toast';
 
 const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email.' }),
@@ -29,9 +29,9 @@ type LoginFormValues = z.infer<typeof formSchema>;
 
 export function LoginForm() {
   const [isLoading, setIsLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
   const searchParams = useSearchParams();
-  const errorMessage = searchParams.get('message');
-  const { toast } = useToast();
+  const errorMessage = searchParams.get('message') || serverError;
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(formSchema),
@@ -43,39 +43,16 @@ export function LoginForm() {
 
   const handleSubmit = async (values: LoginFormValues) => {
     setIsLoading(true);
-    const formData = new FormData();
-    formData.append('email', values.email);
-    formData.append('password', values.password);
+    setServerError(null);
+    
+    const result = await login(values);
 
-    try {
-      const result = await login(formData);
+    setIsLoading(false);
 
-      toast({ title: 'Login successful', description: 'Redirecting...' });
-
-    } catch (error: unknown) {
-      let message = 'An unexpected error occurred.';
-      let isBadGateway = false;
-
-      if (error instanceof Error) {
-        message = error.message;
-        if (message.includes('502')) {
-          isBadGateway = true;
-          message = 'Server is unreachable. Try again shortly.';
-        }
-      }
-
-      toast({
-        title: 'Login Failed',
-        description: message,
-        variant: 'destructive',
-      });
-
-      if (isBadGateway) {
-        console.warn('502 intercepted. Try Again Shortly or message MasterDev.');
-      }
-
-      setIsLoading(false);
+    if (result && !result.success) {
+      setServerError(result.message);
     }
+    // On success, the server action will handle the redirect, so no client-side navigation is needed.
   };
 
   return (
