@@ -294,3 +294,4 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     throw new Error(message);
   }
 }
+
