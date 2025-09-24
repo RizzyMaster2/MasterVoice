@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -22,10 +21,10 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
-  const availableUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
+  const suggestedUsers = useMemo(() => allUsers.filter(user => !contactIds.has(user.id)), [allUsers, contactIds]);
 
   const filteredUsers = useMemo(() => {
-    const usersToFilter = availableUsers;
+    const usersToFilter = searchQuery ? allUsers : suggestedUsers;
     
     if (!searchQuery) {
         return usersToFilter.slice(0, 5); // Show top 5 suggestions if no search
@@ -34,7 +33,7 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
     return usersToFilter.filter(user => 
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
-  }, [searchQuery, availableUsers]);
+  }, [searchQuery, allUsers, suggestedUsers]);
 
 
   return (
@@ -74,10 +73,12 @@ export function SuggestedFriends({ allUsers, onAddFriend, contactIds, onGroupCre
                     <p className="font-semibold">{user.display_name}</p>
                   </div>
                 </div>
-                <Button variant="ghost" size="icon" onClick={() => onAddFriend(user)}>
-                  <Plus className="h-4 w-4" />
-                  <span className="sr-only">Add friend</span>
-                </Button>
+                {!contactIds.has(user.id) && (
+                    <Button variant="ghost" size="icon" onClick={() => onAddFriend(user)}>
+                        <Plus className="h-4 w-4" />
+                        <span className="sr-only">Add friend</span>
+                    </Button>
+                )}
               </div>
             ))}
           </div>
