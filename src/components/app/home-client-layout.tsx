@@ -32,9 +32,10 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         
         if (chat) {
           if (isNew) {
+            // Construct the full chat object for the UI
             const newChatWithProfile: AppChat = {
                 ...chat,
-                otherParticipant: friend
+                otherParticipant: friend // Add the friend's profile to the new chat object
             };
             setChats(prev => [newChatWithProfile, ...prev]);
 

@@ -201,43 +201,23 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
 
-        const { data: chatData, error: chatError } = await supabase
-            .from('chats')
-            .insert([{
-                name,
-                is_group: true,
-                admin_id: userId,
-            }])
+        // Use RPC to create group and participants atomically
+        const { data: newGroup, error: rpcError } = await supabase
+            .rpc('create_group_chat_and_add_participants', {
+                group_name: name,
+                participant_ids: allParticipantIds,
+            })
             .select()
             .single();
 
-        if (chatError || !chatData) {
-            console.error('Error creating group chat:', chatError);
-            // Attempt to clean up...
-            if (chatData) {
-                await supabase.from('chats').delete().eq('id', chatData.id);
-            }
+        if (rpcError || !newGroup) {
+            console.error('Error creating group chat via RPC:', rpcError);
             throw new Error('Could not create group chat. This may be due to database security policies.');
-        }
-
-        const participantsToInsert = allParticipantIds.map(pId => ({
-            chat_id: chatData.id,
-            user_id: pId,
-        }));
-
-        const { error: participantsError } = await supabase
-            .from('chat_participants')
-            .insert(participantsToInsert);
-        
-        if (participantsError) {
-            console.error('Error adding participants to group chat:', participantsError);
-            // Attempt to clean up the created chat row if participants fail to insert
-            await supabase.from('chats').delete().eq('id', chatData.id);
-            throw new Error('Could not add members to the group chat.');
         }
         
         revalidatePath('/home');
-        return { ...chatData, participants: allParticipantIds };
+        return { ...newGroup, participants: allParticipantIds };
+
     } catch (error) {
         console.error('createGroupChat failed:', error);
         throw new Error(error instanceof Error ? error.message : 'You must be logged in to create a group chat.');
@@ -298,7 +278,7 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
 
     if (error) {
       console.error('Error sending message:', error);
-      throw new Error('Could not send message.');
+      throw new Error(`Could not send message: ${error.message}`);
     }
     
     // The client will get the new message via real-time subscription.
