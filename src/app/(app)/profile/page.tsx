@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -25,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { deleteUser } from '@/app/(auth)/actions/user';
-import { Mic, Trash2, Volume2, MicOff } from 'lucide-react';
+import { Mic, Trash2, Volume2, MicOff, Users, Loader2 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Label } from '@/components/ui/label';
 import {
@@ -37,6 +38,10 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
+import type { UserProfile } from '@/lib/data';
+import { getChats } from '@/app/(auth)/actions/chat';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 export default function ProfilePage() {
   const { toast } = useToast();
@@ -47,6 +52,32 @@ export default function ProfilePage() {
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const [isMicTesting, setIsMicTesting] = useState(false);
+  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [isLoadingFriends, setIsLoadingFriends] = useState(true);
+
+  useEffect(() => {
+    const fetchFriends = async () => {
+      if (user) {
+        setIsLoadingFriends(true);
+        try {
+          const chats = await getChats();
+          const friendList = chats
+            .filter(chat => !chat.is_group && chat.otherParticipant)
+            .map(chat => chat.otherParticipant as UserProfile);
+          setFriends(friendList);
+        } catch (error) {
+          toast({
+            title: 'Error fetching friends',
+            description: (error as Error).message,
+            variant: 'destructive',
+          });
+        } finally {
+          setIsLoadingFriends(false);
+        }
+      }
+    };
+    fetchFriends();
+  }, [user, toast]);
 
   const stopMicTest = () => {
     if (animationFrameRef.current) {
@@ -132,12 +163,20 @@ export default function ProfilePage() {
       });
     }
   }
+  
+  const getInitials = (name: string | null | undefined) =>
+    name
+      ?.split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase() || 'U';
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <Tabs defaultValue="profile">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
+          <TabsTrigger value="friends">Friends</TabsTrigger>
           <TabsTrigger value="audio">Audio & Voice</TabsTrigger>
           <TabsTrigger value="account">Account</TabsTrigger>
         </TabsList>
@@ -151,6 +190,49 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               <ProfileForm />
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="friends" className="mt-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="font-headline flex items-center gap-2">
+                <Users className="h-6 w-6" />
+                Your Friends
+              </CardTitle>
+              <CardDescription>
+                Your list of connections on MasterVoice.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[400px] pr-4">
+                {isLoadingFriends ? (
+                   <div className="flex items-center justify-center h-full">
+                        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                    </div>
+                ) : friends.length > 0 ? (
+                  <div className="space-y-4">
+                    {friends.map((friend) => (
+                      <div key={friend.id} className="flex items-center gap-4 p-2 rounded-md hover:bg-accent/50">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={friend.photo_url || undefined} alt={friend.display_name || ''} />
+                          <AvatarFallback>{getInitials(friend.display_name)}</AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="font-semibold">{friend.display_name}</p>
+                          <p className="text-sm text-muted-foreground">{friend.email}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
+                     <Users className="h-12 w-12 mb-4" />
+                    <p className="font-semibold">No Friends Yet</p>
+                    <p className="text-sm">Use the "Find Friends" feature on the home page to start connecting!</p>
+                  </div>
+                )}
+              </ScrollArea>
             </CardContent>
           </Card>
         </TabsContent>
