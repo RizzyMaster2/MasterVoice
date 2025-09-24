@@ -27,7 +27,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     if (initialChats.length > 0 && !selectedChat) {
       setSelectedChat(initialChats[0]);
     }
-  }, [initialChats, selectedChat]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialChats]);
 
   const refreshChats = async () => {
     const updatedChats = await getChats();
@@ -40,26 +41,25 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
       try {
         const { chat: newChat, isNew } = await createChat(friend.id);
         
-        if (isNew && newChat) {
-            toast({
-                title: "Friend Added",
-                description: `You can now chat with ${friend.display_name}.`,
-                variant: 'success'
-            });
-            // After adding, refresh the chat list and find the new chat to select it.
-            const updatedChats = await refreshChats();
-            const chatToSelect = updatedChats.find(c => c.id === newChat.id);
-            if (chatToSelect) {
-                setSelectedChat(chatToSelect);
+        if (newChat) {
+            if (isNew) {
+                // Manually add the new chat to the state to get an immediate UI update
+                setChats(prev => [newChat, ...prev]);
+                setSelectedChat(newChat); // Immediately select the new chat
+                toast({
+                    title: "Friend Added",
+                    description: `You can now chat with ${friend.display_name}.`,
+                    variant: 'success'
+                });
+            } else {
+                toast({
+                    title: "Chat already exists",
+                    description: "You already have a conversation with this user.",
+                });
+                // If the chat exists, find and select it from the current state
+                const existingChat = chats.find(c => c.id === newChat.id);
+                if(existingChat) setSelectedChat(existingChat);
             }
-        } else {
-           toast({
-              title: "Chat already exists",
-              description: "You already have a conversation with this user.",
-          });
-           // If the chat exists, find and select it
-           const existingChat = chats.find(c => c.participants.includes(friend.id) && !c.is_group);
-           if(existingChat) setSelectedChat(existingChat);
         }
       } catch (error) {
           console.error("Failed to create chat:", error);
