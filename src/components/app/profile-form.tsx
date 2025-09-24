@@ -86,14 +86,12 @@ export function ProfileForm() {
     let newAvatarUrl: string | undefined = undefined;
 
     if (selectedFile) {
-      // The user-provided SQL uses a 'files' bucket. Let's align with that.
-      // And the RLS policy for insert is just for authenticated users, so this should work.
       const fileExt = selectedFile.name.split('.').pop();
       const fileName = `${user.id}-${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`; // No public folder needed if policies are set up correctly
+      const filePath = `public/${fileName}`; 
 
       const { error: uploadError } = await supabase.storage
-        .from('files') // Changed from 'avatars' to 'files'
+        .from('files')
         .upload(filePath, selectedFile);
       
       if (uploadError) {
