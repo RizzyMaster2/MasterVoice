@@ -81,6 +81,13 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
+  // if user is logged in and is trying to access the marketing page
+  if (user && request.nextUrl.pathname === '/') {
+      const url = request.nextUrl.clone()
+      url.pathname = '/home'
+      return NextResponse.redirect(url)
+  }
+  
   // if user is logged in and is trying to access an auth route
    if (user && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup') || request.nextUrl.pathname.startsWith('/confirm'))) {
       const url = request.nextUrl.clone()
