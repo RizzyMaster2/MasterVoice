@@ -4,6 +4,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
 import type { Chat, Message, UserProfile } from '@/lib/data';
+import { createAdminClient } from '@/lib/supabase/admin';
 
 
 // Get the current logged-in user's ID
@@ -18,14 +19,50 @@ async function getCurrentUserId() {
 
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
-  const supabase = await createClient();
-  const { data, error } = await supabase.from('profiles').select('*');
-  if (error) {
-    console.error('Error fetching users:', error);
+  try {
+    const supabaseAdmin = createAdminClient();
+    const { data: { users }, error } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (error) {
+      console.error('Error fetching users from auth:', error);
+      return [];
+    }
+
+    // The listUsers method returns auth users. We need to map them to the UserProfile type.
+    // We also need to get their profile details from the profiles table.
+    const userIds = users.map(u => u.id);
+    const { data: profiles, error: profilesError } = await createClient()
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+
+    if (profilesError) {
+      console.error('Error fetching profiles for users:', profilesError);
+      return [];
+    }
+
+    // Create a map for quick lookup
+    const profileMap = new Map(profiles.map(p => [p.id, p]));
+
+    // Combine auth user data with profile data
+    const combinedUsers: UserProfile[] = users.map(user => {
+      const profile = profileMap.get(user.id);
+      return {
+        id: user.id,
+        created_at: profile?.created_at || user.created_at,
+        display_name: profile?.display_name || user.user_metadata.display_name || user.email || 'User',
+        email: user.email || profile?.email || null,
+        photo_url: profile?.photo_url || user.user_metadata.photo_url || null,
+        status: profile?.status || 'offline',
+      };
+    });
+
+    return combinedUsers;
+
+  } catch (error) {
+    console.error('Error in getUsers:', error);
     return [];
   }
-  
-  return data;
 }
 
 // Fetch all chats for the current user
