@@ -15,6 +15,8 @@ import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 
 const features = [
   {
@@ -43,7 +45,16 @@ const features = [
   },
 ];
 
-export default function Home() {
+export default async function Home() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (user) {
+    redirect('/home');
+  }
+  
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
   return (
