@@ -26,17 +26,20 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
   const filteredUsers = useMemo(() => {
-    const availableUsers = allUsers.filter(user => user.id !== currentUser.id);
+    // Start by filtering out the current user and existing contacts from the pool of all users.
+    const availableUsers = allUsers.filter(
+      (user) => user.id !== currentUser.id && !contactIds.has(user.id)
+    );
 
     if (searchQuery) {
-      return availableUsers.filter(user => 
+      // If there's a search query, filter the available users by name.
+      return availableUsers.filter((user) =>
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
-    // If no search query, show suggestions (users who are not contacts)
-    const suggested = availableUsers.filter(user => !contactIds.has(user.id));
-    return suggested.slice(0, 5);
+    // If no search query, just show the first 5 available users as suggestions.
+    return availableUsers.slice(0, 5);
 
   }, [allUsers, currentUser.id, contactIds, searchQuery]);
 
@@ -90,6 +93,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
                     <p className="font-semibold">{user.display_name}</p>
                   </div>
                 </div>
+                {/* The check below is technically redundant now, but kept for safety. */}
                 {!contactIds.has(user.id) && (
                     <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isAddingFriend && userBeingAdded === user.id}>
                        {isAddingFriend && userBeingAdded === user.id ? (
