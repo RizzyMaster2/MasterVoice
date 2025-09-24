@@ -9,10 +9,11 @@ import {
   Dialog,
   DialogContent,
 } from '@/components/ui/dialog';
-import { Mic, MicOff, PhoneOff, AlertTriangle, Loader2 } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Loader2, Signal, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { cn } from '@/lib/utils';
+import { Badge } from '../ui/badge';
 
 interface VoiceCallProps {
   supabase: SupabaseClient;
@@ -81,10 +82,12 @@ const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
 
 export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallProps) {
   const [isOpen, setIsOpen] = useState(true);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'calling' | 'error'>('calling');
+  const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>('calling');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
+  const [callDuration, setCallDuration] = useState(0);
+  const [ping, setPing] = useState<number | null>(null);
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -135,6 +138,40 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
     });
 
   }, [status, cleanup, onClose, supabase, currentUser.id, otherParticipantId]);
+
+  // Effect for call timer and ping monitor
+  useEffect(() => {
+    let timerInterval: NodeJS.Timeout | null = null;
+    let statsInterval: NodeJS.Timeout | null = null;
+
+    if (status === 'connected') {
+      timerInterval = setInterval(() => {
+        setCallDuration(prev => prev + 1);
+      }, 1000);
+
+      statsInterval = setInterval(async () => {
+        if (peerConnectionRef.current) {
+          const stats = await peerConnectionRef.current.getStats();
+          stats.forEach(report => {
+            if (report.type === 'remote-inbound-rtp' && report.roundTripTime) {
+                // roundTripTime is in seconds, convert to ms
+                setPing(Math.round(report.roundTripTime * 1000));
+            }
+          });
+        }
+      }, 3000); // Check ping every 3 seconds
+
+    } else {
+      setCallDuration(0);
+      setPing(null);
+    }
+
+    return () => {
+      if (timerInterval) clearInterval(timerInterval);
+      if (statsInterval) clearInterval(statsInterval);
+    };
+  }, [status]);
+
 
   useEffect(() => {
     const init = async () => {
@@ -280,6 +317,12 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
         error: 'Error'
     }
 
+    const formatDuration = (seconds: number) => {
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    };
+
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
       <DialogContent className="max-w-md h-[70vh] flex flex-col p-0 gap-0" onInteractOutside={(e) => e.preventDefault()}>
@@ -288,6 +331,21 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
                 "absolute inset-0 bg-primary/10 transition-opacity duration-700",
                 status === 'connected' ? 'opacity-100' : 'opacity-0'
             )} />
+
+             <div className="absolute top-4 left-4 z-10 flex gap-2">
+                {status === 'connected' && (
+                    <Badge variant="secondary" className="flex items-center gap-2">
+                        <Timer className="h-4 w-4" />
+                        {formatDuration(callDuration)}
+                    </Badge>
+                )}
+                {ping !== null && (
+                    <Badge variant={ping < 100 ? "success" : ping < 200 ? "warning" : "destructive"} className="flex items-center gap-2">
+                        <Signal className="h-4 w-4" />
+                        {ping}ms
+                    </Badge>
+                )}
+            </div>
              
             <div className="flex items-end justify-center gap-4 w-full relative z-10">
                 <div className="flex flex-col items-center gap-2">
