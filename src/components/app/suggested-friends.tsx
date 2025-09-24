@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -15,11 +14,11 @@ type SuggestedFriendsProps = {
   allUsers: UserProfile[];
   onAddFriend: (friend: UserProfile) => void;
   contactIds: Set<string>;
-  onGroupCreated: () => void;
+  onChatCreated: () => void;
   isAddingFriend: boolean;
 };
 
-export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated, isAddingFriend }: SuggestedFriendsProps) {
+export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onChatCreated, isAddingFriend }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userBeingAdded, setUserBeingAdded] = useState<string | null>(null);
 
@@ -60,7 +59,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
           </div>
           <CreateGroupDialog
             allUsers={allUsers.filter(user => user.id !== currentUser.id)}
-            onGroupCreated={onGroupCreated}
+            onGroupCreated={onChatCreated}
           />
         </CardTitle>
       </CardHeader>

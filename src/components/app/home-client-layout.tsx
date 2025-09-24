@@ -25,31 +25,29 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     setIsClient(true);
   }, []);
 
+  const refreshChats = async () => {
+    const updatedChats = await getChats();
+    setChats(updatedChats);
+  };
+
   const handleAddFriend = (friend: UserProfile) => {
     startTransition(async () => {
       try {
-        const { chat, isNew } = await createChat(friend.id);
+        const { isNew } = await createChat(friend.id);
         
-        if (chat) {
-          if (isNew) {
-            // Construct the full chat object for the UI
-            const newChatWithProfile: AppChat = {
-                ...chat,
-                otherParticipant: friend // Add the friend's profile to the new chat object
-            };
-            setChats(prev => [newChatWithProfile, ...prev]);
-
-            toast({
-                title: "Friend Added",
-                description: `You can now chat with ${friend.display_name}.`,
-                variant: 'success'
-            });
-          } else {
-             toast({
-                title: "Chat already exists",
-                description: "You already have a conversation with this user.",
-            });
-          }
+        if (isNew) {
+          toast({
+              title: "Friend Added",
+              description: `You can now chat with ${friend.display_name}.`,
+              variant: 'success'
+          });
+          // Refresh the entire chat list from the server to ensure consistency
+          await refreshChats();
+        } else {
+           toast({
+              title: "Chat already exists",
+              description: "You already have a conversation with this user.",
+          });
         }
       } catch (error) {
           console.error("Failed to create chat:", error);
@@ -68,11 +66,6 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     return ids;
   }, [chats, currentUser.id]);
 
-  const refreshChats = async () => {
-    const updatedChats = await getChats();
-    setChats(updatedChats);
-  };
-  
   if (!isClient) {
     return (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
@@ -96,7 +89,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             allUsers={allUsers}
             onAddFriend={handleAddFriend}
             contactIds={contactIds}
-            onGroupCreated={refreshChats}
+            onChatCreated={refreshChats}
             isAddingFriend={isAddingFriend}
         />
         </div>
