@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode } from 'react';
@@ -19,7 +20,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { CodeBlock } from './code-block';
-import { VoiceCall } from './voice-call';
+import { useCall } from './call-provider';
 
 
 interface ChatLayoutProps {
@@ -64,12 +65,18 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
-  const [isCalling, setIsCalling] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
+  const { startCall } = useCall();
+
+  const handleStartCall = () => {
+    if (selectedChat?.otherParticipant) {
+      startCall(selectedChat.otherParticipant);
+    }
+  };
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -229,14 +236,6 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
 
   return (
     <Card className="flex h-full w-full">
-      {isCalling && selectedChat && !selectedChat.is_group && (
-        <VoiceCall
-          supabase={supabase}
-          currentUser={currentUser}
-          chat={selectedChat}
-          onClose={() => setIsCalling(false)}
-        />
-      )}
       <div className="w-1/3 border-r flex flex-col">
         <div className="p-4 border-b">
           <div className="relative">
@@ -319,7 +318,7 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
                 )}
               </div>
               {!selectedChat.is_group && (
-                <Button size="icon" variant="ghost" onClick={() => setIsCalling(true)}>
+                <Button size="icon" variant="ghost" onClick={handleStartCall}>
                   <Phone className="h-5 w-5" />
                   <span className="sr-only">Start Voice Call</span>
                 </Button>

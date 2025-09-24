@@ -18,8 +18,9 @@ import { Badge } from '../ui/badge';
 interface VoiceCallProps {
   supabase: SupabaseClient;
   currentUser: UserProfile;
-  chat: Chat;
-  onClose: () => void;
+  otherParticipant: UserProfile;
+  initialOffer?: RTCSessionDescriptionInit;
+  onClose: (notify?: boolean) => void;
 }
 
 const PEER_CONNECTION_CONFIG: RTCConfiguration = {
@@ -80,9 +81,8 @@ const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
     return isSpeaking;
 };
 
-export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallProps) {
-  const [isOpen, setIsOpen] = useState(true);
-  const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>('calling');
+export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffer, onClose }: VoiceCallProps) {
+  const [status, setStatus] = useState<'calling' | 'receiving' | 'connecting' | 'connected' | 'error'>(initialOffer ? 'receiving' : 'calling');
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isMicMuted, setIsMicMuted] = useState(false);
@@ -92,80 +92,56 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const { toast } = useToast();
-
-  const otherParticipant = chat.otherParticipant;
-  const otherParticipantId = otherParticipant?.id;
+  
+  const otherParticipantId = otherParticipant.id;
   
   const isLocalUserSpeaking = useActiveSpeaker(localStream);
   const isRemoteUserSpeaking = useActiveSpeaker(remoteStream);
+  
+  const signalingChannelRef = useRef(supabase.channel(`signaling-channel-${[currentUser.id, otherParticipantId].sort().join('-')}`));
 
   const cleanup = useCallback(() => {
-    // Stop all tracks
     localStream?.getTracks().forEach(track => track.stop());
     remoteStream?.getTracks().forEach(track => track.stop());
     setLocalStream(null);
     setRemoteStream(null);
     
-    // Close peer connection
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
+  }, [localStream, remoteStream]);
 
-    // Unsubscribe from Supabase channel
-    if (otherParticipantId) {
-        supabase.channel(`signaling-${currentUser.id}-${otherParticipantId}`).unsubscribe();
-        supabase.channel(`signaling-${otherParticipantId}-${currentUser.id}`).unsubscribe();
+
+  const handleClose = useCallback((notify = true) => {
+    if (notify && (status === 'connecting' || status === 'connected')) {
+        signalingChannelRef.current.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { from: currentUser.id, to: otherParticipantId },
+        });
     }
-  }, [localStream, remoteStream, otherParticipantId, supabase, currentUser.id]);
+    cleanup();
+    onClose();
+  }, [status, cleanup, onClose, currentUser.id, otherParticipantId]);
 
-
-  const handleClose = useCallback(() => {
-    if (status !== 'connecting' && status !== 'connected') {
-        cleanup();
-        onClose();
-        return;
-    }
-    
-    const signalingChannel = supabase.channel('signaling-broadcast');
-     signalingChannel.send({
-        type: 'broadcast',
-        event: 'hangup',
-        payload: { from: currentUser.id, to: otherParticipantId },
-    }).then(() => {
-        cleanup();
-        onClose();
-    });
-
-  }, [status, cleanup, onClose, supabase, currentUser.id, otherParticipantId]);
-
-  // Effect for call timer and ping monitor
   useEffect(() => {
     let timerInterval: NodeJS.Timeout | null = null;
     let statsInterval: NodeJS.Timeout | null = null;
 
     if (status === 'connected') {
-      timerInterval = setInterval(() => {
-        setCallDuration(prev => prev + 1);
-      }, 1000);
-
+      timerInterval = setInterval(() => setCallDuration(prev => prev + 1), 1000);
       statsInterval = setInterval(async () => {
         if (peerConnectionRef.current) {
           const stats = await peerConnectionRef.current.getStats();
           stats.forEach(report => {
             if (report.type === 'remote-inbound-rtp' && report.roundTripTime) {
-                // roundTripTime is in seconds, convert to ms
                 setPing(Math.round(report.roundTripTime * 1000));
             }
           });
         }
-      }, 3000); // Check ping every 3 seconds
-
-    } else {
-      setCallDuration(0);
-      setPing(null);
+      }, 3000);
     }
-
     return () => {
       if (timerInterval) clearInterval(timerInterval);
       if (statsInterval) clearInterval(statsInterval);
@@ -185,19 +161,15 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
           description: 'Please allow microphone access to make calls.',
           variant: 'destructive',
         });
-        setTimeout(onClose, 2000);
+        setTimeout(() => onClose(false), 2000);
       }
     };
     init();
 
-    // Ensure cleanup is called on component unmount
-    return () => {
-      cleanup();
-    };
+    return () => cleanup();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Main WebRTC Signaling Logic
   useEffect(() => {
     if (!localStream || !otherParticipantId) return;
 
@@ -208,9 +180,8 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
 
     pc.onicecandidate = event => {
       if (event.candidate) {
-        supabase.channel('signaling-broadcast').send({
-          type: 'broadcast',
-          event: 'ice-candidate',
+        signalingChannelRef.current.send({
+          type: 'broadcast', event: 'ice-candidate',
           payload: { from: currentUser.id, to: otherParticipantId, candidate: event.candidate },
         });
       }
@@ -226,83 +197,67 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
     };
     
     pc.onconnectionstatechange = () => {
-        if(pc.connectionState === 'connected') {
-            setStatus('connected');
-        } else if (pc.connectionState === 'failed' || pc.connectionState === 'disconnected' || pc.connectionState === 'closed') {
-            handleClose();
-        }
-    }
+      if(pc.connectionState === 'connected') setStatus('connected');
+      else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
+    };
 
-    const signalingChannel = supabase.channel('signaling-broadcast');
-
-    const handleOffer = async (payload: any) => {
-      if (payload.to === currentUser.id && peerConnectionRef.current) {
-        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-        const answer = await peerConnectionRef.current.createAnswer();
-        await peerConnectionRef.current.setLocalDescription(answer);
-        signalingChannel.send({
-          type: 'broadcast',
-          event: 'answer',
-          payload: { from: currentUser.id, to: otherParticipantId, answer },
-        });
-        setStatus('connecting');
+    const handleAnswer = async (payload: any) => {
+      if (payload.to === currentUser.id && pc.signalingState === 'have-local-offer') {
+           await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
       }
     };
-    
-    const handleAnswer = async (payload: any) => {
-        if (payload.to === currentUser.id && peerConnectionRef.current?.signalingState === 'have-local-offer') {
-             await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.answer));
-        }
-    };
-
     const handleIceCandidate = async (payload: any) => {
-        if (payload.to === currentUser.id && peerConnectionRef.current) {
-            try {
-                await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload.candidate));
-            } catch (e) {
-                console.error('Error adding received ice candidate', e);
-            }
-        }
+      if (payload.to === currentUser.id) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
     };
-
     const handleHangUp = (payload: any) => {
+      if (payload.to === currentUser.id || payload.from === currentUser.id) handleClose(false);
+    };
+    
+    const handleCallRejected = (payload: any) => {
         if (payload.to === currentUser.id) {
-            cleanup();
-            onClose();
+            toast({ title: "Call Declined", description: `${otherParticipant.display_name} declined your call.` });
+            handleClose(false);
         }
     };
 
-    signalingChannel
-        .on('broadcast', { event: 'offer' }, ({ payload }) => handleOffer(payload))
+    const channel = signalingChannelRef.current;
+    channel
         .on('broadcast', { event: 'answer' }, ({ payload }) => handleAnswer(payload))
         .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => handleIceCandidate(payload))
         .on('broadcast', { event: 'hangup' }, ({ payload }) => handleHangUp(payload))
-        .subscribe(async (subStatus) => {
-          if (subStatus === 'SUBSCRIBED') {
-              if (peerConnectionRef.current) {
-                  const offer = await peerConnectionRef.current.createOffer();
-                  await peerConnectionRef.current.setLocalDescription(offer);
-                  signalingChannel.send({
-                      type: 'broadcast',
-                      event: 'offer',
-                      payload: { from: currentUser.id, to: otherParticipantId, offer },
-                  });
-              }
-          }
-        });
-
-    return () => {
-      supabase.removeChannel(signalingChannel);
-      pc.close();
+        .on('broadcast', { event: 'call-rejected' }, ({ payload }) => handleCallRejected(payload))
+        .subscribe();
+    
+    const createOffer = async () => {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        // This is the initial "call-offer" that the CallProvider will send.
+        // The VoiceCall component itself no longer sends it.
     };
 
-  }, [localStream, supabase, currentUser.id, otherParticipantId, handleClose, cleanup, onClose]);
+    const handleInitialOffer = async () => {
+      if (initialOffer && pc.signalingState === 'stable') {
+        setStatus('connecting');
+        await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        channel.send({
+          type: 'broadcast', event: 'answer',
+          payload: { from: currentUser.id, to: otherParticipantId, answer },
+        });
+      }
+    };
+
+    if (initialOffer) {
+        handleInitialOffer();
+    }
+
+    return () => { channel.unsubscribe(); pc.close(); };
+  }, [localStream, supabase, currentUser.id, otherParticipantId, handleClose, initialOffer, toast, otherParticipant.display_name]);
   
   const toggleMute = () => {
       if (localStream) {
-          localStream.getAudioTracks().forEach(track => {
-              track.enabled = !track.enabled;
-          });
+          localStream.getAudioTracks().forEach(track => { track.enabled = !track.enabled; });
           setIsMicMuted(prev => !prev);
       }
   };
@@ -311,7 +266,8 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
     name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?';
 
     const statusText = {
-        calling: `Calling ${otherParticipant?.display_name}...`,
+        calling: `Ringing ${otherParticipant?.display_name}...`,
+        receiving: `Incoming call from ${otherParticipant?.display_name}`,
         connecting: 'Connecting...',
         connected: 'Connected',
         error: 'Error'
@@ -324,14 +280,10 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
     };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={true} onOpenChange={() => handleClose(true)}>
       <DialogContent className="max-w-md h-[70vh] flex flex-col p-0 gap-0" onInteractOutside={(e) => e.preventDefault()}>
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gradient-to-br from-background to-primary/5 relative overflow-hidden">
-            <div className={cn(
-                "absolute inset-0 bg-primary/10 transition-opacity duration-700",
-                status === 'connected' ? 'opacity-100' : 'opacity-0'
-            )} />
-
+            <div className={cn("absolute inset-0 bg-primary/10 transition-opacity duration-700", status === 'connected' ? 'opacity-100' : 'opacity-0')} />
              <div className="absolute top-4 left-4 z-10 flex gap-2">
                 {status === 'connected' && (
                     <Badge variant="secondary" className="flex items-center gap-2">
@@ -346,43 +298,35 @@ export function VoiceCall({ supabase, currentUser, chat, onClose }: VoiceCallPro
                     </Badge>
                 )}
             </div>
-             
             <div className="flex items-end justify-center gap-4 w-full relative z-10">
                 <div className="flex flex-col items-center gap-2">
-                    <Avatar className={cn(
-                        "h-24 w-24 border-4 transition-all duration-300",
-                        isLocalUserSpeaking && !isMicMuted ? "border-primary shadow-2xl shadow-primary/50" : "border-transparent"
-                    )}>
+                    <Avatar className={cn("h-24 w-24 border-4 transition-all duration-300", isLocalUserSpeaking && !isMicMuted ? "border-primary shadow-2xl shadow-primary/50" : "border-transparent")}>
                         <AvatarImage src={currentUser?.photo_url || undefined} alt={currentUser?.display_name || ''} />
                         <AvatarFallback className="text-3xl">{getInitials(currentUser?.display_name)}</AvatarFallback>
                     </Avatar>
                     <p className="font-semibold text-sm">You</p>
                 </div>
                 <div className="flex flex-col items-center gap-2">
-                     <Avatar className={cn(
-                        "h-32 w-32 border-4 transition-all duration-300",
-                        isRemoteUserSpeaking ? "border-primary shadow-2xl shadow-primary/50" : "border-transparent"
-                    )}>
+                     <Avatar className={cn("h-32 w-32 border-4 transition-all duration-300", isRemoteUserSpeaking ? "border-primary shadow-2xl shadow-primary/50" : "border-transparent")}>
                         <AvatarImage src={otherParticipant?.photo_url || undefined} alt={otherParticipant?.display_name || ''} />
                         <AvatarFallback className="text-4xl">{getInitials(otherParticipant?.display_name)}</AvatarFallback>
                     </Avatar>
                     <p className="font-semibold">{otherParticipant?.display_name}</p>
                 </div>
             </div>
-
             <div className="text-center absolute bottom-10 z-10 flex items-center gap-2 text-muted-foreground">
                 {status === 'calling' && <Loader2 className="animate-spin h-4 w-4" />}
+                {status === 'connecting' && <Loader2 className="animate-spin h-4 w-4" />}
                 <p>{statusText[status]}</p>
             </div>
              <audio ref={remoteAudioRef} autoPlay playsInline />
         </div>
-
         <div className="p-4 border-t bg-background/95 flex justify-center items-center h-24">
             <div className="flex items-center gap-4">
                 <Button variant={isMicMuted ? "outline" : "secondary"} size="icon" className="rounded-full h-14 w-14" onClick={toggleMute}>
                    {isMicMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
                 </Button>
-                <Button variant="destructive" size="icon" className="rounded-full h-16 w-16" onClick={handleClose}>
+                <Button variant="destructive" size="icon" className="rounded-full h-16 w-16" onClick={() => handleClose(true)}>
                     <PhoneOff className="h-7 w-7" />
                 </Button>
             </div>
