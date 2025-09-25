@@ -1,3 +1,4 @@
+
 'use client';
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
@@ -38,7 +39,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
       setSelectedChat(sortedChats[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [friends]);
+  }, []);
 
   const refreshChats = async () => {
     const updatedChats = await getChats();
@@ -96,6 +97,11 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     // No need to switch view, just refresh chats in the background. 
     // The user will navigate to the groups page to see it.
     await refreshChats();
+    toast({
+        title: "Group Created",
+        description: "You can view your new group on the Groups page.",
+        variant: "success",
+    });
   }
 
   if (!isClient) {
@@ -115,6 +121,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             <ChatLayout 
                 currentUser={currentUser} 
                 chats={friends}
+                setChats={setChats}
                 allUsers={allUsers}
                 selectedChat={selectedChat}
                 setSelectedChat={setSelectedChat}
@@ -134,3 +141,5 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     </div>
   );
 }
+
+    

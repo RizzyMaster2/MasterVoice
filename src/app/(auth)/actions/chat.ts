@@ -251,6 +251,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
         }
         
         revalidatePath('/home');
+        revalidatePath('/home/groups');
         return { ...newGroup, participants: allParticipantIds };
 
     } catch (error) {
@@ -325,3 +326,47 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     throw new Error(message);
   }
 }
+
+export async function deleteChat(chatId: string, otherParticipantId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
+  try {
+    const userId = await getCurrentUserId();
+    const supabaseAdmin = createAdminClient();
+
+    // Verify the user is actually part of this chat before deleting
+    const { data: participants, error: participantError } = await supabaseAdmin
+      .from('chat_participants')
+      .select('user_id')
+      .eq('chat_id', chatId);
+
+    if (participantError) throw new Error('Could not verify chat participants.');
+
+    const participantIds = participants.map(p => p.user_id);
+    if (!participantIds.includes(userId) || !participantIds.includes(otherParticipantId)) {
+      throw new Error('You do not have permission to delete this chat.');
+    }
+
+    // Delete the chat. The `on delete cascade` on the `chat_id` foreign keys
+    // in `messages` and `chat_participants` tables will handle the cleanup.
+    const { error: deleteError } = await supabaseAdmin
+      .from('chats')
+      .delete()
+      .eq('id', chatId);
+
+    if (deleteError) {
+      console.error('Supabase delete chat error:', deleteError);
+      throw new Error(`Could not delete chat: ${deleteError.message}`);
+    }
+
+    revalidatePath('/home');
+
+  } catch(error) {
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`deleteChat failed:`, message);
+    throw new Error(message);
+  }
+}
+
+    

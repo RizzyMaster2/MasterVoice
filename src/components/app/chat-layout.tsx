@@ -13,8 +13,8 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
-import { getMessages, sendMessage } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Phone, Users } from 'lucide-react';
+import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
+import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -22,11 +22,23 @@ import { useToast } from '@/hooks/use-toast';
 import { CodeBlock } from './code-block';
 import { useCall } from './call-provider';
 import { ActiveCallBar } from './active-call-bar';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
+  setChats: (chats: Chat[]) => void;
   allUsers: UserProfile[];
   selectedChat: Chat | null;
   setSelectedChat: (chat: Chat | null) => void;
@@ -60,12 +72,13 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
+  const [isDeleting, startDeletingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
@@ -110,6 +123,8 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
         setMessages(fetchedMessages);
         setIsLoadingMessages(false);
         setTimeout(scrollToBottom, 100);
+      } else {
+        setMessages([]);
       }
     };
     fetchMessages();
@@ -145,10 +160,9 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
           if (newMessage) {
             setMessages((prevMessages) => {
               // If the message is already in the list (e.g. optimistic update), don't add it again.
-              // This is a simplified check, for more complex scenarios, you might want to replace
-              // the optimistically added message with the one from the server.
               if (prevMessages.some(m => m.id === newMessage.id)) {
-                return prevMessages;
+                // We can replace the optimistic message with the server one if needed
+                return prevMessages.map(m => m.id === newMessage.id ? newMessage as Message : m);
               }
               return [...prevMessages, newMessage as Message];
             });
@@ -247,6 +261,44 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
           title: 'Upload Failed',
           description: (error as Error).message,
           variant: 'destructive',
+        });
+      }
+    });
+  };
+
+  const handleDeleteChat = () => {
+    if (!selectedChat || selectedChat.is_group || !selectedChat.otherParticipant) return;
+    
+    const chatId = selectedChat.id;
+    const friendName = selectedChat.otherParticipant.display_name;
+
+    startDeletingTransition(async () => {
+      try {
+        await deleteChat(chatId, selectedChat.otherParticipant!.id);
+
+        toast({
+          title: 'Friend Removed',
+          description: `You are no longer friends with ${friendName}.`,
+          variant: 'success'
+        });
+        
+        // Update client-side state
+        const remainingChats = chats.filter(c => c.id !== chatId);
+        setChats(remainingChats);
+        
+        // Select the next available chat or nothing
+        if (remainingChats.length > 0) {
+            setSelectedChat(remainingChats[0]);
+        } else {
+            setSelectedChat(null);
+        }
+
+      } catch (error) {
+        console.error("Failed to delete chat:", error);
+        toast({
+          title: "Error Removing Friend",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          variant: "destructive",
         });
       }
     });
@@ -354,6 +406,34 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
                     <Phone className="h-5 w-5" />
                     <span className="sr-only">Start Voice Call</span>
                   </Button>
+                  {!selectedChat.is_group && (
+                     <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
+                          <Trash2 className="h-5 w-5" />
+                          <span className="sr-only">Remove Friend</span>
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently remove <span className="font-bold">{selectedChat.otherParticipant?.display_name}</span> as a friend and delete your entire chat history. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteChat}
+                            className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? 'Removing...' : 'Remove Friend'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  )}
               </div>
               {activeCall && (
                 <ActiveCallBar 
