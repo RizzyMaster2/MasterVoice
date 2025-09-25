@@ -436,6 +436,7 @@ export async function sendFriendRequest(toUserId: string) {
   if (existingRequest.length > 0) {
       if(existingRequest[0].status === 'pending') throw new Error("A friend request already exists.");
       if(existingRequest[0].status === 'declined') throw new Error("This user has declined your previous friend request.");
+      if(existingRequest[0].status === 'accepted') throw new Error("You are already friends with this user.");
   }
   
   const { data: existingChat, error: chatError } = await supabase.rpc('get_existing_chat', {user1_id: fromUserId, user2_id: toUserId});
@@ -500,3 +501,5 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home');
 }
+
+    
