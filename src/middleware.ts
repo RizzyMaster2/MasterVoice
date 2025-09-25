@@ -1,3 +1,4 @@
+
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -81,11 +82,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // if user is logged in and is trying to access an auth page or the marketing page
+  // if user is logged in and is trying to access an auth page
   if (user) {
     const authPaths = ['/login', '/signup', '/confirm'];
     const isAuthPath = authPaths.some(path => request.nextUrl.pathname.startsWith(path));
-    if (isAuthPath || request.nextUrl.pathname === '/') {
+    if (isAuthPath) {
        const url = request.nextUrl.clone()
        url.pathname = '/home'
        return NextResponse.redirect(url)
