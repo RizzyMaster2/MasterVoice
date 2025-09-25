@@ -34,6 +34,8 @@ import {
 import { createClient } from '@/lib/supabase/client';
 import { getErrorMessage } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
+import { useUser } from '@/hooks/use-user';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface FriendsClientPageProps {
   currentUser: UserProfile;
@@ -56,6 +58,7 @@ export function FriendsClientPage({
   const { toast } = useToast();
   const supabase = createClient();
   const router = useRouter();
+  const { isVerified } = useUser();
 
   const getInitials = (name: string | null | undefined) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
@@ -87,6 +90,14 @@ export function FriendsClientPage({
   }, [supabase, currentUser.id]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
+    if (!isVerified) {
+        toast({
+            title: "Verification Required",
+            description: "You must verify your email before sending friend requests.",
+            variant: "destructive"
+        });
+        return;
+    }
     setProcessingId(user.id);
     startTransition(async () => {
       try {
@@ -308,9 +319,22 @@ export function FriendsClientPage({
                           </Avatar>
                           <p className="font-semibold">{user.display_name}</p>
                         </div>
-                        <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={isProcessing}>
-                          {isProcessing && processingId === user.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Plus className="h-4 w-4" />}
-                        </Button>
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                                <span tabIndex={0}>
+                                    <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={isProcessing || !isVerified}>
+                                        {isProcessing && processingId === user.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Plus className="h-4 w-4" />}
+                                    </Button>
+                                </span>
+                            </TooltipTrigger>
+                            {!isVerified && (
+                                <TooltipContent>
+                                    <p>Verify your email to send friend requests.</p>
+                                </TooltipContent>
+                            )}
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
                     ))}
                   </div>
