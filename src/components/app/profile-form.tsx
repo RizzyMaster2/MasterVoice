@@ -25,6 +25,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Save, ShieldAlert, Upload } from 'lucide-react';
+import { getErrorMessage } from '@/lib/utils';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -119,7 +120,7 @@ export function ProfileForm() {
       if (uploadError) {
         toast({
           title: 'Avatar Upload Failed',
-          description: uploadError.message,
+          description: getErrorMessage(uploadError),
           variant: 'destructive',
         });
         return;
@@ -140,7 +141,7 @@ export function ProfileForm() {
     if (error) {
       toast({
         title: 'Error Updating Profile',
-        description: error.message,
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     } else {
@@ -279,5 +280,3 @@ export function ProfileForm() {
     </Form>
   );
 }
-
-    
