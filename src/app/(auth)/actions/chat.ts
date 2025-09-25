@@ -292,6 +292,18 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   try {
     const user = await getCurrentUser();
     const userId = user.id;
+
+    // Verify the user is part of the chat before allowing them to send a message
+    const { data: participant, error: participantError } = await supabase
+      .from('chat_participants')
+      .select('user_id')
+      .eq('chat_id', chatId)
+      .eq('user_id', userId)
+      .single();
+
+    if (participantError || !participant) {
+      throw new Error('You are not a member of this chat.');
+    }
     
     const messageData: {
       chat_id: string;
