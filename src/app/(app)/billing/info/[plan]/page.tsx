@@ -1,18 +1,19 @@
+
 'use client';
 
-import { useParams } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Check, Info } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
 
 const planDetails = {
   free: {
     name: 'Free Plan',
-    price: '$0/month',
+    monthlyPrice: '$0/month',
+    lifetimePrice: '$0',
     features: [
       'Unlimited Text Messages',
       'Group Chats up to 5 members',
@@ -25,7 +26,8 @@ const planDetails = {
   },
   pro: {
     name: 'Pro Plan',
-    price: '$10/month',
+    monthlyPrice: '$5/month',
+    lifetimePrice: '$50',
     features: [
       'Everything in Free, plus:',
       'HD Voice Calls',
@@ -34,12 +36,14 @@ const planDetails = {
       'Larger Group Chats (up to 50)',
     ],
     description: 'Unlock powerful features for professionals.',
-    cta: 'Upgrade to Pro',
+    ctaMonthly: 'Upgrade to Pro Monthly',
+    ctaLifetime: 'Get Pro for Life',
     disabled: false,
   },
   business: {
     name: 'Business Plan',
-    price: '$25/month',
+    monthlyPrice: '$15/month',
+    lifetimePrice: '$100',
     features: [
       'Everything in Pro, plus:',
       'Admin Dashboard & Analytics',
@@ -48,7 +52,8 @@ const planDetails = {
       'SLA Guarantees',
     ],
     description: 'Advanced tools for your team and organization.',
-    cta: 'Contact Sales',
+    ctaMonthly: 'Upgrade to Business Monthly',
+    ctaLifetime: 'Get Business for Life',
     disabled: false,
   },
 };
@@ -100,7 +105,16 @@ export default function BillingInfoPage() {
           <CardDescription className="text-lg pt-1">{plan.description}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <p className="text-4xl font-bold">{plan.price}</p>
+          <div className='flex items-baseline gap-6'>
+            <div>
+              <p className='text-sm text-muted-foreground'>Monthly</p>
+              <p className="text-4xl font-bold">{plan.monthlyPrice}</p>
+            </div>
+             <div>
+              <p className='text-sm text-muted-foreground'>Lifetime</p>
+              <p className="text-4xl font-bold">{plan.lifetimePrice}</p>
+            </div>
+          </div>
           <div>
             <h4 className="font-semibold mb-3">Features included:</h4>
             <ul className="space-y-2">
@@ -117,10 +131,21 @@ export default function BillingInfoPage() {
              <p className="text-sm">Billing functionality is coming soon. This page is a placeholder for the checkout process.</p>
           </div>
         </CardContent>
-        <CardFooter>
-          <Button className="w-full" size="lg" disabled={plan.disabled}>
-            {plan.cta}
-          </Button>
+        <CardFooter className='flex-col sm:flex-row gap-4'>
+            {plan.cta ? (
+                 <Button className="w-full" size="lg" disabled={plan.disabled}>
+                    {plan.cta}
+                </Button>
+            ) : (
+                <>
+                    <Button className="w-full" size="lg" disabled={plan.disabled}>
+                        {plan.ctaMonthly}
+                    </Button>
+                    <Button className="w-full" size="lg" variant="outline" disabled={plan.disabled}>
+                        {plan.ctaLifetime}
+                    </Button>
+                </>
+            )}
         </CardFooter>
       </Card>
     </div>
