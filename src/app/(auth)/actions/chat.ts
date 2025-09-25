@@ -425,18 +425,34 @@ export async function sendFriendRequest(toUserId: string) {
     throw new Error("You cannot send a friend request to yourself.");
   }
 
-  // Check if a request already exists or if they are already friends
+  // Check if a request already exists between the two users, regardless of direction.
   const { data: existingRequest, error: existingError } = await supabase
     .from('friend_requests')
     .select('id, status')
     .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
     .limit(1);
 
-  if (existingError) throw existingError;
-  if (existingRequest.length > 0) {
+  if (existingError) {
+    console.error("Error checking for existing friend request:", existingError);
+    throw new Error(existingError.message);
+  }
+  
+  if (existingRequest && existingRequest.length > 0) {
       if(existingRequest[0].status === 'pending') throw new Error("A friend request is already pending.");
       if(existingRequest[0].status === 'accepted') throw new Error("You are already friends with this user.");
-      // If it was declined, we allow sending another one. The old one should be cleaned up.
+  }
+
+  // Check if they are already friends by looking for an existing chat
+  const { data: existingChat, error: chatError } = await supabase
+    .rpc('get_existing_chat', { user1_id: fromUserId, user2_id: toUserId });
+  
+  if (chatError) {
+    console.error("Error checking for existing chat:", chatError);
+    throw new Error(chatError.message);
+  }
+
+  if (existingChat && existingChat.length > 0) {
+    throw new Error("You are already friends with this user.");
   }
   
   const { error } = await supabase
@@ -463,8 +479,6 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
   }
 
   if (!newChatId) {
-    // This can happen if the RPC returns null, which it shouldn't on success.
-    // Re-fetching data is a good fallback.
     revalidatePath('/home');
     return null;
   }
@@ -478,7 +492,6 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
 
   if (chatError || !newChat) {
     console.error("Failed to fetch new chat after accepting request:", chatError);
-    // Even if this fails, the request was accepted, so revalidate.
     revalidatePath('/home');
     return null;
   }
@@ -528,6 +541,8 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home');
 }
+
+    
 
     
 

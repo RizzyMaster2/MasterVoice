@@ -46,12 +46,7 @@ import { useRouter } from 'next/navigation';
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
-    try {
-      const parsed = JSON.parse(error.message);
-      return parsed.message || error.message;
-    } catch (e) {
-      return error.message;
-    }
+    return error.message;
   }
   if (typeof error === 'string') {
     return error;
@@ -373,3 +368,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
