@@ -10,32 +10,55 @@ export function Logo(props: SVGProps<SVGSVGElement>) {
         xmlns="http://www.w3.org/2000/svg"
         {...props}
     >
+        <style>
+            {`
+                .logo-circle, .logo-wave, .logo-line {
+                    stroke-linecap: round;
+                    stroke-linejoin: round;
+                    stroke-width: 1.5;
+                }
+                .logo-circle {
+                    stroke-dasharray: 251;
+                    stroke-dashoffset: 251;
+                    animation: draw-circle 1s ease-in-out forwards;
+                }
+                .logo-wave, .logo-line {
+                    opacity: 0;
+                    animation: fade-in 0.6s ease-in-out forwards;
+                }
+                .logo-wave-1 { animation-delay: 0.5s; }
+                .logo-wave-2 { animation-delay: 0.7s; }
+                .logo-line { animation-delay: 0.9s; }
+
+                @keyframes draw-circle {
+                    to { stroke-dashoffset: 0; }
+                }
+                @keyframes fade-in {
+                    to { opacity: 1; }
+                }
+            `}
+        </style>
         <title>MasterVoice Logo</title>
         <path 
-            d="M12 2C6.48 2 2 6.48 2 12C2 17.52 6.48 22 12 22C17.52 22 22 17.52 22 12C22 6.48 17.52 2 12 2Z" 
+            className="logo-circle"
+            d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" 
             stroke="currentColor" 
-            strokeWidth="1.5" 
-            strokeMiterlimit="10" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
         />
         <path 
-            d="M8.5 12H9.5C10.05 12 10.5 11.55 10.5 11V10C10.5 9.45 10.05 9 9.5 9H8.5C7.95 9 7.5 9.45 7.5 10V11C7.5 11.55 7.95 12 8.5 12Z" 
-            stroke="currentColor" 
-            strokeWidth="1.5" 
-            strokeMiterlimit="10" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
+            className="logo-wave logo-wave-1"
+            d="M8.5 12C8.5 11.1716 9.17157 10.5 10 10.5H10.5" 
+            stroke="currentColor"
         />
         <path 
-            d="M15.5 15H14.5C13.95 15 13.5 14.55 13.5 14V13C13.5 12.45 13.95 12 14.5 12H15.5C16.05 12 16.5 12.45 16.5 13V14C16.5 14.55 16.05 15 15.5 15Z" 
-            stroke="currentColor" 
-            strokeWidth="1.5" 
-            strokeMiterlimit="10" 
-            strokeLinecap="round" 
-            strokeLinejoin="round"
+            className="logo-wave logo-wave-2"
+            d="M15.5 12C15.5 12.8284 14.8284 13.5 14 13.5H13.5" 
+            stroke="currentColor"
         />
-        <path d="M10.5 10.5L13.5 13.5" stroke="currentColor" strokeWidth="1.5" strokeMiterlimit="10" strokeLinecap="round" strokeLinejoin="round"/>
+        <path 
+            className="logo-line"
+            d="M10.5 10.5L13.5 13.5" 
+            stroke="currentColor"
+        />
     </svg>
   );
 }
