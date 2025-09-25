@@ -101,9 +101,76 @@ const pricingTiers = [
   },
 ];
 
+const VoiceCallIllustration = () => (
+    <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto rounded-lg bg-card" preserveAspectRatio="xMidYMid meet">
+        <style>
+            {`
+            .wave-line {
+                stroke-width: 2;
+                stroke-linecap: round;
+                animation: wave 4s ease-in-out infinite;
+            }
+            @keyframes wave {
+                0%, 100% { d: path('M50,150 Q100,100 150,150 T250,150 T350,150'); }
+                50% { d: path('M50,150 Q100,200 150,150 T250,150 T350,150'); }
+            }
+            .node {
+                animation: pulse 2s ease-in-out infinite;
+            }
+            @keyframes pulse {
+                0%, 100% { r: 6; opacity: 1; }
+                50% { r: 8; opacity: 0.7; }
+            }
+            .connection-line {
+                stroke-dasharray: 5;
+                animation: dash 5s linear infinite;
+            }
+            @keyframes dash {
+                to { stroke-dashoffset: -100; }
+            }
+            `}
+        </style>
+        <defs>
+            <radialGradient id="grad1" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                <stop offset="0%" style={{stopColor: 'hsl(var(--primary))', stopOpacity: 0.3}} />
+                <stop offset="100%" style={{stopColor: 'hsl(var(--accent))', stopOpacity: 0}} />
+            </radialGradient>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+
+        {/* Background Grid */}
+        <path d="M0 75 H400 M0 150 H400 M0 225 H400 M75 0 V300 M150 0 V300 M225 0 V300 M300 0 V300 M375 0 V300" stroke="hsl(var(--border) / 0.5)" strokeWidth="0.5" />
+
+        {/* Animated Sound Waves */}
+        <path className="wave-line" style={{animationDelay: '0s'}} fill="none" stroke="hsl(var(--primary) / 0.8)" />
+        <path className="wave-line" style={{animationDelay: '-1s'}} fill="none" stroke="hsl(var(--accent) / 0.6)" />
+        <path className="wave-line" style={{animationDelay: '-2s'}} fill="none" stroke="hsl(var(--primary) / 0.4)" />
+        
+        {/* Connection Nodes */}
+        <circle className="node" cx="50" cy="150" fill="hsl(var(--primary))" filter="url(#glow)" />
+        <circle className="node" style={{animationDelay: '0.5s'}} cx="150" cy="150" fill="hsl(var(--primary))" />
+        <circle className="node" style={{animationDelay: '1s'}} cx="250" cy="150" fill="hsl(var(--primary))" />
+        <circle className="node" style={{animationDelay: '1.5s'}} cx="350" cy="150" fill="hsl(var(--primary))" />
+        
+        <circle className="node" style={{animationDelay: '0.2s'}} cx="100" cy="100" r="4" fill="hsl(var(--accent))" />
+        <circle className="node" style={{animationDelay: '0.8s'}} cx="200" cy="200" r="4" fill="hsl(var(--accent))" />
+        <circle className="node" style={{animationDelay: '1.2s'}} cx="300" cy="100" r="4" fill="hsl(var(--accent))" />
+
+        {/* Connection Lines */}
+        <line className="connection-line" x1="100" y1="100" x2="200" y2="200" stroke="hsl(var(--accent) / 0.5)" strokeWidth="1" />
+        <line className="connection-line" style={{animationDelay: '-2s'}} x1="200" y1="200" x2="300" y2="100" stroke="hsl(var(--accent) / 0.5)" strokeWidth="1" />
+    </svg>
+);
+
+
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-  const voiceCallImage = PlaceHolderImages.find((img) => img.id === 'voice-call');
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -216,18 +283,9 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <Card className="p-2 shadow-lg">
+              <Card className="p-2 shadow-lg overflow-hidden">
                 <CardContent className="p-0">
-                  {voiceCallImage && (
-                    <Image
-                      src={voiceCallImage.imageUrl}
-                      alt={voiceCallImage.description}
-                      data-ai-hint={voiceCallImage.imageHint}
-                      width={600}
-                      height={400}
-                      className="rounded-lg object-cover"
-                    />
-                  )}
+                    <VoiceCallIllustration />
                 </CardContent>
               </Card>
             </div>
