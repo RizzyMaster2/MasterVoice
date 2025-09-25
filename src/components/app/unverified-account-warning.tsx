@@ -9,8 +9,7 @@ export function UnverifiedAccountWarning() {
         <div className="text-amber-800">
           <h3 className="font-bold">Your account is not verified.</h3>
           <p className="text-sm">
-            Please check your email to verify your account and unlock all
-            features.
+            Please check your email to verify your account. Some features, like sending friend requests, are disabled until you verify.
           </p>
         </div>
       </CardContent>

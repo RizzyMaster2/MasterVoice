@@ -8,15 +8,15 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
 
-// Get the current logged-in user's ID
-async function getCurrentUserId() {
+// Get the current logged-in user and their auth data
+async function getCurrentUser() {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
     throw new Error('User not authenticated');
   }
-  return user.id;
+  return user;
 }
 
 // Fetch all user profiles from the database
@@ -151,7 +151,8 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
   const supabase = createClient(cookieStore);
   
   try {
-    const userId = await getCurrentUserId();
+    const user = await getCurrentUser();
+    const userId = user.id;
 
     const { data: existingChat, error: existingError } = await supabase
         .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
@@ -220,7 +221,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
         otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
     };
     
-    revalidatePath('/home');
+    revalidatePath('/home/friends');
     return { chat: chatToReturn, isNew: true };
     
   } catch (error) {
@@ -234,7 +235,8 @@ export async function createGroupChat(name: string, participantIds: string[]): P
     try {
         const cookieStore = cookies();
         const supabase = createClient(cookieStore);
-        const userId = await getCurrentUserId();
+        const user = await getCurrentUser();
+        const userId = user.id;
 
         const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
 
@@ -251,7 +253,6 @@ export async function createGroupChat(name: string, participantIds: string[]): P
             throw new Error(rpcError.message);
         }
         
-        revalidatePath('/home');
         revalidatePath('/home/groups');
         return { ...newGroup, participants: allParticipantIds };
 
@@ -289,7 +290,8 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   const supabase = createClient(cookieStore);
   
   try {
-    const userId = await getCurrentUserId();
+    const user = await getCurrentUser();
+    const userId = user.id;
     
     const messageData: {
       chat_id: string;
@@ -333,7 +335,8 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
   const supabase = createClient(cookieStore);
   
   try {
-    const userId = await getCurrentUserId();
+    const user = await getCurrentUser();
+    const userId = user.id;
     const supabaseAdmin = createAdminClient();
 
     // Verify the user is actually part of this chat before deleting
@@ -361,7 +364,7 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
       throw new Error(deleteError.message);
     }
 
-    revalidatePath('/home');
+    revalidatePath('/home/friends');
 
   } catch(error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
@@ -376,7 +379,8 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
-    const userId = await getCurrentUserId();
+    const user = await getCurrentUser();
+    const userId = user.id;
     const allUsers = await getUsers();
     const userMap = new Map(allUsers.map(u => [u.id, u]));
 
@@ -419,7 +423,12 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
 export async function sendFriendRequest(toUserId: string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
-  const fromUserId = await getCurrentUserId();
+  const fromUser = await getCurrentUser();
+  const fromUserId = fromUser.id;
+  
+  if (!fromUser.email_confirmed_at) {
+    throw new Error("You must verify your email before sending friend requests.");
+  }
 
   if (fromUserId === toUserId) {
     throw new Error("You cannot send a friend request to yourself.");
@@ -429,7 +438,7 @@ export async function sendFriendRequest(toUserId: string) {
   const { data: existingRequest, error: existingError } = await supabase
     .from('friend_requests')
     .select('id, status')
-    .or(`from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId},and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
+    .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
     .limit(1);
 
   if (existingError) {
@@ -464,7 +473,7 @@ export async function sendFriendRequest(toUserId: string) {
     throw new Error(error.message);
   }
 
-  revalidatePath('/home');
+  revalidatePath('/home/friends');
 }
 
 export async function acceptFriendRequest(requestId: string): Promise<Chat | null> {
@@ -479,7 +488,7 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
   }
 
   if (!newChatId) {
-    revalidatePath('/home');
+    revalidatePath('/home/friends');
     return null;
   }
   
@@ -492,16 +501,17 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
 
   if (chatError || !newChat) {
     console.error("Failed to fetch new chat after accepting request:", chatError);
-    revalidatePath('/home');
+    revalidatePath('/home/friends');
     return null;
   }
 
   const allUsers = await getUsers();
   const userMap = new Map(allUsers.map(u => [u.id, u]));
-  const userId = await getCurrentUserId();
+  const user = await getCurrentUser();
+  const userId = user.id;
   const otherParticipantId = newChat.chat_participants.find(p => p.user_id !== userId)?.user_id;
 
-  revalidatePath('/home');
+  revalidatePath('/home/friends');
 
   return {
     ...newChat,
@@ -523,7 +533,7 @@ export async function declineFriendRequest(requestId: string) {
     throw new Error(error.message);
   }
 
-  revalidatePath('/home');
+  revalidatePath('/home/friends');
 }
 
 export async function cancelFriendRequest(requestId: string) {
@@ -539,7 +549,7 @@ export async function cancelFriendRequest(requestId: string) {
     throw new Error(error.message);
   }
 
-  revalidatePath('/home');
+  revalidatePath('/home/friends');
 }
 
     

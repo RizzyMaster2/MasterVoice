@@ -194,8 +194,7 @@ export function ProfileForm() {
           <ShieldAlert className="h-4 w-4" />
           <AlertTitle>Account Not Verified</AlertTitle>
           <AlertDescription>
-            Please verify your email address to enable profile editing and unlock
-            all features.
+            Please verify your email address to enable profile editing and sending friend requests.
           </AlertDescription>
         </Alert>
       )}
