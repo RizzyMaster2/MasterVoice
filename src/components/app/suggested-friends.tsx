@@ -7,38 +7,37 @@ import type { UserProfile } from '@/lib/data';
 import { Avatar, AvatarFallback, AvatarImage } from '../ui/avatar';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { Plus, Search, Sparkles, Loader2, Users } from 'lucide-react';
+import { Plus, Search, Sparkles, Loader2, Users, Send } from 'lucide-react';
 import { CreateGroupDialog } from './create-group-dialog';
+import { Check } from 'lucide-react';
 
 type SuggestedFriendsProps = {
   currentUser: UserProfile;
   allUsers: UserProfile[];
   onAddFriend: (friend: UserProfile) => void;
   contactIds: Set<string>;
+  outgoingRequestUserIds: Set<string>;
   onGroupCreated: () => void;
-  isAddingFriend: boolean;
+  isProcessing: boolean;
 };
 
-export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, onGroupCreated, isAddingFriend }: SuggestedFriendsProps) {
+export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactIds, outgoingRequestUserIds, onGroupCreated, isProcessing }: SuggestedFriendsProps) {
   const [searchQuery, setSearchQuery] = useState('');
   const [userBeingAdded, setUserBeingAdded] = useState<string | null>(null);
 
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
   const filteredUsers = useMemo(() => {
-    // Start by filtering out the current user and existing contacts from the pool of all users.
     const availableUsers = allUsers.filter(
       (user) => user.id !== currentUser.id && !contactIds.has(user.id)
     );
 
     if (searchQuery) {
-      // If there's a search query, filter the available users by name.
       return availableUsers.filter((user) =>
         user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
       );
     }
     
-    // If no search query, just show the first 5 available users as suggestions.
     return availableUsers.slice(0, 5);
 
   }, [allUsers, currentUser.id, contactIds, searchQuery]);
@@ -49,11 +48,10 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
   }
   
   useEffect(() => {
-    // When the global adding transition is finished, reset the local loading state.
-    if (!isAddingFriend) {
+    if (!isProcessing) {
         setUserBeingAdded(null);
     }
-  }, [isAddingFriend]);
+  }, [isProcessing]);
 
 
   return (
@@ -93,15 +91,19 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
                     <p className="font-semibold">{user.display_name}</p>
                   </div>
                 </div>
-                {/* The check below is technically redundant now, but kept for safety. */}
-                {!contactIds.has(user.id) && (
-                    <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isAddingFriend && userBeingAdded === user.id}>
-                       {isAddingFriend && userBeingAdded === user.id ? (
+                 {outgoingRequestUserIds.has(user.id) ? (
+                    <Button variant="ghost" size="sm" disabled>
+                        <Check className="h-4 w-4 mr-2" />
+                        Sent
+                    </Button>
+                ) : (
+                    <Button variant="ghost" size="icon" onClick={() => handleAddClick(user)} disabled={isProcessing && userBeingAdded === user.id}>
+                       {isProcessing && userBeingAdded === user.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
                        ) : (
                         <Plus className="h-4 w-4" />
                        )}
-                        <span className="sr-only">Add friend</span>
+                        <span className="sr-only">Send friend request</span>
                     </Button>
                 )}
               </div>

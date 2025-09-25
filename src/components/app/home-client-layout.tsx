@@ -1,30 +1,32 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat } from '@/lib/data';
+import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition, useMemo, useEffect } from 'react';
-import { createChat, getChats, getUsers } from '@/app/(auth)/actions/chat';
+import { getChats, getUsers, sendFriendRequest, getFriendRequests, cancelFriendRequest, acceptFriendRequest, declineFriendRequest } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { createClient } from '@/lib/supabase/client';
+import { FriendRequests } from './friend-requests';
 
 interface HomeClientLayoutProps {
     currentUser: UserProfile;
     initialChats: AppChat[];
+    initialFriendRequests: { incoming: FriendRequest[], outgoing: FriendRequest[] };
     allUsers: UserProfile[];
 }
 
-export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeClientLayoutProps) {
+export function HomeClientLayout({ currentUser, initialChats, initialFriendRequests, allUsers }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
+  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  const [isAddingFriend, startTransition] = useTransition();
+  const [isProcessing, startTransition] = useTransition();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
   const supabase = createClient();
 
-  // Separate friends and groups
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
   const friendContactIds = useMemo(() => {
     const ids = new Set<string>();
@@ -33,6 +35,9 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     });
     return ids;
   }, [friends]);
+
+  const outgoingRequestUserIds = useMemo(() => new Set(friendRequests.outgoing.map(req => req.to_user_id)), [friendRequests.outgoing]);
+
 
   useEffect(() => {
     setIsClient(true);
@@ -43,140 +48,155 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Listen for real-time chat creations and deletions
   useEffect(() => {
-    const channel = supabase
-      .channel(`realtime-chats-for-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'chat_participants',
-          filter: `user_id=eq.${currentUser.id}`,
-        },
-        async () => {
-           // A new chat participant record was inserted, meaning we were added to a chat.
-           // We always refresh the chat list to get the new data.
-           const updatedChats = await refreshChats();
-           // Find the new chat to show a toast
-           const currentChatIds = new Set(chats.map(c => c.id));
-           const newChat = updatedChats.find(c => !currentChatIds.has(c.id));
+    if (!currentUser) return;
 
-            if (newChat && !newChat.is_group) {
+    const handleNewFriendRequest = (payload: any) => {
+        const newRequest = payload.new;
+        // Check if it's an incoming request and add profile info
+        if (newRequest.to_user_id === currentUser.id) {
+            const fromUser = allUsers.find(u => u.id === newRequest.from_user_id);
+            if (fromUser) {
+                setFriendRequests(prev => ({
+                    ...prev,
+                    incoming: [...prev.incoming, { ...newRequest, profiles: fromUser }]
+                }));
                  toast({
-                    title: "New Friend!",
-                    description: `${newChat.otherParticipant?.display_name} added you as a friend.`,
-                    variant: 'success'
+                    title: "New Friend Request",
+                    description: `You received a friend request from ${fromUser.display_name}.`,
+                    variant: 'info'
                 });
             }
+        } else if (newRequest.from_user_id === currentUser.id) {
+            // It's an outgoing request we just sent
+             setFriendRequests(prev => ({
+                ...prev,
+                outgoing: [...prev.outgoing, newRequest]
+            }));
         }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'chat_participants',
-          filter: `user_id=eq.${currentUser.id}`,
-        },
-        (payload) => {
-          const deletedChatId = payload.old.chat_id;
-          const removedChat = chats.find(c => c.id === deletedChatId);
-          
-          setChats(prev => prev.filter(c => c.id !== deletedChatId));
-
-          if (selectedChat?.id === deletedChatId) {
-            setSelectedChat(null);
-          }
-          
-          if (removedChat && !removedChat.is_group && removedChat.otherParticipant) {
-             toast({
-                title: "Friend Removed",
-                description: `${removedChat.otherParticipant.display_name} removed you as a friend.`,
-                variant: "warning",
+    };
+    
+    const handleRequestUpdate = (payload: any) => {
+        const updatedRequest = payload.new;
+        if(updatedRequest.status === 'accepted' && updatedRequest.from_user_id === currentUser.id) {
+            const toUser = allUsers.find(u => u.id === updatedRequest.to_user_id);
+            toast({
+                title: "Friend Request Accepted",
+                description: `${toUser?.display_name || 'A user'} accepted your friend request.`,
+                variant: 'success'
             });
-          }
+            refreshAllData();
+        }
+    }
+
+    const handleRequestDelete = (payload: any) => {
+         const deletedRequest = payload.old;
+         if (!deletedRequest) return;
+         
+         // If an incoming request was deleted (e.g. accepted/declined)
+         if (deletedRequest.to_user_id === currentUser.id) {
+              setFriendRequests(prev => ({ ...prev, incoming: prev.incoming.filter(r => r.id !== deletedRequest.id) }));
+         }
+         // If an outgoing request was deleted (e.g. they responded or we cancelled)
+         if (deletedRequest.from_user_id === currentUser.id) {
+             setFriendRequests(prev => ({ ...prev, outgoing: prev.outgoing.filter(r => r.id !== deletedRequest.id) }));
+         }
+    };
+
+
+    const friendRequestChannel = supabase.channel(`friend-requests-${currentUser.id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests' }, handleNewFriendRequest)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests' }, handleRequestUpdate)
+        .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'friend_requests' }, handleRequestDelete)
+        .subscribe();
+
+     const chatChannel = supabase
+      .channel(`realtime-chats-for-${currentUser.id}`)
+      .on( 'postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
+        () => refreshAllData()
+      )
+      .on( 'postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
+        (payload) => {
+            const deletedChatId = payload.old.chat_id;
+            setChats(prev => prev.filter(c => c.id !== deletedChatId));
+            if (selectedChat?.id === deletedChatId) setSelectedChat(null);
         }
       )
       .subscribe();
 
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(friendRequestChannel);
+      supabase.removeChannel(chatChannel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, currentUser.id, chats, selectedChat?.id]);
+  }, [currentUser.id, supabase]);
 
-
-  const refreshChats = async () => {
-    const updatedChats = await getChats();
-    const friendChats = updatedChats.filter(c => !c.is_group);
-    const users = await getUsers();
-    
-    const processedChats = friendChats.map(chat => {
-        const otherId = chat.participants.find(pId => pId !== currentUser.id);
-        if (otherId) {
-            const otherUser = users.find(u => u.id === otherId);
-            return { ...chat, otherParticipant: otherUser };
-        }
-        return null;
-    }).filter(Boolean) as AppChat[];
-
-    setChats(processedChats);
-    return processedChats;
+  const refreshAllData = async () => {
+    const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
+    setChats(chats);
+    setFriendRequests(requests);
+    return chats;
   };
-
-  const handleAddFriend = (friend: UserProfile) => {
+  
+  const handleSendFriendRequest = (friend: UserProfile) => {
     startTransition(async () => {
       try {
-        const { chat: newChat, isNew } = await createChat(friend.id);
-        
-        if (newChat) {
-            if (isNew) {
-                // Manually add the new chat to the state for an immediate UI update
-                 const fullNewChat = { ...newChat, otherParticipant: friend };
-                 setChats(prev => {
-                    const updatedChats = [fullNewChat, ...prev];
-                    return updatedChats.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-                });
-                setSelectedChat(fullNewChat); // Immediately select the new chat
-                toast({
-                    title: "Friend Added",
-                    description: `You can now chat with ${friend.display_name}.`,
-                    variant: 'success'
-                });
-            } else {
-                toast({
-                    title: "Chat already exists",
-                    description: "You already have a conversation with this user.",
-                });
-                // If the chat exists, find and select it from the current state
-                const existingChat = chats.find(c => c.id === newChat.id);
-                if(existingChat) {
-                  setSelectedChat(existingChat)
-                } else {
-                  // If it doesn't exist in local state, refresh and select
-                  const updatedChats = await refreshChats();
-                  const chatToSelect = updatedChats.find(c => c.id === newChat.id);
-                  if (chatToSelect) setSelectedChat(chatToSelect);
-                }
-            }
-        }
+        await sendFriendRequest(friend.id);
+        toast({
+          title: "Request Sent",
+          description: `Your friend request to ${friend.display_name} has been sent.`,
+          variant: 'success'
+        });
       } catch (error) {
-          console.error("Failed to create chat:", error);
-          toast({
-              title: "Failed to Add Friend",
-              description: error instanceof Error ? error.message : "An unknown error occurred.",
-              variant: "destructive",
-          });
+        toast({
+          title: "Error",
+          description: error instanceof Error ? error.message : "Could not send friend request.",
+          variant: "destructive",
+        });
       }
     });
   };
 
+  const handleRequestResponse = (action: 'accept' | 'decline' | 'cancel', request: FriendRequest) => {
+    startTransition(async () => {
+        try {
+            let user, title, description;
+            switch(action) {
+                case 'accept':
+                    await acceptFriendRequest(request.id);
+                    user = request.profiles;
+                    title = "Request Accepted";
+                    description = `You are now friends with ${user?.display_name}.`;
+                    await refreshAllData();
+                    break;
+                case 'decline':
+                    await declineFriendRequest(request.id);
+                    user = request.profiles;
+                    title = "Request Declined";
+                    description = `You have declined the friend request from ${user?.display_name}.`;
+                    break;
+                case 'cancel':
+                    await cancelFriendRequest(request.id);
+                    user = request.profiles;
+                    title = "Request Cancelled";
+                    description = `You have cancelled your friend request to ${user?.display_name}.`;
+                    break;
+            }
+             toast({ title, description, variant: 'success' });
+        } catch (error) {
+             toast({
+                title: 'Error',
+                description: error instanceof Error ? error.message : `An unknown error occurred.`,
+                variant: 'destructive',
+            });
+        }
+    })
+  };
+
+
   const handleGroupCreated = async () => {
-    // No need to switch view, just refresh chats in the background. 
-    // The user will navigate to the groups page to see it.
-    await refreshChats();
+    await refreshAllData();
     toast({
         title: "Group Created",
         description: "You can view your new group on the Groups page.",
@@ -209,17 +229,21 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             />
         </div>
         <div className="w-full lg:w-[320px] flex flex-col gap-6">
+            <FriendRequests
+                requests={friendRequests}
+                onRespond={handleRequestResponse}
+                isProcessing={isProcessing}
+            />
             <SuggestedFriends
                 currentUser={currentUser}
                 allUsers={allUsers}
-                onAddFriend={handleAddFriend}
+                onAddFriend={handleSendFriendRequest}
                 contactIds={friendContactIds}
+                outgoingRequestUserIds={outgoingRequestUserIds}
                 onGroupCreated={handleGroupCreated}
-                isAddingFriend={isAddingFriend}
+                isProcessing={isProcessing}
             />
         </div>
     </div>
   );
 }
-
-    

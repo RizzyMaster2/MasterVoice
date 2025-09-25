@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import type { Chat, Message, UserProfile } from '@/lib/data';
+import type { Chat, Message, UserProfile, FriendRequest } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
@@ -144,7 +144,8 @@ export async function getChats(): Promise<Chat[]> {
 }
 
 
-// Create a new one-on-one chat
+// This function is now only used INTERNALLY by the accept_friend_request RPC
+// It is no longer exposed as a primary user action.
 export async function createChat(otherUserId: string): Promise<{ chat: Chat | null, isNew: boolean }> {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
@@ -369,4 +370,117 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
   }
 }
 
+// --- Friend Request Actions ---
+
+export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], outgoing: FriendRequest[] }> {
+  try {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const userId = await getCurrentUserId();
+
+    // Fetch incoming requests
+    const { data: incoming, error: incomingError } = await supabase
+      .from('friend_requests')
+      .select('*, profiles:from_user_id(*)')
+      .eq('to_user_id', userId)
+      .eq('status', 'pending');
+
+    if (incomingError) throw incomingError;
+
+    // Fetch outgoing requests
+    const { data: outgoing, error: outgoingError } = await supabase
+      .from('friend_requests')
+      .select('*, profiles:to_user_id(*)')
+      .eq('from_user_id', userId)
+      .eq('status', 'pending');
+      
+    if (outgoingError) throw outgoingError;
+
+    return { incoming: incoming as FriendRequest[], outgoing: outgoing as FriendRequest[] };
+  } catch (error) {
+    console.error("Error fetching friend requests:", error);
+    return { incoming: [], outgoing: [] };
+  }
+}
+
+export async function sendFriendRequest(toUserId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const fromUserId = await getCurrentUserId();
+
+  if (fromUserId === toUserId) {
+    throw new Error("You cannot send a friend request to yourself.");
+  }
+
+  // Check if a request already exists or if they are already friends
+  const { data: existingRequest, error: existingError } = await supabase
+    .from('friend_requests')
+    .select('id')
+    .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
+    .limit(1);
+
+  if (existingError) throw existingError;
+  if (existingRequest.length > 0) throw new Error("A friend request already exists.");
+  
+  const { data: existingChat, error: chatError } = await supabase.rpc('get_existing_chat', {user1_id: fromUserId, user2_id: toUserId});
+  if (chatError) throw chatError;
+  if (existingChat && existingChat.length > 0) throw new Error("You are already friends with this user.");
+
+
+  const { error } = await supabase
+    .from('friend_requests')
+    .insert({ from_user_id: fromUserId, to_user_id: toUserId });
+  
+  if (error) {
+    console.error("Error sending friend request:", error);
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/home');
+}
+
+export async function acceptFriendRequest(requestId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
+  const { error: rpcError } = await supabase.rpc('accept_friend_request', { request_id: requestId });
+
+  if (rpcError) {
+    console.error("Error accepting friend request via RPC:", rpcError);
+    throw new Error(rpcError.message);
+  }
+  
+  revalidatePath('/home');
+}
+
+export async function declineFriendRequest(requestId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const { error } = await supabase
+    .from('friend_requests')
+    .update({ status: 'declined' })
+    .eq('id', requestId);
     
+  if (error) {
+    console.error("Error declining friend request:", error);
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/home');
+}
+
+export async function cancelFriendRequest(requestId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const { error } = await supabase
+    .from('friend_requests')
+    .delete()
+    .eq('id', requestId);
+    
+  if (error) {
+    console.error("Error cancelling friend request:", error);
+    throw new Error(error.message);
+  }
+
+  revalidatePath('/home');
+}

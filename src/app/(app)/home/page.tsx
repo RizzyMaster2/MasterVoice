@@ -1,8 +1,8 @@
 
-import type { UserProfile } from '@/lib/data';
+import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { getUsers, getChats } from '@/app/(auth)/actions/chat';
+import { getUsers, getChats, getFriendRequests } from '@/app/(auth)/actions/chat';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { OnboardingModal } from '@/components/app/onboarding-modal';
@@ -22,7 +22,11 @@ export default async function HomePage() {
 
   const isVerified = !!authUser.email_confirmed_at;
 
-  const [usersData, chatsData] = await Promise.all([getUsers(), getChats()]);
+  const [usersData, chatsData, friendRequestsData] = await Promise.all([
+      getUsers(), 
+      getChats(),
+      getFriendRequests()
+    ]);
   
   const currentUserProfile: UserProfile = {
       id: authUser.id,
@@ -40,6 +44,7 @@ export default async function HomePage() {
         <HomeClientLayout
             currentUser={currentUserProfile}
             initialChats={chatsData}
+            initialFriendRequests={friendRequestsData}
             allUsers={usersData}
         />
       </div>

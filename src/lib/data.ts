@@ -32,6 +32,15 @@ export type Message = {
   profiles?: UserProfile | null; // Associated sender profile
 };
 
+export type FriendRequest = {
+  id: string;
+  created_at: string;
+  from_user_id: string;
+  to_user_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  profiles: UserProfile | null; // The profile of the user who sent the request
+}
+
 // Map Supabase user to our app's user profile concept for UI components
 export const mapSupabaseUserToAppUser = (user: SupabaseUser): UserProfile => ({
     id: user.id,
