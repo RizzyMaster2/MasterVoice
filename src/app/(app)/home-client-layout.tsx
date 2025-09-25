@@ -3,10 +3,11 @@
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { SuggestedFriends } from '@/components/app/suggested-friends';
-import { useState, useTransition, useMemo } from 'react';
-import { createChat, getChats } from '@/app/(auth)/actions/chat';
+import { useState, useMemo, useEffect } from 'react';
+import { getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
+import { Skeleton } from '../ui/skeleton';
+import { createClient } from '@/lib/supabase/client';
 
 interface HomeClientLayoutProps {
     currentUser: UserProfile;
@@ -16,73 +17,91 @@ interface HomeClientLayoutProps {
 
 export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
-  const [isAddingFriend, startTransition] = useTransition();
+  const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const { toast } = useToast();
+  const [isClient, setIsClient] = useState(false);
+  const supabase = createClient();
 
-  const handleAddFriend = (friend: UserProfile) => {
-    startTransition(async () => {
-      try {
-        const { chat, isNew } = await createChat(friend.id);
-        
-        if (chat) {
-          if (isNew) {
-            // Manually add the new chat to the state to avoid a full refresh
-            // and potentially losing client-side state.
-             const newChatWithProfile: AppChat = {
-                ...chat,
-                otherParticipant: friend
-            };
-            setChats(prev => [newChatWithProfile, ...prev]);
+  const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
-            toast({
-                title: "Friend Added",
-                description: `You can now chat with ${friend.display_name}.`,
-                variant: 'success'
-            });
-          } else {
-             toast({
-                title: "Chat already exists",
-                description: "You already have a conversation with this user.",
-            });
-          }
+  useEffect(() => {
+    setIsClient(true);
+    if (friends.length > 0 && !selectedChat) {
+      const sortedChats = [...friends].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setSelectedChat(sortedChats[0]);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    
+    const refreshAllData = async () => {
+        const chats = await getChats();
+        setChats(chats);
+    };
+
+     const chatChannel = supabase
+      .channel(`realtime-chats-for-${currentUser.id}`)
+      .on( 'postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
+        (payload) => {
+            const newChatId = payload.new.chat_id;
+            const isExisting = chats.some(c => c.id === newChatId);
+            if (!isExisting) {
+                toast({
+                    title: "New Friend",
+                    description: "Someone added you as a friend! Your chat list has been updated.",
+                    variant: 'info'
+                });
+                refreshAllData();
+            }
         }
-      } catch (error) {
-          console.error("Failed to create chat:", error);
-          toast({
-              title: "Failed to Add Friend",
-              description: error instanceof Error ? error.message : "An unknown error occurred.",
-              variant: "destructive",
-          });
-      }
-    });
-  };
+      )
+      .on( 'postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
+        (payload) => {
+            const deletedChatId = payload.old.chat_id;
+            const removedChat = chats.find(c => c.id === deletedChatId);
+            setChats(prev => prev.filter(c => c.id !== deletedChatId));
+            if (selectedChat?.id === deletedChatId) setSelectedChat(null);
+            
+            if (removedChat) {
+                toast({
+                    title: "Friend Removed",
+                    description: `You are no longer friends with ${removedChat.otherParticipant?.display_name || 'a user'}.`,
+                    variant: 'info'
+                });
+            }
+        }
+      )
+      .subscribe();
 
-  const contactIds = useMemo(() => {
-    const ids = new Set(chats.flatMap(c => c.participants));
-    ids.add(currentUser.id); // Ensure current user isn't in suggestions
-    return ids;
-  }, [chats, currentUser.id]);
 
-  const refreshChats = async () => {
-    const updatedChats = await getChats();
-    setChats(updatedChats);
-  };
+    return () => {
+      supabase.removeChannel(chatChannel);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, supabase, allUsers, chats]);
+
+
+  if (!isClient) {
+    return (
+      <div className="flex-1 flex flex-col h-full">
+        <Skeleton className="flex-1 h-full" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
-        <div className="flex-1 h-full">
-        <ChatLayout currentUser={currentUser} chats={chats} setChats={setChats} allUsers={allUsers} />
-        </div>
-        <div className="w-full lg:w-[320px] flex flex-col gap-6">
-        <SuggestedFriends
-            currentUser={currentUser}
+    <div className="flex-1 h-full">
+        <ChatLayout 
+            currentUser={currentUser} 
+            chats={friends}
+            setChats={setChats}
             allUsers={allUsers}
-            onAddFriend={handleAddFriend}
-            contactIds={contactIds}
-            onGroupCreated={refreshChats}
-            isAddingFriend={isAddingFriend}
+            selectedChat={selectedChat}
+            setSelectedChat={setSelectedChat}
+            listType="friend"
         />
-        </div>
     </div>
   );
 }

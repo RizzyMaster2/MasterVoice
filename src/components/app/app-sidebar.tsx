@@ -1,3 +1,4 @@
+
 'use client';
 
 import Link from 'next/link';
@@ -6,6 +7,7 @@ import {
   Home,
   Users,
   Shield,
+  UserPlus,
 } from 'lucide-react';
 
 import {
@@ -21,8 +23,13 @@ import { useUser } from '@/hooks/use-user';
 const menuItems = [
   {
     href: '/home',
-    label: 'Friends',
+    label: 'Chats',
     icon: Home,
+  },
+   {
+    href: '/home/friends',
+    label: 'Friends',
+    icon: UserPlus,
   },
   {
     href: '/home/groups',
