@@ -34,7 +34,7 @@ export default function NotFound() {
         <CardFooter className="flex justify-center">
            <Button asChild>
             <Link href="/">
-              <Home className="mr-2" /> Go to Homepage
+              <Home className="mr-2 h-4 w-4" /> Go to Homepage
             </Link>
           </Button>
         </CardFooter>
@@ -42,5 +42,3 @@ export default function NotFound() {
     </div>
   );
 }
-
-    

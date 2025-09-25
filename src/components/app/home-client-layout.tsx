@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat, FriendRequest, HomeClientLayoutProps } from '@/lib/data';
+import type { UserProfile, Chat as AppChat, HomeClientLayoutProps } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { useState, useMemo, useEffect } from 'react';
 import { getChats } from '@/app/(auth)/actions/chat';
@@ -61,7 +61,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
             if (removedChat) {
                 toast({
                     title: "Friend Removed",
-                    description: `You are no longer friends with ${removedChat.otherParticipant?.display_name || 'a user'}.`,
+                    description: `You are no longer friends with ${getErrorMessage(removedChat.otherParticipant?.display_name || 'a user')}.`,
                     variant: 'info'
                 });
             }
@@ -98,4 +98,24 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         />
     </div>
   );
+}
+
+function getErrorMessage(error: unknown): string {
+    let message: string;
+    if (error instanceof Error) {
+        message = error.message;
+    } else if (error && typeof error === 'object' && 'message' in error) {
+        message = String((error as { message: unknown }).message);
+    } else if (typeof error === 'string') {
+        message = error;
+    } else {
+        message = 'An unknown error occurred.';
+    }
+
+    try {
+        const parsed = JSON.parse(message);
+        return parsed.message || parsed.error_description || message;
+    } catch (e) {
+        return message;
+    }
 }

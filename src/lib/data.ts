@@ -45,6 +45,10 @@ export interface HomeClientLayoutProps {
     currentUser: UserProfile;
     initialChats: Chat[];
     allUsers: UserProfile[];
+    initialFriendRequests: {
+        incoming: FriendRequest[];
+        outgoing: FriendRequest[];
+    }
 }
 
 // Map Supabase user to our app's user profile concept for UI components
