@@ -142,8 +142,16 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
             return;
           }
 
-          if (newMessage && newMessage.sender_id !== currentUser.id) {
-            setMessages((prevMessages) => [...prevMessages, newMessage as Message]);
+          if (newMessage) {
+            setMessages((prevMessages) => {
+              // If the message is already in the list (e.g. optimistic update), don't add it again.
+              // This is a simplified check, for more complex scenarios, you might want to replace
+              // the optimistically added message with the one from the server.
+              if (prevMessages.some(m => m.id === newMessage.id)) {
+                return prevMessages;
+              }
+              return [...prevMessages, newMessage as Message];
+            });
             setTimeout(scrollToBottom, 100);
           }
         }
@@ -187,7 +195,8 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
     startSendingTransition(async () => {
       try {
         const sentMessage = await sendMessage(selectedChat.id, messageContent);
-        setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...m, ...sentMessage } : m));
+        // Replace the temporary message with the real one from the server
+        setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...sentMessage, profiles: currentUser } as Message : m));
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -469,3 +478,5 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
     </Card>
   );
 }
+
+    
