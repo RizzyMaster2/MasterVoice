@@ -2,50 +2,56 @@
   "placeholderImages": [
     {
       "id": "hero",
-      "description": "Abstract network of connected nodes, representing communication and AI.",
-      "imageUrl": "https://picsum.photos/seed/100/600/400",
-      "imageHint": "abstract network"
+      "description": "Clean and modern audio waveform representing voice communication.",
+      "imageUrl": "https://images.unsplash.com/photo-1661922028028-e3c340d459d4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwyfHxhdWRpbyUyMHdhdmVmb3JtfGVufDB8fHx8MTc1ODgxNzU0M3ww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "audio waveform"
+    },
+    {
+      "id": "voice-call",
+      "description": "A person wearing headphones, engaged in a voice call in a modern office.",
+      "imageUrl": "https://images.unsplash.com/photo-1658874379930-13ab23191da6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBoZWFkcGhvbmVzfGVufDB8fHx8MTc1ODgyNjgzNHww&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "person headphones"
     },
     {
       "id": "avatar1",
       "description": "Portrait of a smiling woman.",
-      "imageUrl": "https://picsum.photos/seed/101/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1614283233556-f35b0c801ef1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc1ODc1MTMyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "woman portrait"
     },
     {
       "id": "avatar2",
       "description": "Portrait of a man with glasses.",
-      "imageUrl": "https://picsum.photos/seed/102/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1715029005043-e88d219a3c48?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8bWFuJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzU4ODMwNTYxfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "man portrait"
     },
     {
       "id": "avatar3",
       "description": "Portrait of a person with short hair.",
-      "imageUrl": "https://picsum.photos/seed/103/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1540569014015-19a7be504e3a?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwzfHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg3ODg5NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
       "id": "avatar4",
       "description": "Portrait of a woman with curly hair.",
-      "imageUrl": "https://picsum.photos/seed/104/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1609505848912-b7c3b8b4beda?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw4fHx3b21hbiUyMHBvcnRyYWl0fGVufDB8fHx8MTc1ODc1MTMyM3ww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "woman portrait"
     },
     {
       "id": "avatar5",
       "description": "Portrait of a man in a suit.",
-      "imageUrl": "https://picsum.photos/seed/105/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1636377985931-898218afd306?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxtYW4lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg4MzA1NjF8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "man portrait"
     },
     {
       "id": "avatar6",
       "description": "Portrait of a user.",
-      "imageUrl": "https://picsum.photos/seed/106/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw3fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg3ODg5NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
       "id": "avatar7",
       "description": "Portrait of a person outdoors.",
-      "imageUrl": "https://picsum.photos/seed/107/200/200",
+      "imageUrl": "https://images.unsplash.com/photo-1590086782792-42dd2350140d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3NTg3ODg5NzR8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     }
   ]

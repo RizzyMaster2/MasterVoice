@@ -6,15 +6,19 @@ import {
   Sparkles,
   User,
   MoveRight,
+  Phone,
+  Radio,
+  BarChart,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Logo } from '@/components/logo';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
+import { Check } from 'lucide-react';
 
 const features = [
   {
@@ -24,16 +28,16 @@ const features = [
       'Engage in seamless, real-time one-on-one conversations with your connections.',
   },
   {
+    icon: <Phone className="w-8 h-8 text-primary" />,
+    title: 'Voice Calls',
+    description:
+      'Experience crystal-clear, low-latency voice calls with anyone, anywhere.',
+  },
+  {
     icon: <Users className="w-8 h-8 text-primary" />,
     title: 'User Presence',
     description:
       'Instantly see who is online, making it easier to start a conversation right away.',
-  },
-  {
-    icon: <Sparkles className="w-8 h-8 text-primary" />,
-    title: 'Suggested Friends',
-    description:
-      'Our AI-powered tool helps you discover and connect with new people who share your interests.',
   },
   {
     icon: <User className="w-8 h-8 text-primary" />,
@@ -43,8 +47,58 @@ const features = [
   },
 ];
 
+const pricingTiers = [
+  {
+    name: 'Free',
+    price: '$0',
+    frequency: '/ month',
+    description: 'For individuals and small teams getting started.',
+    features: [
+      'Unlimited Text Messages',
+      'Group Chats up to 5 members',
+      'Basic Voice Calls',
+      'Community Support',
+    ],
+    cta: 'Get Started',
+    href: '/signup',
+    variant: 'outline',
+  },
+  {
+    name: 'Pro',
+    price: '$10',
+    frequency: '/ month',
+    description: 'For professionals who need more power.',
+    features: [
+      'Everything in Free, plus:',
+      'HD Voice Calls',
+      'Noise Cancellation',
+      'Priority Support',
+    ],
+    cta: 'Upgrade to Pro',
+    href: '#',
+    variant: 'default',
+    featured: true,
+  },
+  {
+    name: 'Business',
+    price: '$25',
+    frequency: '/ month',
+    description: 'For large teams and organizations.',
+    features: [
+      'Everything in Pro, plus:',
+      'Admin Dashboard',
+      'Advanced Analytics',
+      '24/7 Dedicated Support',
+    ],
+    cta: 'Contact Sales',
+    href: '#',
+    variant: 'outline',
+  },
+];
+
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+  const voiceCallImage = PlaceHolderImages.find((img) => img.id === 'voice-call');
 
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -61,7 +115,7 @@ export default function Home() {
               variant="outline"
               className="mb-4 border-accent/50 text-accent"
             >
-              New: AI-Powered Friend Suggestions!
+              Now with Crystal-Clear Voice Calls!
             </Badge>
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl">
               Master Your Voice,
@@ -70,9 +124,8 @@ export default function Home() {
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
               MasterVoice is a modern communication platform designed for
-              meaningful interactions. Chat in real-time, personalize your
-              profile, and discover new connections with our intelligent
-              suggestion tool.
+              meaningful interactions. Chat in real-time, engage in crystal-clear voice calls,
+              and personalize your profile.
             </p>
             <div className="mt-8 flex justify-center gap-4">
               <Button size="lg" asChild>
@@ -125,43 +178,37 @@ export default function Home() {
             <div className="grid gap-12 md:grid-cols-2 md:items-center">
               <div>
                 <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
-                  Intelligent Connections,
-                  <br />
-                  Powered by AI
+                  Crystal-Clear Voice Calls
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Tired of swiping? Our advanced GenAI analyzes shared interests
-                  and interaction styles to suggest genuinely compatible
-                  connections. Spend less time searching and more time talking.
+                  Connect with friends and colleagues through high-fidelity, low-latency voice calls. Whether it's a one-on-one catch-up or a group discussion, your conversations will be seamless.
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Radio className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span>
-                      <strong className="font-semibold">Smart Matching:</strong>{' '}
-                      Get suggestions based on a deep understanding of who you
-                      are.
+                      <strong className="font-semibold">Low-Latency Audio:</strong>{' '}
+                      Experience real-time conversations with minimal delay.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Users className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span>
                       <strong className="font-semibold">
-                        Discover Hidden Gems:
+                        HD Voice Quality:
                       </strong>{' '}
-                      Find people outside your usual circles who you&apos;ll click
-                      with.
+                      Enjoy rich, clear audio that makes you feel like you're in the same room.
                     </span>
                   </li>
                 </ul>
               </div>
               <Card className="p-2 shadow-lg">
                 <CardContent className="p-0">
-                  {heroImage && (
+                  {voiceCallImage && (
                     <Image
-                      src={heroImage.imageUrl}
-                      alt={heroImage.description}
-                      data-ai-hint={heroImage.imageHint}
+                      src={voiceCallImage.imageUrl}
+                      alt={voiceCallImage.description}
+                      data-ai-hint={voiceCallImage.imageHint}
                       width={600}
                       height={400}
                       className="rounded-lg object-cover"
@@ -170,6 +217,51 @@ export default function Home() {
                 </CardContent>
               </Card>
             </div>
+          </div>
+        </section>
+        
+        <section id="pricing" className="py-20 md:py-32 bg-card border-y">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center">
+              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                Choose the Plan That's Right for You
+              </h2>
+              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
+                Simple, transparent pricing. No hidden fees.
+              </p>
+            </div>
+            <div className="mt-16 grid gap-8 md:grid-cols-3">
+              {pricingTiers.map((tier) => (
+                <Card key={tier.name} className={`flex flex-col ${tier.featured ? 'border-primary ring-2 ring-primary' : ''}`}>
+                  <CardHeader className="flex-1">
+                    <CardTitle className="font-headline text-2xl">{tier.name}</CardTitle>
+                    <p className="text-muted-foreground">{tier.description}</p>
+                    <div className="flex items-baseline pt-4">
+                      <span className="text-4xl font-bold">{tier.price}</span>
+                      <span className="text-muted-foreground">{tier.frequency}</span>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="flex-1">
+                    <ul className="space-y-3">
+                      {tier.features.map((feature) => (
+                        <li key={feature} className="flex items-center gap-2">
+                          <Check className="h-4 w-4 text-green-500" />
+                          <span>{feature}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  </CardContent>
+                  <div className="p-6 pt-0">
+                    <Button asChild className="w-full" variant={tier.variant as any}>
+                      <Link href={tier.href}>{tier.cta}</Link>
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+            <p className="text-center text-sm text-muted-foreground mt-8">
+              Billing and subscriptions will be available soon.
+            </p>
           </div>
         </section>
       </main>
