@@ -97,6 +97,9 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                 variant: 'destructive'
             });
             refreshAllData();
+        } else if (updatedRequest.status === 'accepted' && updatedRequest.to_user_id === currentUser.id) {
+            // This is when WE accept a request, the UI is already handled optimistically, just need to refresh the request list.
+            refreshAllData();
         }
     }
 
@@ -122,13 +125,33 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
      const chatChannel = supabase
       .channel(`realtime-chats-for-${currentUser.id}`)
       .on( 'postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
-        () => refreshAllData()
+        (payload) => {
+            const newChatId = payload.new.chat_id;
+            const isExisting = chats.some(c => c.id === newChatId);
+            if (!isExisting) {
+                toast({
+                    title: "New Friend",
+                    description: "Someone added you as a friend!",
+                    variant: 'info'
+                });
+                refreshAllData();
+            }
+        }
       )
       .on( 'postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
         (payload) => {
             const deletedChatId = payload.old.chat_id;
+            const removedChat = chats.find(c => c.id === deletedChatId);
             setChats(prev => prev.filter(c => c.id !== deletedChatId));
             if (selectedChat?.id === deletedChatId) setSelectedChat(null);
+            
+            if (removedChat) {
+                toast({
+                    title: "Friend Removed",
+                    description: `You are no longer friends with ${removedChat.otherParticipant?.display_name || 'a user'}.`,
+                    variant: 'info'
+                });
+            }
         }
       )
       .subscribe();
@@ -139,7 +162,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
       supabase.removeChannel(chatChannel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, supabase, allUsers]);
+  }, [currentUser.id, supabase, allUsers, chats]);
 
   const refreshAllData = async () => {
     const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
@@ -184,6 +207,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                         setChats(prev => [newChat, ...prev]);
                         setSelectedChat(newChat);
                     } else {
+                        // The realtime listener will catch this, but a manual refresh is a good fallback
                         await refreshAllData();
                     }
                     break;
@@ -203,7 +227,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                     break;
             }
              toast({ title, description, variant });
-             // Realtime listener will remove the request from the list
+             // Realtime listeners will remove the request from the UI
         } catch (error) {
              toast({
                 title: 'Error',
@@ -268,7 +292,3 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
     </div>
   );
 }
-
-    
-
-    

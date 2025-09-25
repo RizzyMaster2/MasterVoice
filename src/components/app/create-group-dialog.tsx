@@ -58,6 +58,7 @@ export function CreateGroupDialog({ allUsers, onGroupCreated }: CreateGroupDialo
         toast({
           title: 'Group Created',
           description: `The group "${groupName}" has been successfully created.`,
+          variant: 'success'
         });
         onGroupCreated();
         setIsOpen(false);

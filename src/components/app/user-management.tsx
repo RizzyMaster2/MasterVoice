@@ -115,6 +115,7 @@ export function UserManagement({ users }: UserManagementProps) {
       toast({
         title: 'User Deleted',
         description: 'The user account has been permanently deleted.',
+        variant: 'success'
       });
     } catch (error) {
       toast({

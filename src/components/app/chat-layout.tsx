@@ -572,9 +572,3 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
-    
-    
-
-    
-
-    

@@ -155,6 +155,7 @@ export default function ProfilePage() {
       toast({
         title: 'Account Deleted',
         description: 'Your account has been permanently deleted.',
+        variant: 'success'
       });
       // Handle navigation on the client side
       router.refresh();
@@ -162,7 +163,7 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: 'Error Deleting Account',
-        description: (error as Error).message,
+        description: error instanceof Error ? error.message : 'An unknown error occurred.',
         variant: 'destructive',
       });
     }
