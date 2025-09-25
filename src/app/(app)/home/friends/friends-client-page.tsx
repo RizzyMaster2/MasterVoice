@@ -75,11 +75,15 @@ export function FriendsClientPage({
   }, []);
   
    useEffect(() => {
+    if (!currentUser.id) return;
     const channel = supabase.channel(`friend-requests-and-chats-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, payload => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `to_user_id=eq.${currentUser.id}` }, payload => {
         refreshAllData();
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, payload => {
+       .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `from_user_id=eq.${currentUser.id}` }, payload => {
+        refreshAllData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` }, payload => {
         refreshAllData();
       })
       .subscribe();
@@ -156,7 +160,7 @@ export function FriendsClientPage({
             variant = 'info';
             break;
         }
-        toast({ title, description, variant });
+        toast({ title, description, variant: variant as any });
       } catch (error) {
         toast({
           title: 'Error',
@@ -332,8 +336,12 @@ export function FriendsClientPage({
                           </div>
                           
                            {hasOutgoingRequest || isCurrentlyProcessing ? (
-                                <Button variant="ghost" size="icon" disabled>
-                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                 <Button variant="ghost" size="icon" disabled>
+                                    {isCurrentlyProcessing ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <Send className="h-4 w-4 text-muted-foreground" />
+                                    )}
                                 </Button>
                            ) : (
                             <TooltipProvider>
@@ -372,5 +380,3 @@ export function FriendsClientPage({
     </div>
   );
 }
-
-    

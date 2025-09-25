@@ -3,7 +3,7 @@
 
 import type { UserProfile, Chat as AppChat, HomeClientLayoutProps } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
@@ -18,6 +18,11 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
 
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
+  const refreshAllData = useCallback(async () => {
+    const freshChats = await getChats();
+    setChats(freshChats);
+  }, []);
+
   useEffect(() => {
     setIsClient(true);
     if (friends.length > 0 && !selectedChat) {
@@ -28,44 +33,47 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
     
-    const refreshAllData = async () => {
-        const chats = await getChats();
-        setChats(chats);
+    const handleNewChat = (payload: any) => {
+        const newChatId = payload.new.chat_id;
+        const isExisting = chats.some(c => c.id === newChatId);
+        if (!isExisting) {
+            toast({
+                title: "New Friend",
+                description: "Someone added you as a friend! Your chat list has been updated.",
+                variant: 'info'
+            });
+            refreshAllData();
+        }
+    };
+    
+    const handleDeletedChat = (payload: any) => {
+        const deletedChatId = payload.old.chat_id;
+        const removedChat = chats.find(c => c.id === deletedChatId);
+        setChats(prev => prev.filter(c => c.id !== deletedChatId));
+        if (selectedChat?.id === deletedChatId) setSelectedChat(null);
+        
+        if (removedChat) {
+            toast({
+                title: "Friend Removed",
+                description: `You are no longer friends with ${getErrorMessage(removedChat.otherParticipant?.display_name || 'a user')}.`,
+                variant: 'info'
+            });
+        }
     };
 
-     const chatChannel = supabase
+    const chatChannel = supabase
       .channel(`realtime-chats-for-${currentUser.id}`)
-      .on( 'postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
-        (payload) => {
-            const newChatId = payload.new.chat_id;
-            const isExisting = chats.some(c => c.id === newChatId);
-            if (!isExisting) {
-                toast({
-                    title: "New Friend",
-                    description: "Someone added you as a friend! Your chat list has been updated.",
-                    variant: 'info'
-                });
-                refreshAllData();
-            }
-        }
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` },
+        handleNewChat
       )
-      .on( 'postgres_changes', { event: 'DELETE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}`, },
-        (payload) => {
-            const deletedChatId = payload.old.chat_id;
-            const removedChat = chats.find(c => c.id === deletedChatId);
-            setChats(prev => prev.filter(c => c.id !== deletedChatId));
-            if (selectedChat?.id === deletedChatId) setSelectedChat(null);
-            
-            if (removedChat) {
-                toast({
-                    title: "Friend Removed",
-                    description: `You are no longer friends with ${getErrorMessage(removedChat.otherParticipant?.display_name || 'a user')}.`,
-                    variant: 'info'
-                });
-            }
-        }
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` },
+        handleDeletedChat
       )
       .subscribe();
 
@@ -73,8 +81,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
     return () => {
       supabase.removeChannel(chatChannel);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, supabase, allUsers, chats]);
+  }, [currentUser?.id, supabase, chats, refreshAllData, selectedChat?.id]);
 
 
   if (!isClient) {
