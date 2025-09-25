@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useMemo, useTransition, useEffect } from 'react';
+import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
 import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -68,11 +68,11 @@ export function FriendsClientPage({
   const incomingRequestUserIds = useMemo(() => new Set(friendRequests.incoming.map(req => req.from_user_id)), [friendRequests.incoming]);
 
 
-  const refreshAllData = async () => {
+  const refreshAllData = useCallback(async () => {
     const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
     setFriends(chats.filter(c => !c.is_group));
     setFriendRequests(requests);
-  };
+  }, []);
   
    useEffect(() => {
     const channel = supabase.channel(`friend-requests-and-chats-${currentUser.id}`)
@@ -87,7 +87,7 @@ export function FriendsClientPage({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [supabase, currentUser.id]);
+  }, [supabase, currentUser.id, refreshAllData]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
