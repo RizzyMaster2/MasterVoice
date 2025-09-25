@@ -187,7 +187,7 @@ export default function Home() {
               variant="outline"
               className="mb-4 border-accent/50 text-accent"
             >
-              Now with Crystal-Clear Voice Calls!
+              Voice Calls are Here!
             </Badge>
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl">
               Find your harmony,
