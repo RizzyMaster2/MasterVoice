@@ -28,6 +28,7 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
   const getInitials = (name: string | null) => (name ? name.split(' ').map(n => n[0]).join('').toUpperCase() : 'U');
   
   const filteredUsers = useMemo(() => {
+    // Exclude current user, existing contacts, and users with pending incoming/outgoing requests
     const availableUsers = allUsers.filter(
       (user) => user.id !== currentUser.id && !contactIds.has(user.id)
     );
@@ -38,9 +39,12 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
       );
     }
     
-    return availableUsers.slice(0, 5);
+    // For suggestions, also filter out those with pending requests
+    const nonPendingUsers = availableUsers.filter(u => !outgoingRequestUserIds.has(u.id));
 
-  }, [allUsers, currentUser.id, contactIds, searchQuery]);
+    return nonPendingUsers.slice(0, 5);
+
+  }, [allUsers, currentUser.id, contactIds, searchQuery, outgoingRequestUserIds]);
 
   const handleAddClick = (user: UserProfile) => {
     setUserBeingAdded(user.id);
@@ -62,8 +66,8 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
             <Sparkles className="h-5 w-5 text-accent" />
             Find Friends
           </div>
-          <CreateGroupDialog
-            allUsers={allUsers.filter(user => user.id !== currentUser.id && !contactIds.has(user.id))}
+           <CreateGroupDialog
+            allUsers={allUsers.filter(user => user.id !== currentUser.id && contactIds.has(user.id))}
             onGroupCreated={onGroupCreated}
           />
         </CardTitle>
@@ -92,8 +96,8 @@ export function SuggestedFriends({ currentUser, allUsers, onAddFriend, contactId
                   </div>
                 </div>
                  {outgoingRequestUserIds.has(user.id) ? (
-                    <Button variant="ghost" size="sm" disabled>
-                        <Check className="h-4 w-4 mr-2" />
+                    <Button variant="ghost" size="sm" disabled className='text-muted-foreground'>
+                        <Send className="h-4 w-4 mr-2" />
                         Sent
                     </Button>
                 ) : (

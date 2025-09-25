@@ -377,11 +377,13 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     const userId = await getCurrentUserId();
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
     // Fetch incoming requests
     const { data: incoming, error: incomingError } = await supabase
       .from('friend_requests')
-      .select('*, profiles:from_user_id(*)')
+      .select('*')
       .eq('to_user_id', userId)
       .eq('status', 'pending');
 
@@ -390,13 +392,24 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
     // Fetch outgoing requests
     const { data: outgoing, error: outgoingError } = await supabase
       .from('friend_requests')
-      .select('*, profiles:to_user_id(*)')
+      .select('*')
       .eq('from_user_id', userId)
       .eq('status', 'pending');
       
     if (outgoingError) throw outgoingError;
+    
+    const processedIncoming = incoming.map(req => ({
+        ...req,
+        profiles: userMap.get(req.from_user_id)
+    })) as FriendRequest[];
+    
+    const processedOutgoing = outgoing.map(req => ({
+        ...req,
+        profiles: userMap.get(req.to_user_id)
+    })) as FriendRequest[];
 
-    return { incoming: incoming as FriendRequest[], outgoing: outgoing as FriendRequest[] };
+
+    return { incoming: processedIncoming, outgoing: processedOutgoing };
   } catch (error) {
     console.error("Error fetching friend requests:", error);
     return { incoming: [], outgoing: [] };
@@ -415,12 +428,15 @@ export async function sendFriendRequest(toUserId: string) {
   // Check if a request already exists or if they are already friends
   const { data: existingRequest, error: existingError } = await supabase
     .from('friend_requests')
-    .select('id')
+    .select('id, status')
     .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
     .limit(1);
 
   if (existingError) throw existingError;
-  if (existingRequest.length > 0) throw new Error("A friend request already exists.");
+  if (existingRequest.length > 0) {
+      if(existingRequest[0].status === 'pending') throw new Error("A friend request already exists.");
+      if(existingRequest[0].status === 'declined') throw new Error("This user has declined your previous friend request.");
+  }
   
   const { data: existingChat, error: chatError } = await supabase.rpc('get_existing_chat', {user1_id: fromUserId, user2_id: toUserId});
   if (chatError) throw chatError;

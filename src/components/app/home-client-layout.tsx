@@ -68,11 +68,14 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                 });
             }
         } else if (newRequest.from_user_id === currentUser.id) {
-            // It's an outgoing request we just sent
-             setFriendRequests(prev => ({
-                ...prev,
-                outgoing: [...prev.outgoing, newRequest]
-            }));
+            const toUser = allUsers.find(u => u.id === newRequest.to_user_id);
+            if(toUser){
+                // It's an outgoing request we just sent
+                setFriendRequests(prev => ({
+                    ...prev,
+                    outgoing: [...prev.outgoing, { ...newRequest, profiles: toUser }]
+                }));
+            }
         }
     };
     
@@ -86,6 +89,13 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                 variant: 'success'
             });
             refreshAllData();
+        } else if (updatedRequest.status === 'declined' && updatedRequest.from_user_id === currentUser.id) {
+             const toUser = allUsers.find(u => u.id === updatedRequest.to_user_id);
+             toast({
+                title: "Friend Request Declined",
+                description: `${toUser?.display_name || 'A user'} declined your friend request.`,
+                variant: 'destructive'
+            });
         }
     }
 
@@ -106,7 +116,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
 
     const friendRequestChannel = supabase.channel(`friend-requests-${currentUser.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests' }, handleNewFriendRequest)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests' }, handleRequestUpdate)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests', filter: `from_user_id=eq.${currentUser.id}` }, handleRequestUpdate)
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'friend_requests' }, handleRequestDelete)
         .subscribe();
 
@@ -130,7 +140,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
       supabase.removeChannel(chatChannel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, supabase]);
+  }, [currentUser.id, supabase, allUsers]);
 
   const refreshAllData = async () => {
     const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
@@ -161,13 +171,14 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
   const handleRequestResponse = (action: 'accept' | 'decline' | 'cancel', request: FriendRequest) => {
     startTransition(async () => {
         try {
-            let user, title, description;
+            let user, title, description, variant;
             switch(action) {
                 case 'accept':
                     await acceptFriendRequest(request.id);
                     user = request.profiles;
                     title = "Request Accepted";
                     description = `You are now friends with ${user?.display_name}.`;
+                    variant = 'success';
                     await refreshAllData();
                     break;
                 case 'decline':
@@ -175,15 +186,17 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                     user = request.profiles;
                     title = "Request Declined";
                     description = `You have declined the friend request from ${user?.display_name}.`;
+                    variant = 'info';
                     break;
                 case 'cancel':
                     await cancelFriendRequest(request.id);
                     user = request.profiles;
                     title = "Request Cancelled";
                     description = `You have cancelled your friend request to ${user?.display_name}.`;
+                    variant = 'info';
                     break;
             }
-             toast({ title, description, variant: 'success' });
+             toast({ title, description, variant });
         } catch (error) {
              toast({
                 title: 'Error',
@@ -209,6 +222,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
             <Skeleton className="flex-1 h-full" />
             <div className="w-full lg:w-[320px] flex flex-col gap-6">
+                <Skeleton className="w-full h-64" />
                 <Skeleton className="w-full h-96" />
             </div>
         </div>
