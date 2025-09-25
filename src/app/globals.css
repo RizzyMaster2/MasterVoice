@@ -78,4 +78,20 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
+  
+  /* Add hover effects for clickable text */
+  a,
+  [role="button"],
+  button,
+  .clickable {
+    @apply transition-all duration-200 ease-in-out;
+  }
+
+  a:hover,
+  [role="button"]:hover,
+  button:hover,
+  .clickable:hover {
+    @apply opacity-80;
+    transform: translateY(-1px);
+  }
 }
