@@ -17,7 +17,7 @@ function SignupPageContent() {
             <CardHeader>
                 <CardTitle className="font-headline text-2xl">Create an Account</CardTitle>
                 <CardDescription>
-                Enter your information to create your MasterVoice account.
+                Enter your information to create your Sonorus account.
                 </CardDescription>
             </CardHeader>
             <CardContent>

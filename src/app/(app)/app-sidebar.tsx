@@ -54,7 +54,7 @@ export function AppSidebar() {
         <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
           <Logo className="w-7 h-7 text-primary" />
           <span className="font-headline text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden">
-            Chord
+            Sonorus
           </span>
         </div>
       </SidebarHeader>

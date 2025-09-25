@@ -26,7 +26,7 @@ const fontFiraCode = Fira_Code({
 
 
 export const metadata: Metadata = {
-  title: 'Chord',
+  title: 'Sonorus',
   description: 'Find your harmony. Connect with the world.',
 };
 

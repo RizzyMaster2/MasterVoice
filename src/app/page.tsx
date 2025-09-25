@@ -195,7 +195,7 @@ export default function Home() {
               <span className="text-primary">Connect with the World</span>
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              Chord is a modern communication platform designed for
+              Sonorus is a modern communication platform designed for
               meaningful interactions. Chat in real-time, engage in crystal-clear voice calls,
               and personalize your profile.
             </p>
@@ -343,11 +343,11 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <span className="font-headline text-lg font-bold text-muted-foreground">
-              Chord
+              Sonorus
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © <CurrentYear /> Chord. All rights reserved.
+            © <CurrentYear /> Sonorus. All rights reserved.
           </p>
         </div>
       </footer>

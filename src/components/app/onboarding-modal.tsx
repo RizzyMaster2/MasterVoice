@@ -19,12 +19,12 @@ import {
 } from '@/components/ui/carousel';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 
-const ONBOARDING_STORAGE_KEY = 'chord-onboarding-complete';
+const ONBOARDING_STORAGE_KEY = 'sonorus-onboarding-complete';
 
 const onboardingSteps = [
   {
     id: 1,
-    title: 'Welcome to Chord!',
+    title: 'Welcome to Sonorus!',
     description: "Let's take a quick tour of the features that will help you connect with others.",
     imageId: 'hero'
   },

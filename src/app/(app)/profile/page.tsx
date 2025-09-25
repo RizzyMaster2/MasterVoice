@@ -218,7 +218,7 @@ export default function ProfilePage() {
                 Your Friends
               </CardTitle>
               <CardDescription>
-                Your list of connections on Chord.
+                Your list of connections on Sonorus.
               </CardDescription>
             </CardHeader>
             <CardContent>

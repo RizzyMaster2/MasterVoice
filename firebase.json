@@ -8,7 +8,7 @@
       "**/node_modules/**"
     ],
     "frameworksBackend": {
-      "id": "mastervoice-app",
+      "id": "sonorus-app",
       "region": "us-central1"
     }
   }

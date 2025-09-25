@@ -9,7 +9,7 @@ export default function AuthLayout({ children }: { children: ReactNode }) {
       <div className="mb-8 flex items-center gap-3 text-center">
         <Logo className="h-10 w-10 text-primary" />
         <h1 className="font-headline text-4xl font-bold text-primary">
-          Chord
+          Sonorus
         </h1>
       </div>
       {children}
