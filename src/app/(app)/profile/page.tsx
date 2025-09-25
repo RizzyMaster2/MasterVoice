@@ -218,7 +218,7 @@ export default function ProfilePage() {
                 Your Friends
               </CardTitle>
               <CardDescription>
-                Your list of connections on Sonorus.
+                Your list of connections on MasterVoice.
               </CardDescription>
             </CardHeader>
             <CardContent>

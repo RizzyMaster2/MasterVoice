@@ -18,7 +18,7 @@ export async function MainHeader() {
         <Link href="/" className="flex items-center gap-2">
           <Logo className="h-8 w-8 text-primary" />
           <span className="font-headline text-2xl font-bold text-primary">
-            Sonorus
+            MasterVoice
           </span>
         </Link>
         <HeaderButtons user={user} />
