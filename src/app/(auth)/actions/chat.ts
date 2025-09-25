@@ -446,23 +446,23 @@ export async function sendFriendRequest(toUserId: string) {
     throw new Error("You cannot send a friend request to yourself.");
   }
 
-  // Check if a request already exists between the two users, regardless of direction.
+  // Use RPC to check for existing request
   const { data: existingRequest, error: existingError } = await supabase
-    .from('friend_requests')
-    .select('id, status')
-    .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
-    .limit(1);
-
+    .rpc('check_existing_friend_request', {
+      user1_id: fromUserId,
+      user2_id: toUserId
+    });
+  
   if (existingError) {
-    console.error("Error checking for existing friend request:", existingError);
+    console.error("Error checking for existing friend request via RPC:", existingError);
     throw new Error(existingError.message);
   }
-  
-  if (existingRequest && existingRequest.length > 0) {
-      if(existingRequest[0].status === 'pending') throw new Error("A friend request is already pending.");
-      if(existingRequest[0].status === 'accepted') throw new Error("You are already friends with this user.");
-  }
 
+  if (existingRequest) {
+    if(existingRequest.status === 'pending') throw new Error("A friend request is already pending.");
+    if(existingRequest.status === 'accepted') throw new Error("You are already friends with this user.");
+  }
+  
   // Check if they are already friends by looking for an existing chat
   const { data: existingChat, error: chatError } = await supabase
     .rpc('get_existing_chat', { user1_id: fromUserId, user2_id: toUserId });
