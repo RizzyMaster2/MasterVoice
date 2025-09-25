@@ -5,7 +5,7 @@ import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition, useMemo, useEffect } from 'react';
-import { getChats, getUsers, sendFriendRequest, getFriendRequests, cancelFriendRequest, acceptFriendRequest, declineFriendRequest } from '@/app/(auth)/actions/chat';
+import { getChats, sendFriendRequest, getFriendRequests, cancelFriendRequest, acceptFriendRequest, declineFriendRequest } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { createClient } from '@/lib/supabase/client';
@@ -96,6 +96,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                 description: `${toUser?.display_name || 'A user'} declined your friend request.`,
                 variant: 'destructive'
             });
+            refreshAllData();
         }
     }
 
@@ -103,11 +104,9 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
          const deletedRequest = payload.old;
          if (!deletedRequest) return;
          
-         // If an incoming request was deleted (e.g. accepted/declined)
          if (deletedRequest.to_user_id === currentUser.id) {
               setFriendRequests(prev => ({ ...prev, incoming: prev.incoming.filter(r => r.id !== deletedRequest.id) }));
          }
-         // If an outgoing request was deleted (e.g. they responded or we cancelled)
          if (deletedRequest.from_user_id === currentUser.id) {
              setFriendRequests(prev => ({ ...prev, outgoing: prev.outgoing.filter(r => r.id !== deletedRequest.id) }));
          }
@@ -116,7 +115,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
 
     const friendRequestChannel = supabase.channel(`friend-requests-${currentUser.id}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'friend_requests' }, handleNewFriendRequest)
-        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests', filter: `from_user_id=eq.${currentUser.id}` }, handleRequestUpdate)
+        .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'friend_requests' }, handleRequestUpdate)
         .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'friend_requests' }, handleRequestDelete)
         .subscribe();
 
@@ -146,7 +145,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
     const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
     setChats(chats);
     setFriendRequests(requests);
-    return chats;
+    return { chats, requests };
   };
   
   const handleSendFriendRequest = (friend: UserProfile) => {
@@ -158,6 +157,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
           description: `Your friend request to ${friend.display_name} has been sent.`,
           variant: 'success'
         });
+        // We don't need to manually update state here because the realtime listener `handleNewFriendRequest` will do it.
       } catch (error) {
         toast({
           title: "Error",
@@ -174,12 +174,18 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
             let user, title, description, variant;
             switch(action) {
                 case 'accept':
-                    await acceptFriendRequest(request.id);
+                    const newChat = await acceptFriendRequest(request.id);
                     user = request.profiles;
                     title = "Request Accepted";
                     description = `You are now friends with ${user?.display_name}.`;
                     variant = 'success';
-                    await refreshAllData();
+                    // Optimistically add the new chat, or just refresh
+                    if (newChat) {
+                        setChats(prev => [newChat, ...prev]);
+                        setSelectedChat(newChat);
+                    } else {
+                        await refreshAllData();
+                    }
                     break;
                 case 'decline':
                     await declineFriendRequest(request.id);
@@ -197,6 +203,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
                     break;
             }
              toast({ title, description, variant });
+             // Realtime listener will remove the request from the list
         } catch (error) {
              toast({
                 title: 'Error',
@@ -261,3 +268,5 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
     </div>
   );
 }
+
+    

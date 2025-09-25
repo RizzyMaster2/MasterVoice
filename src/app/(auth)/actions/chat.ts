@@ -434,16 +434,11 @@ export async function sendFriendRequest(toUserId: string) {
 
   if (existingError) throw existingError;
   if (existingRequest.length > 0) {
-      if(existingRequest[0].status === 'pending') throw new Error("A friend request already exists.");
-      if(existingRequest[0].status === 'declined') throw new Error("This user has declined your previous friend request.");
+      if(existingRequest[0].status === 'pending') throw new Error("A friend request is already pending.");
       if(existingRequest[0].status === 'accepted') throw new Error("You are already friends with this user.");
+      // If it was declined, we allow sending another one. The old one should be cleaned up.
   }
   
-  const { data: existingChat, error: chatError } = await supabase.rpc('get_existing_chat', {user1_id: fromUserId, user2_id: toUserId});
-  if (chatError) throw chatError;
-  if (existingChat && existingChat.length > 0) throw new Error("You are already friends with this user.");
-
-
   const { error } = await supabase
     .from('friend_requests')
     .insert({ from_user_id: fromUserId, to_user_id: toUserId });
@@ -456,18 +451,50 @@ export async function sendFriendRequest(toUserId: string) {
   revalidatePath('/home');
 }
 
-export async function acceptFriendRequest(requestId: string) {
+export async function acceptFriendRequest(requestId: string): Promise<Chat | null> {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
-  const { error: rpcError } = await supabase.rpc('accept_friend_request', { request_id: requestId });
+  const { data: newChatId, error: rpcError } = await supabase.rpc('accept_friend_request', { request_id: requestId });
 
   if (rpcError) {
     console.error("Error accepting friend request via RPC:", rpcError);
     throw new Error(rpcError.message);
   }
+
+  if (!newChatId) {
+    // This can happen if the RPC returns null, which it shouldn't on success.
+    // Re-fetching data is a good fallback.
+    revalidatePath('/home');
+    return null;
+  }
   
+  // Fetch the newly created chat to return it to the client for immediate update
+  const { data: newChat, error: chatError } = await supabase
+    .from('chats')
+    .select('*, chat_participants(*)')
+    .eq('id', newChatId)
+    .single();
+
+  if (chatError || !newChat) {
+    console.error("Failed to fetch new chat after accepting request:", chatError);
+    // Even if this fails, the request was accepted, so revalidate.
+    revalidatePath('/home');
+    return null;
+  }
+
+  const allUsers = await getUsers();
+  const userMap = new Map(allUsers.map(u => [u.id, u]));
+  const userId = await getCurrentUserId();
+  const otherParticipantId = newChat.chat_participants.find(p => p.user_id !== userId)?.user_id;
+
   revalidatePath('/home');
+
+  return {
+    ...newChat,
+    participants: newChat.chat_participants.map(p => p.user_id),
+    otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
+  };
 }
 
 export async function declineFriendRequest(requestId: string) {
@@ -501,5 +528,7 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home');
 }
+
+    
 
     
