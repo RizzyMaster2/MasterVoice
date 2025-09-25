@@ -73,6 +73,7 @@ const pricingTiers = [
       'Everything in Free, plus:',
       'HD Voice Calls',
       'Noise Cancellation',
+      'Create Private Servers',
       'Priority Support',
     ],
     cta: 'Upgrade to Pro',
@@ -89,7 +90,7 @@ const pricingTiers = [
     features: [
       'Everything in Pro, plus:',
       'Admin Dashboard',
-      'Advanced Analytics',
+      'Custom Server Roles & Permissions',
       '24/7 Dedicated Support',
     ],
     cta: 'Contact Sales',

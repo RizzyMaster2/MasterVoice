@@ -32,8 +32,8 @@ const planDetails = {
       'Everything in Free, plus:',
       'HD Voice Calls',
       'Noise Cancellation',
+      'Create Private Servers',
       'Priority Support',
-      'Larger Group Chats (up to 50)',
     ],
     description: 'Unlock powerful features for professionals.',
     ctaMonthly: 'Upgrade to Pro Monthly',
@@ -47,7 +47,7 @@ const planDetails = {
     features: [
       'Everything in Pro, plus:',
       'Admin Dashboard & Analytics',
-      'Advanced User Management',
+      'Custom Server Roles & Permissions',
       'Dedicated 24/7 Support',
       'SLA Guarantees',
     ],
