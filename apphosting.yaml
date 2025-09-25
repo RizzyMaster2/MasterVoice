@@ -14,3 +14,5 @@ secretEnv:
     env: SUPABASE_SERVICE_ROLE_KEY
   - secret: ADMIN_EMAIL
     env: ADMIN_EMAIL
+  - secret: BOT_EMAIL
+    env: BOT_EMAIL

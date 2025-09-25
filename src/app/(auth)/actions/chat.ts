@@ -464,9 +464,11 @@ export async function sendFriendRequest(toUserId: string) {
     throw new Error("You are already friends with this user.");
   }
   
-  const { error } = await supabase
+  const { data: insertedRequest, error } = await supabase
     .from('friend_requests')
-    .insert({ from_user_id: fromUserId, to_user_id: toUserId });
+    .insert({ from_user_id: fromUserId, to_user_id: toUserId })
+    .select()
+    .single();
   
   if (error) {
     console.error("Error sending friend request:", error);
@@ -551,11 +553,3 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
-
-    
-
-    
-
-    
-
-    
