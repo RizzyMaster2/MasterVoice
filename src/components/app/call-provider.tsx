@@ -51,6 +51,11 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
 
+  const endCall = useCallback(() => {
+    setActiveCall(null);
+    setIncomingCall(null);
+  }, []);
+
   const startCall = useCallback(async (participant: UserProfile) => {
     if (!user || activeCall) return;
 
@@ -94,11 +99,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     });
 
   }, [user, activeCall, supabase, toast, endCall]);
-
-  const endCall = useCallback(() => {
-    setActiveCall(null);
-    setIncomingCall(null);
-  }, []);
 
   useEffect(() => {
     if (!user || allUsers.length === 0) return;
