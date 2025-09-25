@@ -41,6 +41,13 @@ export type FriendRequest = {
   profiles: UserProfile | null; // The profile of the user who sent the request
 }
 
+export interface HomeClientLayoutProps {
+    currentUser: UserProfile;
+    initialChats: Chat[];
+    initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+    allUsers: UserProfile[];
+}
+
 // Map Supabase user to our app's user profile concept for UI components
 export const mapSupabaseUserToAppUser = (user: SupabaseUser): UserProfile => ({
     id: user.id,

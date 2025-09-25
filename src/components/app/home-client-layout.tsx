@@ -1,7 +1,7 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
+import type { UserProfile, Chat as AppChat, FriendRequest, HomeClientLayoutProps } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition, useMemo, useEffect } from 'react';
@@ -252,3 +252,4 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
         </div>
     </div>
   );
+}
