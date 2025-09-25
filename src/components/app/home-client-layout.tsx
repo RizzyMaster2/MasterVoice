@@ -43,9 +43,9 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Listen for real-time chat creations
+  // Listen for real-time chat creations and deletions
   useEffect(() => {
-    const channel = supabase
+    const insertChannel = supabase
       .channel(`new-chats-for-${currentUser.id}`)
       .on(
         'postgres_changes',
@@ -56,10 +56,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
           filter: `user_id=eq.${currentUser.id}`,
         },
         async (payload) => {
-          // Check if this chat is already in our state
           const existingChat = chats.find(c => c.id === payload.new.chat_id);
           if (!existingChat) {
-            // New chat detected, refresh the list
             const updatedChats = await refreshChats();
             const newChat = updatedChats.find(c => c.id === payload.new.chat_id);
             if (newChat && !newChat.is_group) {
@@ -74,10 +72,42 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
       )
       .subscribe();
 
+    const deleteChannel = supabase
+      .channel(`deleted-chats-for-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'chat_participants',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        (payload) => {
+          const deletedChatId = payload.old.chat_id;
+          const removedChat = chats.find(c => c.id === deletedChatId);
+          
+          setChats(prev => prev.filter(c => c.id !== deletedChatId));
+
+          if (selectedChat?.id === deletedChatId) {
+            setSelectedChat(null);
+          }
+          
+          if (removedChat && !removedChat.is_group && removedChat.otherParticipant) {
+             toast({
+                title: "Friend Removed",
+                description: `${removedChat.otherParticipant.display_name} removed you as a friend.`,
+                variant: "warning",
+            });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(insertChannel);
+      supabase.removeChannel(deleteChannel);
     };
-  }, [supabase, currentUser.id, chats, toast]);
+  }, [supabase, currentUser.id, chats, selectedChat?.id, toast]);
 
 
   const refreshChats = async () => {
