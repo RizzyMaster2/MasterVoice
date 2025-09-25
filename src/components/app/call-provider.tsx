@@ -4,7 +4,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
-import type { UserProfile } from '@/lib/data';
+import type { UserProfile, Chat } from '@/lib/data';
 import { VoiceCall } from './voice-call';
 import { IncomingCallDialog } from './incoming-call-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -15,10 +15,17 @@ type Call = {
   offer?: RTCSessionDescriptionInit;
 };
 
+type ActiveCallState = {
+  chatId: string;
+  participants: string[];
+};
+
 type CallContextType = {
-  startCall: (participant: UserProfile) => void;
+  startCall: (participant: UserProfile, chatId?: string) => void;
   endCall: () => void;
   activeCall: Call | null;
+  activeGroupCalls: Record<string, ActiveCallState>;
+  joinCall: (chatId: string) => void;
 };
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -36,8 +43,24 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
+  const [activeGroupCalls, setActiveGroupCalls] = useState<Record<string, ActiveCallState>>({});
   const supabase = createClient();
   const { toast } = useToast();
+  
+  const endCall = useCallback(() => {
+    if (activeCall && user) {
+        const channelId = `signaling-channel-${[user.id, activeCall.otherParticipant.id].sort().join('-')}`;
+        const signalingChannel = supabase.channel(channelId);
+        signalingChannel.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { from: user.id, to: activeCall.otherParticipant.id },
+        });
+    }
+    setActiveCall(null);
+    setIncomingCall(null);
+  }, [activeCall, user, supabase]);
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -51,54 +74,77 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
 
-  const endCall = useCallback(() => {
-    setActiveCall(null);
-    setIncomingCall(null);
-  }, []);
-
-  const startCall = useCallback(async (participant: UserProfile) => {
+  const startCall = useCallback(async (participant: UserProfile, chatId?: string) => {
     if (!user || activeCall) return;
 
-    // Create a temporary PeerConnection to create an offer
-    const tempPc = new RTCPeerConnection();
-    const offer = await tempPc.createOffer();
-    await tempPc.setLocalDescription(offer);
-    tempPc.close(); // Clean up immediately
+    if (chatId) {
+        // This is a group call initiation
+        setActiveCall({ otherParticipant: participant });
+        // Send a group call update
+         const callChannel = supabase.channel(`call-state:${chatId}`);
+         callChannel.subscribe(status => {
+            if (status === 'SUBSCRIBED') {
+                 callChannel.track({ user_id: user.id, status: 'online' });
+            }
+         });
 
-    const signalingChannel = supabase.channel(`signaling-channel-${[user.id, participant.id].sort().join('-')}`);
-    
-    signalingChannel.subscribe((status) => {
-        if(status === 'SUBSCRIBED') {
-            signalingChannel.send({
-                type: 'broadcast',
-                event: 'call-offer',
-                payload: {
-                  from: user.id,
-                  to: participant.id,
-                  offer: offer,
-                },
-              });
-        }
-    });
+    } else {
+        // This is a 1-on-1 call
+        const tempPc = new RTCPeerConnection();
+        const offer = await tempPc.createOffer();
+        await tempPc.setLocalDescription(offer);
+        tempPc.close();
 
-    setActiveCall({ otherParticipant: participant });
+        const channelId = `signaling-channel-${[user.id, participant.id].sort().join('-')}`;
+        const signalingChannel = supabase.channel(channelId);
+        
+        signalingChannel.subscribe((status) => {
+            if(status === 'SUBSCRIBED') {
+                signalingChannel.send({
+                    type: 'broadcast',
+                    event: 'call-offer',
+                    payload: {
+                      from: user.id,
+                      to: participant.id,
+                      offer: offer,
+                    },
+                  });
+            }
+        });
 
-    const timeout = setTimeout(() => {
-        if (activeCall) { // Check if call is still ringing
-            toast({ title: 'Call timed out', description: `${participant.display_name} did not answer.` });
-            endCall();
-        }
-    }, 30000); // 30 second timeout
+        setActiveCall({ otherParticipant: participant, offer });
 
-    // Listen for acceptance
-    signalingChannel.on('broadcast', { event: 'answer' }, () => {
-        clearTimeout(timeout);
-    });
-     signalingChannel.on('broadcast', { event: 'call-rejected' }, () => {
-        clearTimeout(timeout);
-    });
+        const timeout = setTimeout(() => {
+            // Check if still ringing. `activeCall` might be stale here due to closure, 
+            // so we check against the offer property which is only set for the caller.
+            setActiveCall(currentActiveCall => {
+                if (currentActiveCall?.offer) { 
+                    toast({ title: 'Call timed out', description: `${participant.display_name} did not answer.` });
+                    endCall();
+                    return null;
+                }
+                return currentActiveCall;
+            });
+        }, 30000);
+
+        signalingChannel.on('broadcast', { event: 'answer' }, () => clearTimeout(timeout));
+        signalingChannel.on('broadcast', { event: 'call-rejected' }, () => clearTimeout(timeout));
+    }
 
   }, [user, activeCall, supabase, toast, endCall]);
+
+  const joinCall = (chatId: string) => {
+    // Logic to join an existing group call
+    // For now, this just opens the voice call component
+    // In a real app, this would need to negotiate a connection with existing participants
+    if (user && activeGroupCalls[chatId]) {
+      const otherParticipant = findUserById(activeGroupCalls[chatId].participants[0]); // Just picking the first one for now
+       if (otherParticipant) {
+           setActiveCall({ otherParticipant: otherParticipant });
+       }
+    }
+  };
+
 
   useEffect(() => {
     if (!user || allUsers.length === 0) return;
@@ -112,18 +158,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    // Use a more generic channel name that both users can subscribe to
-    const myChannel = supabase.channel(`user-channel-${user.id}`);
-    
-    // Subscribe to broadcast events on a predictable channel name
-    const channels = allUsers.map(u => 
-        supabase.channel(`signaling-channel-${[user.id, u.id].sort().join('-')}`)
-            .on('broadcast', { event: 'call-offer' }, handleOffer)
-            .subscribe()
+    // Listen for direct 1-on-1 call offers
+    const directSignalChannels = allUsers
+        .filter(u => u.id !== user.id)
+        .map(u => 
+            supabase.channel(`signaling-channel-${[user.id, u.id].sort().join('-')}`)
+                .on('broadcast', { event: 'call-offer' }, handleOffer)
+                .subscribe()
     );
     
     return () => {
-        channels.forEach(channel => channel.unsubscribe());
+        directSignalChannels.forEach(channel => channel.unsubscribe());
     };
   }, [user, supabase, activeCall, incomingCall, findUserById, allUsers]);
 
@@ -144,19 +189,20 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                     event: 'call-rejected',
                     payload: { from: user.id, to: incomingCall.otherParticipant.id },
                 });
-                setIncomingCall(null);
+                signalingChannel.unsubscribe();
             }
         });
+        setIncomingCall(null);
     }
   };
 
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall }}>
+    <CallContext.Provider value={{ startCall, endCall, activeCall, activeGroupCalls, joinCall }}>
       {children}
       {user && activeCall && (
         <VoiceCall
           supabase={supabase}
-          currentUser={user as UserProfile}
+          currentUser={{ ...user, ...findUserById(user.id)} as UserProfile}
           otherParticipant={activeCall.otherParticipant}
           initialOffer={activeCall.offer}
           onClose={endCall}

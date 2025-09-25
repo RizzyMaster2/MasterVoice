@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode } from 'react';
+import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo } from 'react';
 import {
   Card,
   CardFooter,
@@ -21,6 +21,7 @@ import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { CodeBlock } from './code-block';
 import { useCall } from './call-provider';
+import { ActiveCallBar } from './active-call-bar';
 
 
 interface ChatLayoutProps {
@@ -70,13 +71,26 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
-  const { startCall } = useCall();
+  const { startCall, activeGroupCalls, joinCall } = useCall();
 
   const handleStartCall = () => {
     if (selectedChat?.otherParticipant) {
       startCall(selectedChat.otherParticipant);
+    } else if (selectedChat?.is_group) {
+        const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
+        if(otherParticipant) {
+            startCall(otherParticipant, selectedChat.id);
+        } else {
+            toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
+        }
     }
   };
+
+  const handleJoinCall = () => {
+    if (selectedChat) {
+      joinCall(selectedChat.id);
+    }
+  }
 
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
@@ -233,6 +247,15 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
   const filteredChats = chats.filter((chat) =>
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
+  
+  const activeCall = selectedChat ? activeGroupCalls[selectedChat.id] : null;
+
+  const callParticipants = useMemo(() => {
+    if (!activeCall) return [];
+    return activeCall.participants
+      .map(id => allUsers.find(u => u.id === id))
+      .filter((p): p is UserProfile => !!p);
+  }, [activeCall, allUsers]);
 
   return (
     <Card className="flex h-full w-full">
@@ -291,37 +314,46 @@ export function ChatLayout({ currentUser, chats, allUsers, selectedChat, setSele
       <div className="w-2/3 flex flex-col h-full">
         {selectedChat ? (
           <>
-            <CardHeader className="flex flex-row items-center gap-3 border-b">
-              <Avatar className="h-10 w-10">
-                {selectedChat.is_group ? (
-                    <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
-                        <Users className="h-5 w-5 text-muted-foreground" />
-                    </div>
-                ) : (
-                    <>
-                    <AvatarImage
-                      src={selectedChat.otherParticipant?.photo_url || undefined}
-                      alt={selectedChat.name || ''}
-                    />
-                    <AvatarFallback>
-                      {getInitials(selectedChat.otherParticipant?.display_name)}
-                    </AvatarFallback>
-                    </>
-                )}
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
-                  {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
-                </h2>
-                {selectedChat.is_group && (
-                    <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
-                )}
+            <CardHeader className="flex flex-col gap-3 border-b">
+              <div className='flex flex-row items-center gap-3'>
+                 <Avatar className="h-10 w-10">
+                    {selectedChat.is_group ? (
+                        <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
+                            <Users className="h-5 w-5 text-muted-foreground" />
+                        </div>
+                    ) : (
+                        <>
+                        <AvatarImage
+                          src={selectedChat.otherParticipant?.photo_url || undefined}
+                          alt={selectedChat.name || ''}
+                        />
+                        <AvatarFallback>
+                          {getInitials(selectedChat.otherParticipant?.display_name)}
+                        </AvatarFallback>
+                        </>
+                    )}
+                  </Avatar>
+                  <div className="flex-1">
+                    <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
+                      {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
+                    </h2>
+                    {selectedChat.is_group && (
+                        <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
+                    )}
+                  </div>
+                  <Button size="icon" variant="ghost" onClick={handleStartCall}>
+                    <Phone className="h-5 w-5" />
+                    <span className="sr-only">Start Voice Call</span>
+                  </Button>
               </div>
-              {!selectedChat.is_group && (
-                <Button size="icon" variant="ghost" onClick={handleStartCall}>
-                  <Phone className="h-5 w-5" />
-                  <span className="sr-only">Start Voice Call</span>
-                </Button>
+              {activeCall && (
+                <ActiveCallBar 
+                  participants={callParticipants} 
+                  onJoin={handleJoinCall}
+                  onDecline={() => {
+                    // Implement decline logic if needed, e.g., hiding the bar for the current user
+                  }}
+                />
               )}
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
