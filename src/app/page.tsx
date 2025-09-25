@@ -61,6 +61,7 @@ const pricingTiers = [
     ],
     cta: 'Get Started',
     href: '/signup',
+    link: '/billing/info/free',
     variant: 'outline',
   },
   {
@@ -75,7 +76,8 @@ const pricingTiers = [
       'Priority Support',
     ],
     cta: 'Upgrade to Pro',
-    href: '#',
+    href: '/signup',
+    link: '/billing/info/pro',
     variant: 'default',
     featured: true,
   },
@@ -91,7 +93,8 @@ const pricingTiers = [
       '24/7 Dedicated Support',
     ],
     cta: 'Contact Sales',
-    href: '#',
+    href: '/signup',
+    link: '/billing/info/business',
     variant: 'outline',
   },
 ];
@@ -253,7 +256,7 @@ export default function Home() {
                   </CardContent>
                   <div className="p-6 pt-0">
                     <Button asChild className="w-full" variant={tier.variant as any}>
-                      <Link href={tier.href}>{tier.cta}</Link>
+                      <Link href={tier.link}>{tier.cta}</Link>
                     </Button>
                   </div>
                 </Card>
