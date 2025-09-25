@@ -429,7 +429,7 @@ export async function sendFriendRequest(toUserId: string) {
   const { data: existingRequest, error: existingError } = await supabase
     .from('friend_requests')
     .select('id, status')
-    .or(`(from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId}),(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
+    .or(`from_user_id.eq.${fromUserId},to_user_id.eq.${toUserId},and(from_user_id.eq.${toUserId},to_user_id.eq.${fromUserId})`)
     .limit(1);
 
   if (existingError) {
