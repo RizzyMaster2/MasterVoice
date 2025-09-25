@@ -9,6 +9,7 @@ import {
   Phone,
   Radio,
   BarChart,
+  Lock,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -202,6 +203,15 @@ export default function Home() {
                         HD Voice Quality:
                       </strong>{' '}
                       Enjoy rich, clear audio that makes you feel like you're in the same room.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Lock className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span>
+                      <strong className="font-semibold">
+                        End-to-End Encryption:
+                      </strong>{' '}
+                      Your conversations are private and secure, always.
                     </span>
                   </li>
                 </ul>

@@ -8,9 +8,9 @@
     },
     {
       "id": "voice-call",
-      "description": "A person wearing headphones, engaged in a voice call in a modern office.",
-      "imageUrl": "https://images.unsplash.com/photo-1658874379930-13ab23191da6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxwZXJzb24lMjBoZWFkcGhvbmVzfGVufDB8fHx8MTc1ODgyNjgzNHww&ixlib=rb-4.1.0&q=80&w=1080",
-      "imageHint": "person headphones"
+      "description": "A professional man wearing headphones, focused during a voice call in a home office setting.",
+      "imageUrl": "https://images.unsplash.com/photo-1599423695299-312c5b36443c?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxtYW4lMjBoZWFkcGhvbmVzJTIwY2FsbHxlbnwwfHx8fDE3NTg5MDY4NDV8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "man headphones"
     },
     {
       "id": "avatar1",
