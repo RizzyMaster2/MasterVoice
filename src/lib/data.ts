@@ -38,13 +38,12 @@ export type FriendRequest = {
   from_user_id: string;
   to_user_id: string;
   status: 'pending' | 'accepted' | 'declined';
-  profiles: UserProfile | null; // The profile of the user who sent the request
+  profiles: UserProfile | null; // The profile of the other user in the request
 }
 
 export interface HomeClientLayoutProps {
     currentUser: UserProfile;
     initialChats: Chat[];
-    initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
     allUsers: UserProfile[];
 }
 
