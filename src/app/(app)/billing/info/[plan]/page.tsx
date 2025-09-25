@@ -49,7 +49,6 @@ const planDetails = {
       'Admin Dashboard & Analytics',
       'Custom Server Roles & Permissions',
       'Dedicated 24/7 Support',
-      'SLA Guarantees',
     ],
     description: 'Advanced tools for your team and organization.',
     ctaMonthly: 'Upgrade to Business Monthly',

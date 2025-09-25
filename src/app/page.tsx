@@ -89,7 +89,7 @@ const pricingTiers = [
     description: 'For large teams and organizations.',
     features: [
       'Everything in Pro, plus:',
-      'Admin Dashboard',
+      'Admin Dashboard & Analytics',
       'Custom Server Roles & Permissions',
       '24/7 Dedicated Support',
     ],
