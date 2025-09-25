@@ -28,14 +28,14 @@ export async function deleteUser(userId: string) {
 
   if (deleteError) {
       console.error('Supabase delete user error:', deleteError);
-      // It's possible the user doesn't exist, but we can treat it as a success for the client.
-      // If it's a real error, the logs will show it.
+      throw new Error(`Failed to delete user: ${deleteError.message}`);
   }
 
-  // If a user deletes their own account, sign them out and redirect.
+  // If a user deletes their own account, sign them out.
+  // The redirect is now handled on the client to avoid CORS issues with server action redirects.
   if (currentUser && currentUser.id === userId) {
     await supabase.auth.signOut();
-    redirect('/');
+    revalidatePath('/');
   } else {
     // If an admin deletes a user, just revalidate the admin page.
     revalidatePath('/home/admin');

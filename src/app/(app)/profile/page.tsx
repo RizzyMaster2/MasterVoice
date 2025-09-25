@@ -42,10 +42,12 @@ import type { UserProfile } from '@/lib/data';
 import { getChats } from '@/app/(auth)/actions/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { useRouter } from 'next/navigation';
 
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user } = useUser();
+  const router = useRouter();
   const [micLevel, setMicLevel] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
@@ -154,7 +156,9 @@ export default function ProfilePage() {
         title: 'Account Deleted',
         description: 'Your account has been permanently deleted.',
       });
-      // The server action will handle the redirect.
+      // Handle navigation on the client side
+      router.refresh();
+      router.push('/');
     } catch (error) {
       toast({
         title: 'Error Deleting Account',
