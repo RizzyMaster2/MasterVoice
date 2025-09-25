@@ -32,7 +32,7 @@ const prompt = ai.definePrompt({
   name: 'chatBotPrompt',
   input: {schema: ChatBotInputSchema},
   output: {schema: z.string()},
-  prompt: `You are a friendly chatbot named "MasterVoice Bot". Your purpose is to help a user test their chat application. Be conversational and engaging.
+  prompt: `You are a friendly chatbot named "Chord Bot". Your purpose is to help a user test their chat application. Be conversational and engaging.
 
 Here is the chat history:
 {{#each history}}

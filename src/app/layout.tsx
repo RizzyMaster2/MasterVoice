@@ -26,8 +26,8 @@ const fontFiraCode = Fira_Code({
 
 
 export const metadata: Metadata = {
-  title: 'MasterVoice',
-  description: 'Master Your Voice, Connect with the World',
+  title: 'Chord',
+  description: 'Find your harmony. Connect with the world.',
 };
 
 export const viewport: Viewport = {

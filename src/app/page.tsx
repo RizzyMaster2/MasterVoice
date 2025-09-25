@@ -190,12 +190,12 @@ export default function Home() {
               Now with Crystal-Clear Voice Calls!
             </Badge>
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl">
-              Master Your Voice,
+              Find your harmony,
               <br />
               <span className="text-primary">Connect with the World</span>
             </h1>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              MasterVoice is a modern communication platform designed for
+              Chord is a modern communication platform designed for
               meaningful interactions. Chat in real-time, engage in crystal-clear voice calls,
               and personalize your profile.
             </p>
@@ -343,11 +343,11 @@ export default function Home() {
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <span className="font-headline text-lg font-bold text-muted-foreground">
-              MasterVoice
+              Chord
             </span>
           </div>
           <p className="text-sm text-muted-foreground">
-            © <CurrentYear /> MasterVoice. All rights reserved.
+            © <CurrentYear /> Chord. All rights reserved.
           </p>
         </div>
       </footer>
