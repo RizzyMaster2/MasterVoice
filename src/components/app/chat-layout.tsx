@@ -175,33 +175,26 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           const newMessage = payload.new as Message;
           
           setMessages((prevMessages) => {
-             // Check if it's an optimistic message that needs to be replaced
-            const tempMessageIndex = prevMessages.findIndex(m => 
-                m.id.startsWith('temp-') && 
-                m.content === newMessage.content && 
-                m.sender_id === newMessage.sender_id
-            );
+            // If the message is already in the list (e.g., an optimistic update), don't add it again.
+            if (prevMessages.some((msg) => msg.id === newMessage.id)) {
+              return prevMessages;
+            }
+            // Replace the optimistic message with the real one from the DB
+            const tempMessageIndex = prevMessages.findIndex(msg => msg.id.startsWith('temp-') && msg.content === newMessage.content);
             
-            if (tempMessageIndex > -1) {
-                // This is our own message, confirmed by the server. Replace the temp one.
+            const finalMessage = {
+                ...newMessage,
+                profiles: userMap.get(newMessage.sender_id)
+            };
+
+            if (tempMessageIndex !== -1) {
                 const updatedMessages = [...prevMessages];
-                const finalMessage = {
-                    ...newMessage,
-                    profiles: userMap.get(newMessage.sender_id)
-                }
                 updatedMessages[tempMessageIndex] = finalMessage;
                 return updatedMessages;
-            } else if (!prevMessages.some(m => m.id === newMessage.id)) {
-                // This is a new message from someone else. Add it.
-                const finalMessage = {
-                   ...newMessage,
-                   profiles: userMap.get(newMessage.sender_id)
-                };
-                return [...prevMessages, finalMessage];
             }
 
-            // If neither of the above, it's a duplicate, so return the state as is.
-            return prevMessages;
+            // Otherwise, it's a new message from another user, so append it.
+            return [...prevMessages, finalMessage];
           });
 
           setTimeout(scrollToBottom, 100);
@@ -654,5 +647,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
+
+    
 
     
