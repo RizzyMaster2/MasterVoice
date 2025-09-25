@@ -273,7 +273,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         console.error('Failed to upload and send file:', error);
         toast({
           title: 'Upload Failed',
-          description: (error as Error).message,
+          description: error instanceof Error ? error.message : 'An unknown error occurred.',
           variant: 'destructive',
         });
       }
@@ -573,6 +573,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   );
 }
     
+    
+
     
 
     

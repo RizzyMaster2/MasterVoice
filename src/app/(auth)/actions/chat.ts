@@ -158,7 +158,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
 
     if (existingError) {
       console.error('Error checking for existing chats:', existingError);
-      throw new Error(`Could not check for existing chats: ${existingError.message}`);
+      throw new Error(existingError.message);
     }
 
     const allUsers = await getUsers();
@@ -190,7 +190,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
 
     if (rpcError) {
       console.error('Error creating chat via RPC:', rpcError);
-      throw new Error(`Could not create chat: ${rpcError.message}`);
+      throw new Error(rpcError.message);
     }
 
      if (!newChatId) {
@@ -225,7 +225,7 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
     
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
-    console.error('createChat failed:', error);
+    console.error('createChat failed:', message);
     throw new Error(message);
   }
 }
@@ -248,7 +248,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
         if (rpcError || !newGroup) {
             console.error('Error creating group chat via RPC:', rpcError);
-            throw new Error('Could not create group chat. This may be due to database security policies.');
+            throw new Error(rpcError.message);
         }
         
         revalidatePath('/home');
@@ -257,7 +257,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
 
     } catch (error) {
         console.error('createGroupChat failed:', error);
-        throw new Error(error instanceof Error ? error.message : 'You must be logged in to create a group chat.');
+        throw new Error(error instanceof Error ? error.message : 'An unknown error occurred.');
     }
 }
 
@@ -317,7 +317,7 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
     if (error) {
       // The most likely error is an RLS violation.
       console.error('Supabase sendMessage error:', error.message);
-      throw new Error(`Could not send message: ${error.message}`);
+      throw new Error(error.message);
     }
     
     return data;
@@ -358,7 +358,7 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
 
     if (deleteError) {
       console.error('Supabase delete chat error:', deleteError);
-      throw new Error(`Could not delete chat: ${deleteError.message}`);
+      throw new Error(deleteError.message);
     }
 
     revalidatePath('/home');
@@ -528,6 +528,8 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home');
 }
+
+    
 
     
 
