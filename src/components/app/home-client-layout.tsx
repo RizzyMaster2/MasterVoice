@@ -8,6 +8,7 @@ import { useState, useTransition, useMemo, useEffect } from 'react';
 import { createChat, getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
+import { createClient } from '@/lib/supabase/client';
 
 interface HomeClientLayoutProps {
     currentUser: UserProfile;
@@ -21,6 +22,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   const [isAddingFriend, startTransition] = useTransition();
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
+  const supabase = createClient();
 
   // Separate friends and groups
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
@@ -41,6 +43,43 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Listen for real-time chat creations
+  useEffect(() => {
+    const channel = supabase
+      .channel(`new-chats-for-${currentUser.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_participants',
+          filter: `user_id=eq.${currentUser.id}`,
+        },
+        async (payload) => {
+          // Check if this chat is already in our state
+          const existingChat = chats.find(c => c.id === payload.new.chat_id);
+          if (!existingChat) {
+            // New chat detected, refresh the list
+            const updatedChats = await refreshChats();
+            const newChat = updatedChats.find(c => c.id === payload.new.chat_id);
+            if (newChat && !newChat.is_group) {
+                 toast({
+                    title: "New Friend!",
+                    description: `${newChat.otherParticipant?.display_name} added you as a friend.`,
+                    variant: 'success'
+                });
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase, currentUser.id, chats, toast]);
+
+
   const refreshChats = async () => {
     const updatedChats = await getChats();
     setChats(updatedChats);
@@ -55,11 +94,12 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         if (newChat) {
             if (isNew) {
                 // Manually add the new chat to the state for an immediate UI update
-                setChats(prev => {
-                    const updatedChats = [newChat, ...prev];
+                 const fullNewChat = { ...newChat, otherParticipant: friend };
+                 setChats(prev => {
+                    const updatedChats = [fullNewChat, ...prev];
                     return updatedChats.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
                 });
-                setSelectedChat(newChat); // Immediately select the new chat
+                setSelectedChat(fullNewChat); // Immediately select the new chat
                 toast({
                     title: "Friend Added",
                     description: `You can now chat with ${friend.display_name}.`,
