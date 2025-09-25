@@ -5,7 +5,6 @@ import { UnverifiedAccountWarning } from '@/components/app/unverified-account-wa
 import { getUsers, getChats, getFriendRequests } from '@/app/(auth)/actions/chat';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { OnboardingModal } from '@/components/app/onboarding-modal';
 import { cookies } from 'next/headers';
 
 
@@ -48,7 +47,6 @@ export default async function HomePage() {
             allUsers={usersData}
         />
       </div>
-      <OnboardingModal />
     </>
   );
 }

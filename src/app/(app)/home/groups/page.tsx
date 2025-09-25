@@ -8,7 +8,6 @@ import { getChats, getUsers } from '@/app/(auth)/actions/chat';
 import { useUser } from '@/hooks/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { OnboardingModal } from '@/components/app/onboarding-modal';
 
 export default function GroupsPage() {
   const [chats, setChats] = useState<AppChat[]>([]);
@@ -70,7 +69,6 @@ export default function GroupsPage() {
             listType="group"
         />
       </div>
-      <OnboardingModal />
     </>
   );
 }
