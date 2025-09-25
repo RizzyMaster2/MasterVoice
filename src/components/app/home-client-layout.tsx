@@ -45,8 +45,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
 
   // Listen for real-time chat creations and deletions
   useEffect(() => {
-    const insertChannel = supabase
-      .channel(`new-chats-for-${currentUser.id}`)
+    const channel = supabase
+      .channel(`realtime-chats-for-${currentUser.id}`)
       .on(
         'postgres_changes',
         {
@@ -56,10 +56,10 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
           filter: `user_id=eq.${currentUser.id}`,
         },
         async (payload) => {
-          const existingChat = chats.find(c => c.id === payload.new.chat_id);
-          if (!existingChat) {
-            const updatedChats = await refreshChats();
-            const newChat = updatedChats.find(c => c.id === payload.new.chat_id);
+           // A new chat participant record was inserted, meaning we were added to a chat.
+           // We always refresh the chat list to get the new data.
+           const updatedChats = await refreshChats();
+           const newChat = updatedChats.find(c => c.id === payload.new.chat_id);
             if (newChat && !newChat.is_group) {
                  toast({
                     title: "New Friend!",
@@ -67,13 +67,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                     variant: 'success'
                 });
             }
-          }
         }
       )
-      .subscribe();
-
-    const deleteChannel = supabase
-      .channel(`deleted-chats-for-${currentUser.id}`)
       .on(
         'postgres_changes',
         {
@@ -104,9 +99,9 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
       .subscribe();
 
     return () => {
-      supabase.removeChannel(insertChannel);
-      supabase.removeChannel(deleteChannel);
+      supabase.removeChannel(channel);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase, currentUser.id, chats, selectedChat?.id, toast]);
 
 
@@ -145,7 +140,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 if(existingChat) {
                   setSelectedChat(existingChat)
                 } else {
-                  // If it doesn't exist in local state for some reason, refresh and select
+                  // If it doesn't exist in local state (the bug), refresh and select
                   const updatedChats = await refreshChats();
                   const chatToSelect = updatedChats.find(c => c.id === newChat.id);
                   if (chatToSelect) setSelectedChat(chatToSelect);
