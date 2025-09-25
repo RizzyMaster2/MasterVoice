@@ -126,6 +126,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     const fetchMessages = async () => {
       if (selectedChat) {
         setIsLoadingMessages(true);
+        setMessages([]); // Clear previous messages
         const fetchedMessages = await getMessages(selectedChat.id);
         setMessages(fetchedMessages);
         setIsLoadingMessages(false);
@@ -139,36 +140,43 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
   // Listen for new messages in real-time
   useEffect(() => {
+    if (!selectedChat) return;
+
     const channel = supabase
-      .channel('public:messages')
+      .channel(`chat_${selectedChat.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
         (payload) => {
           const newMessage = payload.new as Message;
-          // Only update if the message belongs to the currently selected chat
-          if (newMessage.chat_id === selectedChat?.id) {
-            // Add sender profile from our user map
-            if (userMap.has(newMessage.sender_id)) {
-              newMessage.profiles = userMap.get(newMessage.sender_id);
+          
+          setMessages((prevMessages) => {
+            // Check if it's an optimistic message that needs to be replaced
+            const tempMessageIndex = prevMessages.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id);
+            if (tempMessageIndex > -1) {
+              const updatedMessages = [...prevMessages];
+              updatedMessages[tempMessageIndex] = newMessage;
+              return updatedMessages;
             }
-            
-            setMessages((prevMessages) => {
-              // Avoid duplicating optimistic messages
-              if (prevMessages.some(m => m.id === newMessage.id || (m.id.startsWith('temp-') && m.content === newMessage.content))) {
-                // Replace temp message with the real one
-                 return prevMessages.map(m => 
-                    (m.id.startsWith('temp-') && m.content === newMessage.content) ? newMessage : m
-                );
-              }
-              return [...prevMessages, newMessage];
-            });
-            setTimeout(scrollToBottom, 100);
-          }
+
+            // Check if the message is already in the list to avoid duplicates
+            if (prevMessages.some(m => m.id === newMessage.id)) {
+              return prevMessages;
+            }
+
+            // Otherwise, it's a new message from another user
+             if (userMap.has(newMessage.sender_id)) {
+               newMessage.profiles = userMap.get(newMessage.sender_id);
+             }
+            return [...prevMessages, newMessage];
+          });
+
+          setTimeout(scrollToBottom, 100);
         }
       )
       .subscribe();
   
+    // Cleanup function to remove the channel subscription when the component unmounts or selectedChat changes
     return () => {
       supabase.removeChannel(channel);
     };
@@ -206,7 +214,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // The real-time listener will now handle replacing the temp message
+        // The real-time listener will handle replacing the temp message with the real one.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -555,4 +563,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   );
 }
     
+    
+
     
