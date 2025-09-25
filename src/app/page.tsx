@@ -66,7 +66,7 @@ const pricingTiers = [
   },
   {
     name: 'Pro',
-    price: '$10',
+    price: '$5',
     frequency: '/ month',
     description: 'For professionals who need more power.',
     features: [
@@ -83,7 +83,7 @@ const pricingTiers = [
   },
   {
     name: 'Business',
-    price: '$25',
+    price: '$15',
     frequency: '/ month',
     description: 'For large teams and organizations.',
     features: [
