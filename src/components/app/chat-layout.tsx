@@ -86,6 +86,13 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const { toast } = useToast();
   const { startCall, activeGroupCalls, joinCall } = useCall();
 
+  const userMap = useMemo(() => {
+    const map = new Map<string, UserProfile>();
+    allUsers.forEach(user => map.set(user.id, user));
+    map.set(currentUser.id, currentUser);
+    return map;
+  }, [allUsers, currentUser]);
+
   const handleStartCall = () => {
     if (selectedChat?.otherParticipant) {
       startCall(selectedChat.otherParticipant);
@@ -132,61 +139,40 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
   // Listen for new messages in real-time
   useEffect(() => {
-    if (!selectedChat) return;
-
-    // A channel name unique to this specific chat
-    const channel = supabase.channel(`chat_${selectedChat.id}`);
-
-    const handleNewMessage = async (payload: any) => {
-        // We need to fetch the message with the profile
-        const { data: newMessage, error } = await supabase
-        .from('messages')
-        .select('*, profiles(*)')
-        .eq('id', payload.new.id)
-        .single();
-      
-      if (error) {
-        console.error('Error fetching new message with profile:', error);
-        return;
-      }
-
-      if (newMessage) {
-        setMessages((prevMessages) => {
-          // If the message is already in the list (e.g. optimistic update), don't add it again.
-          if (prevMessages.some(m => m.id === newMessage.id)) {
-            // Replace the optimistic message with the server one if needed
-            return prevMessages.map(m => m.id === newMessage.id ? newMessage as Message : m);
-          }
-          return [...prevMessages, newMessage as Message];
-        });
-        setTimeout(scrollToBottom, 100);
-      }
-    };
-
-    const subscription = channel
+    const channel = supabase
+      .channel('public:messages')
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `chat_id=eq.${selectedChat.id}`,
-        },
-        handleNewMessage
-      )
-      .subscribe((status) => {
-          if (status === 'SUBSCRIBED') {
-            // console.log(`Subscribed to chat ${selectedChat.id}`);
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          // Only update if the message belongs to the currently selected chat
+          if (newMessage.chat_id === selectedChat?.id) {
+            // Add sender profile from our user map
+            if (userMap.has(newMessage.sender_id)) {
+              newMessage.profiles = userMap.get(newMessage.sender_id);
+            }
+            
+            setMessages((prevMessages) => {
+              // Avoid duplicating optimistic messages
+              if (prevMessages.some(m => m.id === newMessage.id || (m.id.startsWith('temp-') && m.content === newMessage.content))) {
+                // Replace temp message with the real one
+                 return prevMessages.map(m => 
+                    (m.id.startsWith('temp-') && m.content === newMessage.content) ? newMessage : m
+                );
+              }
+              return [...prevMessages, newMessage];
+            });
+            setTimeout(scrollToBottom, 100);
           }
-      });
-    
-    // Cleanup function to remove the subscription
+        }
+      )
+      .subscribe();
+  
     return () => {
-      if (subscription) {
-        supabase.removeChannel(channel);
-      }
+      supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase]);
+  }, [selectedChat, supabase, userMap]);
   
   const getInitials = (name: string | undefined | null) =>
     name
@@ -219,9 +205,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
     startSendingTransition(async () => {
       try {
-        const sentMessage = await sendMessage(selectedChat.id, messageContent);
-        // Replace the temporary message with the real one from the server
-        setMessages(prev => prev.map(m => m.id === tempMessageId ? { ...sentMessage, profiles: currentUser } as Message : m));
+        await sendMessage(selectedChat.id, messageContent);
+        // The real-time listener will now handle replacing the temp message
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -569,4 +554,5 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
+    
     
