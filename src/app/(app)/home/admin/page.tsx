@@ -9,6 +9,7 @@ import { getAdminStats, getUserSignupsByDay, getMessageCountByDay } from '@/app/
 import { TimeSeriesChart } from '@/components/app/timeseries-chart';
 import { Button } from '@/components/ui/button';
 import { cookies } from 'next/headers';
+import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 
 export default async function AdminPage() {
   const cookieStore = cookies();
@@ -22,6 +23,8 @@ export default async function AdminPage() {
     notFound();
   }
   
+  const isVerified = !!user.email_confirmed_at;
+
   const supabaseAdmin = createAdminClient();
   const { data: { users }, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
 
@@ -48,6 +51,7 @@ export default async function AdminPage() {
 
   return (
     <div className="space-y-6">
+      {!isVerified && <UnverifiedAccountWarning />}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>

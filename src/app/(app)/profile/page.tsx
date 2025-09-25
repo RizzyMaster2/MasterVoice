@@ -43,6 +43,7 @@ import { getChats } from '@/app/(auth)/actions/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
+import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 
 const getErrorMessage = (error: unknown): string => {
   if (error instanceof Error) {
@@ -56,7 +57,7 @@ const getErrorMessage = (error: unknown): string => {
 
 export default function ProfilePage() {
   const { toast } = useToast();
-  const { user } = useUser();
+  const { user, isVerified } = useUser();
   const router = useRouter();
   const [micLevel, setMicLevel] = useState(0);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -188,6 +189,7 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {!isVerified && <UnverifiedAccountWarning />}
       <Tabs defaultValue="profile">
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="profile">Profile</TabsTrigger>
@@ -368,5 +370,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
