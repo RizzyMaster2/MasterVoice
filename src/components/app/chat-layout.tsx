@@ -132,10 +132,38 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
   // Listen for new messages in real-time
   useEffect(() => {
-    if (!selectedChat || !authUser) return;
+    if (!selectedChat) return;
 
-    const channel = supabase
-      .channel(`chat_${selectedChat.id}`)
+    // A channel name unique to this specific chat
+    const channel = supabase.channel(`chat_${selectedChat.id}`);
+
+    const handleNewMessage = async (payload: any) => {
+        // We need to fetch the message with the profile
+        const { data: newMessage, error } = await supabase
+        .from('messages')
+        .select('*, profiles(*)')
+        .eq('id', payload.new.id)
+        .single();
+      
+      if (error) {
+        console.error('Error fetching new message with profile:', error);
+        return;
+      }
+
+      if (newMessage) {
+        setMessages((prevMessages) => {
+          // If the message is already in the list (e.g. optimistic update), don't add it again.
+          if (prevMessages.some(m => m.id === newMessage.id)) {
+            // Replace the optimistic message with the server one if needed
+            return prevMessages.map(m => m.id === newMessage.id ? newMessage as Message : m);
+          }
+          return [...prevMessages, newMessage as Message];
+        });
+        setTimeout(scrollToBottom, 100);
+      }
+    };
+
+    const subscription = channel
       .on(
         'postgres_changes',
         {
@@ -144,38 +172,21 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           table: 'messages',
           filter: `chat_id=eq.${selectedChat.id}`,
         },
-        async (payload) => {
-          // We need to fetch the message with the profile
-          const { data: newMessage, error } = await supabase
-            .from('messages')
-            .select('*, profiles(*)')
-            .eq('id', payload.new.id)
-            .single();
-          
-          if (error) {
-            console.error('Error fetching new message with profile:', error);
-            return;
-          }
-
-          if (newMessage) {
-            setMessages((prevMessages) => {
-              // If the message is already in the list (e.g. optimistic update), don't add it again.
-              if (prevMessages.some(m => m.id === newMessage.id)) {
-                // We can replace the optimistic message with the server one if needed
-                return prevMessages.map(m => m.id === newMessage.id ? newMessage as Message : m);
-              }
-              return [...prevMessages, newMessage as Message];
-            });
-            setTimeout(scrollToBottom, 100);
-          }
-        }
+        handleNewMessage
       )
-      .subscribe();
-
+      .subscribe((status) => {
+          if (status === 'SUBSCRIBED') {
+            // console.log(`Subscribed to chat ${selectedChat.id}`);
+          }
+      });
+    
+    // Cleanup function to remove the subscription
     return () => {
-      supabase.removeChannel(channel);
+      if (subscription) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [selectedChat, supabase, authUser, currentUser.id]);
+  }, [selectedChat, supabase]);
   
   const getInitials = (name: string | undefined | null) =>
     name
@@ -558,5 +569,4 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
-
     
