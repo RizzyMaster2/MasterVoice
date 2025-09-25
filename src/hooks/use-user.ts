@@ -8,7 +8,6 @@ import { useEffect, useState } from "react";
 export function useUser() {
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
-    const [isBot, setIsBot] = useState(false);
     const [isLoading, setIsLoading] = useState(true); // Add loading state
     const supabase = createClient();
 
@@ -16,14 +15,11 @@ export function useUser() {
         const checkRoles = (user: User | null) => {
             const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
             const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
-            const botEmail = process.env.NEXT_PUBLIC_BOT_EMAIL || '';
-
+            
             if (user && user.email) {
                 setIsAdmin(adminEmails.length > 0 && adminEmails.includes(user.email));
-                setIsBot(botEmail !== '' && user.email === botEmail);
             } else {
                 setIsAdmin(false);
-                setIsBot(false);
             }
         };
 
@@ -56,5 +52,5 @@ export function useUser() {
 
     const isVerified = !!user?.email_confirmed_at;
 
-    return { user, isAdmin, isBot, isLoading, isVerified };
+    return { user, isAdmin, isLoading, isVerified };
 }
