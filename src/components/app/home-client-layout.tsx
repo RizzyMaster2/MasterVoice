@@ -5,7 +5,7 @@ import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { SuggestedFriends } from '@/components/app/suggested-friends';
 import { useState, useTransition, useMemo, useEffect } from 'react';
-import { createChat, getChats } from '@/app/(auth)/actions/chat';
+import { createChat, getChats, getUsers } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { createClient } from '@/lib/supabase/client';
@@ -55,11 +55,14 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
           table: 'chat_participants',
           filter: `user_id=eq.${currentUser.id}`,
         },
-        async (payload) => {
+        async () => {
            // A new chat participant record was inserted, meaning we were added to a chat.
            // We always refresh the chat list to get the new data.
            const updatedChats = await refreshChats();
-           const newChat = updatedChats.find(c => c.id === payload.new.chat_id);
+           // Find the new chat to show a toast
+           const currentChatIds = new Set(chats.map(c => c.id));
+           const newChat = updatedChats.find(c => !currentChatIds.has(c.id));
+
             if (newChat && !newChat.is_group) {
                  toast({
                     title: "New Friend!",
@@ -102,13 +105,25 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
       supabase.removeChannel(channel);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, currentUser.id, chats, selectedChat?.id, toast]);
+  }, [supabase, currentUser.id, chats, selectedChat?.id]);
 
 
   const refreshChats = async () => {
     const updatedChats = await getChats();
-    setChats(updatedChats);
-    return updatedChats;
+    const friendChats = updatedChats.filter(c => !c.is_group);
+    const users = await getUsers();
+    
+    const processedChats = friendChats.map(chat => {
+        const otherId = chat.participants.find(pId => pId !== currentUser.id);
+        if (otherId) {
+            const otherUser = users.find(u => u.id === otherId);
+            return { ...chat, otherParticipant: otherUser };
+        }
+        return null;
+    }).filter(Boolean) as AppChat[];
+
+    setChats(processedChats);
+    return processedChats;
   };
 
   const handleAddFriend = (friend: UserProfile) => {
@@ -140,7 +155,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
                 if(existingChat) {
                   setSelectedChat(existingChat)
                 } else {
-                  // If it doesn't exist in local state (the bug), refresh and select
+                  // If it doesn't exist in local state, refresh and select
                   const updatedChats = await refreshChats();
                   const chatToSelect = updatedChats.find(c => c.id === newChat.id);
                   if (chatToSelect) setSelectedChat(chatToSelect);

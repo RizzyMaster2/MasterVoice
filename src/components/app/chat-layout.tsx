@@ -128,7 +128,11 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         setIsLoadingMessages(true);
         setMessages([]); // Clear previous messages
         const fetchedMessages = await getMessages(selectedChat.id);
-        setMessages(fetchedMessages);
+        const messagesWithProfiles = fetchedMessages.map(msg => ({
+            ...msg,
+            profiles: userMap.get(msg.sender_id)
+        }));
+        setMessages(messagesWithProfiles);
         setIsLoadingMessages(false);
         setTimeout(scrollToBottom, 100);
       } else {
@@ -136,7 +140,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
       }
     };
     fetchMessages();
-  }, [selectedChat]);
+  }, [selectedChat, userMap]);
 
   // Listen for new messages in real-time
   useEffect(() => {
@@ -153,9 +157,14 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           setMessages((prevMessages) => {
             // Check if it's an optimistic message that needs to be replaced
             const tempMessageIndex = prevMessages.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id);
+            
             if (tempMessageIndex > -1) {
               const updatedMessages = [...prevMessages];
-              updatedMessages[tempMessageIndex] = newMessage;
+              const finalMessage = {
+                  ...newMessage,
+                  profiles: userMap.get(newMessage.sender_id)
+              }
+              updatedMessages[tempMessageIndex] = finalMessage;
               return updatedMessages;
             }
 
@@ -165,10 +174,11 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
             }
 
             // Otherwise, it's a new message from another user
-             if (userMap.has(newMessage.sender_id)) {
-               newMessage.profiles = userMap.get(newMessage.sender_id);
-             }
-            return [...prevMessages, newMessage];
+            const finalMessage = {
+               ...newMessage,
+               profiles: userMap.get(newMessage.sender_id)
+            };
+            return [...prevMessages, finalMessage];
           });
 
           setTimeout(scrollToBottom, 100);
