@@ -96,8 +96,10 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
+  const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
@@ -159,55 +161,76 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     fetchMessages();
   }, [selectedChat, userMap]);
 
-  // Listen for new messages in real-time
+  // Realtime listeners
   useEffect(() => {
-    if (!selectedChat) return;
+    if (!selectedChat || !currentUser) return;
 
-    const channel = supabase
-      .channel(`chat_${selectedChat.id}`)
-      .on(
+    const channel = supabase.channel(`chat_${selectedChat.id}`);
+
+    // Listen for new messages
+    channel.on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
         (payload) => {
           const newMessage = payload.new as Message;
           
           setMessages((prevMessages) => {
-            // Check if it's an optimistic message that needs to be replaced
-            const tempMessageIndex = prevMessages.findIndex(m => m.id.startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id);
+             // Check if it's an optimistic message that needs to be replaced
+            const tempMessageIndex = prevMessages.findIndex(m => 
+                m.id.startsWith('temp-') && 
+                m.content === newMessage.content && 
+                m.sender_id === newMessage.sender_id
+            );
             
             if (tempMessageIndex > -1) {
-              const updatedMessages = [...prevMessages];
-              const finalMessage = {
-                  ...newMessage,
-                  profiles: userMap.get(newMessage.sender_id)
-              }
-              updatedMessages[tempMessageIndex] = finalMessage;
-              return updatedMessages;
+                // This is our own message, confirmed by the server. Replace the temp one.
+                const updatedMessages = [...prevMessages];
+                const finalMessage = {
+                    ...newMessage,
+                    profiles: userMap.get(newMessage.sender_id)
+                }
+                updatedMessages[tempMessageIndex] = finalMessage;
+                return updatedMessages;
+            } else if (!prevMessages.some(m => m.id === newMessage.id)) {
+                // This is a new message from someone else. Add it.
+                const finalMessage = {
+                   ...newMessage,
+                   profiles: userMap.get(newMessage.sender_id)
+                };
+                return [...prevMessages, finalMessage];
             }
 
-            // Check if the message is already in the list to avoid duplicates
-            if (prevMessages.some(m => m.id === newMessage.id)) {
-              return prevMessages;
-            }
-
-            // Otherwise, it's a new message from another user
-            const finalMessage = {
-               ...newMessage,
-               profiles: userMap.get(newMessage.sender_id)
-            };
-            return [...prevMessages, finalMessage];
+            // If neither of the above, it's a duplicate, so return the state as is.
+            return prevMessages;
           });
 
           setTimeout(scrollToBottom, 100);
         }
-      )
-      .subscribe();
+      );
+
+    // Listen for typing indicators
+    let typingTimer: NodeJS.Timeout;
+    channel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+        if (payload.userId !== currentUser.id) {
+            setIsTyping(true);
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => setIsTyping(false), 2000);
+        }
+    });
+     channel.on('broadcast', { event: 'stopped-typing' }, ({ payload }) => {
+        if (payload.userId !== currentUser.id) {
+            setIsTyping(false);
+            clearTimeout(typingTimer);
+        }
+    });
+
+    channel.subscribe();
   
-    // Cleanup function to remove the channel subscription when the component unmounts or selectedChat changes
     return () => {
+      setIsTyping(false);
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, userMap]);
+  }, [selectedChat, supabase, userMap, currentUser]);
   
   const getInitials = (name: string | undefined | null) =>
     name
@@ -219,6 +242,17 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
+
+    // Stop broadcasting typing event
+    if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+        supabase.channel(`chat_${selectedChat.id}`).send({
+            type: 'broadcast',
+            event: 'stopped-typing',
+            payload: { userId: currentUser.id },
+        });
+    }
 
     const tempMessageId = `temp-${Date.now()}`;
     const messageContent = newMessage;
@@ -241,7 +275,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // The real-time listener will handle replacing the temp message with the real one.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -249,11 +282,37 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        // Revert optimistic update on failure
         setMessages(prev => prev.filter(m => m.id !== tempMessageId));
       }
     });
   };
+
+  const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+
+    if (!selectedChat) return;
+    const channel = supabase.channel(`chat_${selectedChat.id}`);
+
+    if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+    } else {
+        channel.send({
+            type: 'broadcast',
+            event: 'typing',
+            payload: { userId: currentUser.id },
+        });
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+        channel.send({
+            type: 'broadcast',
+            event: 'stopped-typing',
+            payload: { userId: currentUser.id },
+        });
+        typingTimeoutRef.current = null;
+    }, 1500);
+  };
+
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
@@ -429,9 +488,15 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
                     <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
                       {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
                     </h2>
-                    {selectedChat.is_group && (
-                        <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
-                    )}
+                     <div className="h-5">
+                      {isTyping ? (
+                          <p className="text-sm text-muted-foreground animate-pulse">Typing...</p>
+                      ) : (
+                         selectedChat.is_group && (
+                            <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
+                         )
+                      )}
+                    </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={handleStartCall}>
                     <Phone className="h-5 w-5" />
@@ -562,7 +627,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
                   </Button>
                 <Input
                   value={newMessage}
-                  onChange={(e) => setNewMessage(e.target.value)}
+                  onChange={handleNewMessageChange}
                   placeholder="Type a message..."
                   className="flex-1"
                   autoComplete="off"
@@ -589,3 +654,5 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
+
+    

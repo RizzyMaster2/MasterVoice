@@ -107,7 +107,7 @@ export function FriendsClientPage({
           description: `Your friend request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        // The realtime listener will update the state
+        // The realtime listener will update the state, no need to manually set it here
       } catch (error) {
         toast({
           title: 'Error',
@@ -115,10 +115,18 @@ export function FriendsClientPage({
           variant: 'destructive',
         });
       } finally {
-        setProcessingId(null);
+        // We don't set processingId to null here, it will be handled by the useEffect watching isProcessing
       }
     });
   };
+
+  // When a transition finishes, clear the processing ID.
+  useEffect(() => {
+    if (!isProcessing) {
+      setProcessingId(null);
+    }
+  }, [isProcessing]);
+
 
   const handleRequestResponse = (action: 'accept' | 'decline' | 'cancel', request: FriendRequest) => {
     setProcessingId(request.id);
@@ -166,7 +174,6 @@ export function FriendsClientPage({
       user =>
         user.id !== currentUser.id &&
         !friendIds.has(user.id) &&
-        !outgoingRequestUserIds.has(user.id) &&
         !incomingRequestUserIds.has(user.id)
     );
 
@@ -176,7 +183,7 @@ export function FriendsClientPage({
       );
     }
     return availableUsers.slice(0, 10); // Show some suggestions
-  }, [allUsers, currentUser.id, friendIds, outgoingRequestUserIds, incomingRequestUserIds, searchQuery]);
+  }, [allUsers, currentUser.id, friendIds, incomingRequestUserIds, searchQuery]);
 
 
   return (
@@ -310,33 +317,46 @@ export function FriendsClientPage({
               <ScrollArea className="h-[calc(100vh-25rem)]">
                  {addFriendFilteredUsers.length > 0 ? (
                   <div className="space-y-4">
-                    {addFriendFilteredUsers.map(user => (
-                      <div key={user.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <Avatar className="h-10 w-10">
-                            <AvatarImage src={user.photo_url || undefined} alt={user.display_name || ''} />
-                            <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
-                          </Avatar>
-                          <p className="font-semibold">{user.display_name}</p>
+                    {addFriendFilteredUsers.map(user => {
+                      const hasOutgoingRequest = outgoingRequestUserIds.has(user.id);
+                      const isCurrentlyProcessing = isProcessing && processingId === user.id;
+
+                      return (
+                        <div key={user.id} className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <Avatar className="h-10 w-10">
+                              <AvatarImage src={user.photo_url || undefined} alt={user.display_name || ''} />
+                              <AvatarFallback>{getInitials(user.display_name)}</AvatarFallback>
+                            </Avatar>
+                            <p className="font-semibold">{user.display_name}</p>
+                          </div>
+                          
+                           {hasOutgoingRequest || isCurrentlyProcessing ? (
+                                <Button variant="ghost" size="icon" disabled>
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                </Button>
+                           ) : (
+                            <TooltipProvider>
+                                <Tooltip>
+                                <TooltipTrigger asChild>
+                                    <span tabIndex={0}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={!isVerified}>
+                                            <Plus className="h-4 w-4" />
+                                        </Button>
+                                    </span>
+                                </TooltipTrigger>
+                                {!isVerified && (
+                                    <TooltipContent>
+                                        <p>Verify your email to send friend requests.</p>
+                                    </TooltipContent>
+                                )}
+                                </Tooltip>
+                            </TooltipProvider>
+                           )}
+
                         </div>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                                <span tabIndex={0}>
-                                    <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={isProcessing || !isVerified}>
-                                        {isProcessing && processingId === user.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Plus className="h-4 w-4" />}
-                                    </Button>
-                                </span>
-                            </TooltipTrigger>
-                            {!isVerified && (
-                                <TooltipContent>
-                                    <p>Verify your email to send friend requests.</p>
-                                </TooltipContent>
-                            )}
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 ) : (
                   <div className="text-center text-muted-foreground p-8">
@@ -352,3 +372,5 @@ export function FriendsClientPage({
     </div>
   );
 }
+
+    
