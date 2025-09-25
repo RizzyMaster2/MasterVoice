@@ -18,6 +18,24 @@ interface HomeClientLayoutProps {
     allUsers: UserProfile[];
 }
 
+// Helper to extract a user-friendly error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    try {
+      // Supabase can sometimes stringify a JSON object in the message
+      const parsed = JSON.parse(error.message);
+      return parsed.message || error.message;
+    } catch (e) {
+      return error.message;
+    }
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred.';
+};
+
+
 export function HomeClientLayout({ currentUser, initialChats, initialFriendRequests, allUsers }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
@@ -184,7 +202,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
       } catch (error) {
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Could not send friend request.",
+          description: getErrorMessage(error),
           variant: "destructive",
         });
       }
@@ -231,7 +249,7 @@ export function HomeClientLayout({ currentUser, initialChats, initialFriendReque
         } catch (error) {
              toast({
                 title: 'Error',
-                description: error instanceof Error ? error.message : `An unknown error occurred.`,
+                description: getErrorMessage(error),
                 variant: 'destructive',
             });
         }

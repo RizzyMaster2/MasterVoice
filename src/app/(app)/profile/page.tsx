@@ -44,6 +44,21 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    try {
+      const parsed = JSON.parse(error.message);
+      return parsed.message || error.message;
+    } catch (e) {
+      return error.message;
+    }
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred.';
+};
+
 export default function ProfilePage() {
   const { toast } = useToast();
   const { user } = useUser();
@@ -70,7 +85,7 @@ export default function ProfilePage() {
         } catch (error) {
           toast({
             title: 'Error fetching friends',
-            description: (error as Error).message,
+            description: getErrorMessage(error),
             variant: 'destructive',
           });
         } finally {
@@ -163,7 +178,7 @@ export default function ProfilePage() {
     } catch (error) {
       toast({
         title: 'Error Deleting Account',
-        description: error instanceof Error ? error.message : 'An unknown error occurred.',
+        description: getErrorMessage(error),
         variant: 'destructive',
       });
     }

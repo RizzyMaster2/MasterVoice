@@ -27,6 +27,21 @@ interface CreateGroupDialogProps {
   onGroupCreated: () => void;
 }
 
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    try {
+      const parsed = JSON.parse(error.message);
+      return parsed.message || error.message;
+    } catch (e) {
+      return error.message;
+    }
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred.';
+};
+
 export function CreateGroupDialog({ allUsers, onGroupCreated }: CreateGroupDialogProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedUsers, setSelectedUsers] = useState<UserProfile[]>([]);
@@ -67,7 +82,7 @@ export function CreateGroupDialog({ allUsers, onGroupCreated }: CreateGroupDialo
       } catch (error) {
         toast({
           title: 'Error Creating Group',
-          description: (error as Error).message,
+          description: getErrorMessage(error),
           variant: 'destructive',
         });
       }

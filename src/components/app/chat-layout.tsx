@@ -45,6 +45,23 @@ interface ChatLayoutProps {
   listType: 'friend' | 'group';
 }
 
+// Helper to extract a user-friendly error message
+const getErrorMessage = (error: unknown): string => {
+  if (error instanceof Error) {
+    try {
+      // Supabase can sometimes stringify a JSON object in the message
+      const parsed = JSON.parse(error.message);
+      return parsed.message || error.message;
+    } catch (e) {
+      return error.message;
+    }
+  }
+  if (typeof error === 'string') {
+    return error;
+  }
+  return 'An unknown error occurred.';
+};
+
 const parseMessageContent = (content: string): ReactNode[] => {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
   const parts: ReactNode[] = [];
@@ -229,7 +246,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         console.error("Failed to send message", error);
         toast({
           title: "Error",
-          description: error instanceof Error ? error.message : "Failed to send message.",
+          description: getErrorMessage(error),
           variant: "destructive"
         });
         // Revert optimistic update on failure
@@ -273,7 +290,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         console.error('Failed to upload and send file:', error);
         toast({
           title: 'Upload Failed',
-          description: error instanceof Error ? error.message : 'An unknown error occurred.',
+          description: getErrorMessage(error),
           variant: 'destructive',
         });
       }
@@ -311,7 +328,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         console.error("Failed to delete chat:", error);
         toast({
           title: "Error Removing Friend",
-          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          description: getErrorMessage(error),
           variant: "destructive",
         });
       }
