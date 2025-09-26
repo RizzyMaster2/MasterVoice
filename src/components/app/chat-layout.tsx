@@ -158,7 +158,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
 
   useEffect(() => {
-    if (selectedChat) {
+    if (!selectedChat) {
+      return;
+    }
       const channel = supabase
         .channel(`chat-room:${selectedChat.id}`)
         .on(
@@ -195,7 +197,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       return () => {
           supabase.removeChannel(channel);
       };
-    }
+    
   }, [selectedChat, supabase, toast, userMap]);
 
 
