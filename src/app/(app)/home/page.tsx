@@ -46,11 +46,12 @@ function HomePageContent() {
     }
   }, [user, toast]);
 
-  // Initial data load effect - runs only once
+  // Initial data load effect
   useEffect(() => {
     if (isUserLoading) return; // Wait for user to be loaded
     
     const initialFetch = async () => {
+        setIsLoading(true);
         try {
             if (!user) return;
             const [chatsData, usersData] = await Promise.all([

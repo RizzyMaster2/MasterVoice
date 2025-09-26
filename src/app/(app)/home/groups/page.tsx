@@ -50,11 +50,12 @@ function GroupsPageContent() {
   }, [selectedChat, toast, router]);
 
 
-  // Initial data load effect - runs only once
+  // Initial data load effect
   useEffect(() => {
     if (isUserLoading) return;
 
     const initialFetch = async () => {
+        setIsLoading(true);
         try {
             const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
             setChats(chatsData);

@@ -79,32 +79,18 @@ export function FriendsClientPage({
   useEffect(() => {
     if (!user) return;
     
-    const friendRequestChannel = supabase
-      .channel('friend-requests-global')
+    const channel = supabase
+      .channel('friends-page-realtime')
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
           table: 'friend_requests',
-          filter: `to_user_id=eq.${user.id}`,
+          filter: `or(to_user_id.eq.${user.id},from_user_id.eq.${user.id})`,
         },
         () => refreshAllData()
       )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friend_requests',
-          filter: `from_user_id=eq.${user.id}`,
-        },
-        () => refreshAllData()
-      )
-      .subscribe();
-
-    const chatsChannel = supabase
-      .channel('chats-and-participants-global')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats' },
@@ -118,8 +104,7 @@ export function FriendsClientPage({
       .subscribe();
 
     return () => {
-      supabase.removeChannel(friendRequestChannel);
-      supabase.removeChannel(chatsChannel);
+      supabase.removeChannel(channel);
     };
   }, [user, supabase, refreshAllData]);
 
@@ -241,7 +226,7 @@ export function FriendsClientPage({
                           </Avatar>
                           <p className="font-semibold">{chat.otherParticipant?.display_name}</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push('/home')}>
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/home?chat=${chat.id}`)}>
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Chat
                         </Button>
@@ -403,5 +388,3 @@ export function FriendsClientPage({
     </div>
   );
 }
-
-    
