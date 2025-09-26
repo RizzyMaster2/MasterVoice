@@ -72,8 +72,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const publicPaths = ['/', '/login', '/signup', '/confirm', '/unauthenticated'];
-  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname === path);
+  const publicPaths = ['/', '/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy'];
+  const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path));
 
   // if user is not logged in and is trying to access a protected route
   if (!user && !isPublicPath) {
@@ -84,9 +84,9 @@ export async function middleware(request: NextRequest) {
 
   // if user is logged in and is trying to access an auth page
   if (user) {
-    const authPaths = ['/login', '/signup', '/confirm'];
-    const isAuthPath = authPaths.some(path => request.nextUrl.pathname.startsWith(path));
-    if (isAuthPath) {
+    const authOnlyPaths = ['/login', '/signup', '/confirm'];
+    const isAuthOnlyPath = authOnlyPaths.some(path => request.nextUrl.pathname.startsWith(path));
+    if (isAuthOnlyPath) {
        const url = request.nextUrl.clone()
        url.pathname = '/home'
        return NextResponse.redirect(url)
