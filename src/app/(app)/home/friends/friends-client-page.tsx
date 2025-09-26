@@ -59,7 +59,17 @@ export function FriendsClientPage({
   const { toast } = useToast();
   const router = useRouter();
   const { user, isVerified } = useUser();
-  const supabase = createClient();
+
+  // The parent component (HomeClientLayout) is now responsible for realtime updates.
+  // We just need to update the state when the props change.
+  useEffect(() => {
+    setFriends(initialFriends);
+  }, [initialFriends]);
+
+  useEffect(() => {
+    setFriendRequests(initialFriendRequests);
+  }, [initialFriendRequests]);
+
 
   const getInitials = (name: string | null | undefined) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
@@ -68,45 +78,6 @@ export function FriendsClientPage({
   const outgoingRequestUserIds = useMemo(() => new Set(friendRequests.outgoing.map(req => req.to_user_id)), [friendRequests.outgoing]);
   const incomingRequestUserIds = useMemo(() => new Set(friendRequests.incoming.map(req => req.from_user_id)), [friendRequests.incoming]);
 
-  const refreshAllData = useCallback(async () => {
-    startTransition(async () => {
-        const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
-        setFriends(chats.filter(c => !c.is_group));
-        setFriendRequests(requests);
-    });
-  }, []);
-
-  useEffect(() => {
-    if (!user) return;
-    
-    const channel = supabase
-      .channel('friends-page-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friend_requests',
-          filter: `or(to_user_id.eq.${user.id},from_user_id.eq.${user.id})`,
-        },
-        () => refreshAllData()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chats' },
-        () => refreshAllData()
-      )
-       .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chat_participants' },
-        () => refreshAllData()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, supabase, refreshAllData]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
@@ -126,7 +97,7 @@ export function FriendsClientPage({
           description: `Your friend request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        // Realtime will handle the update
+        // Realtime from parent will handle the update
       } catch (error) {
         toast({
           title: 'Error',
@@ -168,7 +139,7 @@ export function FriendsClientPage({
             break;
         }
         toast({ title, description, variant: variant as any });
-        // Realtime will handle the update
+        // Realtime from parent will handle the update
       } catch (error) {
         toast({
           title: 'Error',
