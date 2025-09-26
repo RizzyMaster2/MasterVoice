@@ -15,33 +15,28 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const { toast } = useToast();
   const [isClient, setIsClient] = useState(false);
-  const supabase = createClient();
-
+  
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
   const refreshAllData = useCallback(async () => {
-    const freshChats = await getChats();
-    const currentChatCount = chats.length;
-    
-    if (freshChats.length > currentChatCount) {
-       toast({
-          title: "New Friend",
-          description: "Someone added you as a friend! Your chat list has been updated.",
-          variant: 'info'
-      });
-    } else if (freshChats.length < currentChatCount) {
-         toast({
-            title: "Friend Removed",
-            description: `A user has removed you as a friend.`,
-            variant: 'info'
-        });
-    }
-    
-    setChats(freshChats);
+    try {
+        const freshChats = await getChats();
+        const currentChatCount = chats.length;
+        
+        setChats(freshChats);
 
-    // If the selected chat was removed, clear it
-    if (selectedChat && !freshChats.some(c => c.id === selectedChat.id)) {
-        setSelectedChat(null);
+        // If the selected chat was removed, clear it
+        if (selectedChat && !freshChats.some(c => c.id === selectedChat.id)) {
+            setSelectedChat(null);
+             toast({
+                title: "Friend Removed",
+                description: `A user has removed you as a friend.`,
+                variant: 'info'
+            });
+        }
+    } catch (error) {
+        // Handle error gracefully, maybe show a toast
+        console.error("Failed to refresh chats", error);
     }
   }, [chats.length, selectedChat, toast]);
 
@@ -77,7 +72,6 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         <ChatLayout 
             currentUser={currentUser} 
             chats={friends}
-            setChats={setChats}
             allUsers={allUsers}
             selectedChat={selectedChat}
             setSelectedChat={setSelectedChat}

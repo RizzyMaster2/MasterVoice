@@ -39,7 +39,6 @@ import {
 interface ChatLayoutProps {
   currentUser: UserProfile;
   chats: Chat[];
-  setChats: (chats: Chat[]) => void;
   allUsers: UserProfile[];
   selectedChat: Chat | null;
   setSelectedChat: (chat: Chat | null) => void;
@@ -90,7 +89,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats: parentChats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -142,23 +141,24 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   };
   
   const fetchMessages = useCallback(async (chatId: string) => {
-    // Only set loading true on initial fetch
-    if (messages.length === 0) {
-        setIsLoadingMessages(true);
+    setIsLoadingMessages(true);
+    try {
+        const serverMessages = await getMessages(chatId);
+        setMessages(currentMessages => {
+            const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
+            const serverMessageIds = new Set(serverMessages.map(m => m.id));
+            const uniqueOptimistic = optimisticMessages.filter(om => !serverMessageIds.has(om.id));
+            const newMessages = [...serverMessages, ...uniqueOptimistic];
+            return newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        });
+    } catch (error) {
+        toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+    } finally {
+        setIsLoadingMessages(false);
     }
-    const fetchedMessages = await getMessages(chatId);
-    
-    // Only update and scroll if there are new messages
-    if (fetchedMessages.length > messages.length) {
-      setMessages(fetchedMessages);
-      setTimeout(scrollToBottom, 100);
-    } else {
-      // Still update if message content changed (e.g. edit) but keep the same length
-      setMessages(fetchedMessages);
-    }
-    
-    setIsLoadingMessages(false);
-  }, [messages.length]);
+    setTimeout(scrollToBottom, 100);
+  }, [toast]);
+
 
   useEffect(() => {
     if (selectedChat) {
@@ -213,9 +213,9 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
     startSendingTransition(async () => {
       try {
-        const sentMessage = await sendMessage(selectedChat.id, messageContent);
-        // Replace optimistic message with real one from the server
-        setMessages(prev => prev.map(m => (m.id === optimisticMessage.id ? { ...sentMessage, profiles: currentUser } : m)));
+        await sendMessage(selectedChat.id, messageContent);
+        // After sending, we don't need to manually replace. The next poll will pick it up.
+        // This simplifies the logic and prevents race conditions.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -232,8 +232,50 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
 
-    // Typing indicator logic can be added back here if needed in the future
+    if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+    }
+
+    if (selectedChat) {
+        const channel = supabase.channel(`typing-${selectedChat.id}`);
+        channel.subscribe(status => {
+            if (status === 'SUBSCRIBED') {
+                channel.track({ is_typing: true });
+            }
+        });
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
+        if (selectedChat) {
+             const channel = supabase.channel(`typing-${selectedChat.id}`);
+             channel.track({ is_typing: false });
+        }
+    }, 2000);
   };
+  
+  useEffect(() => {
+    if (!selectedChat || !currentUser) return;
+
+    const channel = supabase.channel(`typing-${selectedChat.id}`);
+    
+    const sub = channel
+      .on('presence', { event: 'sync' }, () => {
+        const newState = channel.presenceState();
+        const otherUsersTyping = Object.keys(newState)
+          .filter(presenceId => {
+              const pres = newState[presenceId] as unknown as { metas: { is_typing: boolean, phx_ref: string }[] };
+              const userId = pres.metas[0].phx_ref.split(':')[1];
+              return userId !== currentUser.id && pres.metas[0].is_typing;
+          })
+          .length > 0;
+        setIsTyping(otherUsersTyping);
+      })
+      .subscribe();
+
+    return () => {
+      sub.unsubscribe();
+    };
+  }, [selectedChat, currentUser, supabase]);
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
@@ -266,7 +308,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           title: 'File Sent',
           description: 'Your file has been sent successfully.',
         });
-        fetchMessages(selectedChat.id); // Fetch after successful upload
+        await fetchMessages(selectedChat.id); // Fetch after successful upload
       } catch (error) {
         console.error('Failed to upload and send file:', error);
         toast({
@@ -294,16 +336,9 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           variant: 'success'
         });
         
-        // Update client-side state
-        const remainingChats = chats.filter(c => c.id !== chatId);
-        setChats(remainingChats);
-        
-        // Select the next available chat or nothing
-        if (remainingChats.length > 0) {
-            setSelectedChat(remainingChats[0]);
-        } else {
-            setSelectedChat(null);
-        }
+        // Let the parent component handle state update via polling/real-time
+        setSelectedChat(null);
+
 
       } catch (error) {
         console.error("Failed to delete chat:", error);
@@ -317,7 +352,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   };
 
   
-  const filteredChats = chats.filter((chat) =>
+  const filteredChats = parentChats.filter((chat) =>
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
@@ -465,7 +500,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
-                {isLoadingMessages ? (
+                {isLoadingMessages && messages.length === 0 ? (
                    <div className="space-y-4">
                         <Skeleton className="h-12 w-3/4" />
                         <Skeleton className="h-12 w-3/4 ml-auto" />
