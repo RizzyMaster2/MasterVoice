@@ -162,16 +162,15 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   useEffect(() => {
     if (!selectedChat || !currentUser) return;
 
-    // Listen for new messages on the 'messages' table
     const messagesChannel = supabase.channel(`realtime-messages-for-chat-${selectedChat.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        (payload) => {
-            fetchMessages(selectedChat.id);
+        async () => {
+           await fetchMessages(selectedChat.id);
         }
       ).subscribe();
-
+      
     // Broadcast and receive typing indicators on a separate broadcast channel
     const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
     
@@ -243,7 +242,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // The realtime listener will handle updating the UI, so we don't need to do anything here
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -251,7 +249,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        // Remove the optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       }
     });
