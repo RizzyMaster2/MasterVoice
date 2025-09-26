@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2 } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2, Bot } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -32,6 +32,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import { chatBot } from '@/ai/flows/chat-bot';
 
 
 interface ChatLayoutProps {
@@ -117,14 +118,14 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     });
   };
 
-  const scrollToBottom = () => {
+  const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current) {
         const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
         if (viewport) {
             viewport.scrollTop = viewport.scrollHeight;
         }
     }
-  };
+  }, []);
   
  const fetchMessages = useCallback(async (chatId: string) => {
     setIsLoadingMessages(true);
@@ -137,7 +138,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         setIsLoadingMessages(false);
          setTimeout(scrollToBottom, 100);
     }
-  }, [toast]);
+  }, [toast, scrollToBottom]);
 
 
   useEffect(() => {
@@ -151,8 +152,12 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
           (payload) => {
             const newMessage = payload.new as Message;
-            // When a new message comes in, just refetch all messages to ensure consistency
-            fetchMessages(selectedChat.id);
+            // Append new message from server and remove any matching optimistic message
+            setMessages(prev => [
+                ...prev.filter(m => !(m.id.toString().startsWith('temp-') && m.content === newMessage.content)),
+                newMessage
+            ]);
+            setTimeout(scrollToBottom, 100);
           }
         )
         .subscribe((status, err) => {
@@ -175,7 +180,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     } else {
       setMessages([]);
     }
-  }, [selectedChat, supabase, toast, fetchMessages]);
+  }, [selectedChat, supabase, toast, fetchMessages, scrollToBottom]);
 
 
   const getInitials = (name: string | undefined | null) =>
@@ -192,32 +197,32 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
-    const optimisticMessage: Message = {
-      id: `temp-${Date.now()}`,
-      created_at: new Date().toISOString(),
-      content: messageContent,
-      sender_id: currentUser.id,
-      chat_id: selectedChat.id,
-      type: 'text',
-      file_url: null,
-      profiles: currentUser,
-    };
-    setMessages(prev => [...prev, optimisticMessage]);
-    setTimeout(scrollToBottom, 0);
-
     startSendingTransition(async () => {
-      try {
-        await sendMessage(selectedChat.id, messageContent);
-        // Realtime will trigger the refetch
-      } catch (error) {
-        console.error("Failed to send message", error);
-        toast({
-          title: "Error",
-          description: getErrorMessage(error),
-          variant: "destructive"
-        });
-        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
-      }
+        const optimisticMessage: Message = {
+            id: `temp-${Date.now()}`,
+            created_at: new Date().toISOString(),
+            content: messageContent,
+            sender_id: currentUser.id,
+            chat_id: selectedChat.id,
+            type: 'text',
+            file_url: null,
+            profiles: currentUser,
+        };
+        setMessages(prev => [...prev, optimisticMessage]);
+        setTimeout(scrollToBottom, 0);
+
+        try {
+            await sendMessage(selectedChat.id, messageContent);
+            // Realtime will trigger the actual update
+        } catch (error) {
+            console.error("Failed to send message", error);
+            toast({
+            title: "Error",
+            description: getErrorMessage(error),
+            variant: "destructive"
+            });
+            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+        }
     });
   };
 
