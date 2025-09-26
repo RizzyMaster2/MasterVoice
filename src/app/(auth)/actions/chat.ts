@@ -72,6 +72,9 @@ export async function getChats(): Promise<Chat[]> {
     if (!authUser) {
       return [];
     }
+    
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
     // 1. Get all chat_ids the user is a part of
     const { data: userChatLinks, error: chatLinksError } = await supabase
@@ -89,32 +92,44 @@ export async function getChats(): Promise<Chat[]> {
         return [];
     }
 
-    // 2. Fetch all data for those chats, including all their participants and the last message for each.
+    // 2. Fetch all data for those chats and all their participants
     const { data: chatsData, error: chatsError } = await supabase
-      .rpc('get_chats_with_participants_and_last_message', { p_chat_ids: chatIds });
+      .from('chats')
+      .select('*, chat_participants(user_id)')
+      .in('id', chatIds);
 
     if (chatsError) {
-        console.error('Error fetching chats with RPC:', chatsError);
+        console.error('Error fetching chats:', chatsError);
         return [];
     }
 
-    // 3. Get all users to map participant IDs to profiles
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    // 3. Fetch the last message for each of those chats
+    const { data: lastMessages, error: messagesError } = await supabase
+        .from('last_message_view')
+        .select('*')
+        .in('chat_id', chatIds);
 
-    // 4. Process the chats to add participant profiles
+     if (messagesError) {
+        console.error('Error fetching last messages:', messagesError);
+        // Continue without last messages if this fails
+    }
+
+    const lastMessageMap = new Map(lastMessages?.map(m => [m.chat_id, m]) || []);
+
+    // 4. Process the chats to add participant profiles and last messages
     const processedChats = chatsData.map((chat) => {
-      const participantIds = chat.participant_ids;
+      const participantIds = chat.chat_participants.map(p => p.user_id);
+      const lastMessage = lastMessageMap.get(chat.id);
       
       const fullChat: Chat = {
-          id: chat.chat_id,
+          id: chat.id,
           created_at: chat.created_at,
           name: chat.name,
           is_group: chat.is_group,
           admin_id: chat.admin_id,
           participants: participantIds,
-          last_message: chat.last_message_content || null,
-          last_message_timestamp: chat.last_message_created_at || null,
+          last_message: lastMessage?.content || null,
+          last_message_timestamp: lastMessage?.created_at || null,
       };
 
       if (chat.is_group) {
@@ -129,7 +144,7 @@ export async function getChats(): Promise<Chat[]> {
       }
       return fullChat;
     }).filter(chat => {
-        // Ensure we only return chats where we could find the other participant for 1-on-1s
+        // Critical fix: Ensure we only return 1-on-1 chats where we could find the other participant.
         if (!chat.is_group) {
             return !!chat.otherParticipant;
         }
@@ -547,3 +562,5 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
+
+    
