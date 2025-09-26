@@ -10,6 +10,12 @@ import {
   Radio,
   BarChart,
   Lock,
+  Star,
+  BrainCircuit,
+  ShieldCheck,
+  Gamepad2,
+  Briefcase,
+  Heart,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -166,6 +172,26 @@ const VoiceCallIllustration = () => (
     </svg>
 );
 
+const HowItWorksIllustration = ({ step }: { step: number }) => {
+  const illustrations = [
+    // Step 1: Sign Up
+    <svg viewBox="0 0 100 100" key="1"><style>{`.form-field{animation:slide-up .5s ease-out forwards;opacity:0}.line-1{animation-delay:.2s}.line-2{animation-delay:.4s}.check{stroke-dasharray:30;stroke-dashoffset:30;animation:draw .5s .7s forwards}@keyframes slide-up{to{transform:translateY(0);opacity:1}}@keyframes draw{to{stroke-dashoffset:0}}`}</style><rect x="20" y="20" width="60" height="60" rx="5" fill="none" stroke="currentColor" strokeWidth="2" className="form-field" /><path d="M30 40 L70 40" className="form-field line-1" stroke="currentColor" strokeWidth="2" /><path d="M30 55 L70 55" className="form-field line-2" stroke="currentColor" strokeWidth="2" /><path d="M45 70 L55 80 L75 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="4" className="check"/></svg>,
+    // Step 2: Find Friends
+    <svg viewBox="0 0 100 100" key="2"><style>{`.user{animation:pop-in .5s ease-out forwards;opacity:0;transform-origin:center}.user-2{animation-delay:.2s}.user-3{animation-delay:.4s}.plus{animation:pop-in .5s .6s forwards;opacity:0;transform-origin:center}@keyframes pop-in{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}`}</style><circle cx="50" cy="35" r="10" fill="currentColor" className="user user-1" /><path d="M50 45 A 15 15 0 0 0 35 60 H 65 A 15 15 0 0 0 50 45 Z" fill="currentColor" className="user user-1" /><circle cx="25" cy="55" r="8" fill="currentColor" opacity=".7" className="user user-2" /><path d="M25 63 A 12 12 0 0 0 13 75 H 37 A 12 12 0 0 0 25 63 Z" fill="currentColor" opacity=".7" className="user user-2" /><g className="plus"><line x1="75" y1="50" x2="75" y2="70" stroke="hsl(var(--primary))" strokeWidth="3" /><line x1="65" y1="60" x2="85" y2="60" stroke="hsl(var(--primary))" strokeWidth="3" /></g></svg>,
+    // Step 3: Start Talking
+    <svg viewBox="0 0 100 100" key="3"><style>{`.bubble{animation:pop-in .5s ease-out forwards;opacity:0;transform-origin:center}.wave{stroke-dasharray:10;stroke-dashoffset:10;animation:draw .5s ease-out forwards;opacity:0}.b-1{animation-delay:0s}.b-2{animation-delay:.2s}.w-1{animation-delay:.5s}.w-2{animation-delay:.7s}.w-3{animation-delay:.9s}@keyframes pop-in{from{transform:scale(0);opacity:0}to{transform:scale(1);opacity:1}}@keyframes draw{to{stroke-dashoffset:0;opacity:1}}`}</style><path d="M20 60 V40 C20 20 40 20 40 20 H60 C80 20 80 40 80 40 V60 C80 80 60 80 60 80 H50 L40 90 L40 80 H20 Z" fill="currentColor" opacity=".3" className="bubble b-1"/><g className="bubble b-2"><path d="M30 40 L70 40" stroke="currentColor" strokeWidth="3" className="wave w-1" /><path d="M30 50 L60 50" stroke="currentColor" strokeWidth="3" className="wave w-2" /><path d="M30 60 L50 60" stroke="currentColor" strokeWidth="3" className="wave w-3" /></g></svg>
+  ];
+  return illustrations[step - 1];
+};
+
+const AdminIllustration = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.bg-shape{opacity:.1;animation:pulse 4s infinite ease-in-out}.shield{transform-origin:center;animation:shield-pop .6s .2s ease-out forwards;opacity:0}.gear{transform-origin:center;animation:spin 8s linear infinite}.chart-bar{transform-origin:bottom;animation:bar-grow .5s ease-out forwards;opacity:0;transform:scaleY(0)}.bar-1{animation-delay:.8s}.bar-2{animation-delay:1s}.bar-3{animation-delay:1.2s}@keyframes shield-pop{to{transform:scale(1);opacity:1}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{50%{opacity:.2}}@keyframes bar-grow{to{opacity:1;transform:scaleY(1)}}`}</style><path d="M0 50 Q 50 -20 100 50 L 100 100 L 0 100 Z" fill="hsl(var(--primary))" className="bg-shape"/><g className="shield"><path d="M50 15 L85 30 V 70 C 85 85 50 95 50 95 S 15 85 15 70 V 30 Z" fill="hsl(var(--card))" stroke="hsl(var(--primary))" strokeWidth="2"/><g className="gear"><path d="M50 42 L 50 58 M42 50 L 58 50 M44.4 44.4 L 55.6 55.6 M44.4 55.6 L 55.6 44.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="50" cy="50" r="14" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="50" cy="50" r="5" fill="currentColor"/></g></g><rect x="25" y="60" width="8" height="20" rx="2" fill="currentColor" className="chart-bar bar-1"/><rect x="46" y="50" width="8" height="30" rx="2" fill="currentColor" className="chart-bar bar-2"/><rect x="67" y="55" width="8" height="25" rx="2" fill="currentColor" className="chart-bar bar-3"/></svg>
+);
+
+const AIConnectIllustration = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.brain{animation:brain-glow 3s infinite ease-in-out}.node{animation:node-pulse 2s infinite ease-in-out}.line{stroke-dasharray:100;stroke-dashoffset:100;animation:draw-line 2s .5s forwards infinite}.n1{animation-delay:-.5s}.n2{animation-delay:-1s}.n3{animation-delay:-1.5s}.l1{animation-delay:.5s}.l2{animation-delay:1s}.l3{animation-delay:1.5s}@keyframes brain-glow{50%{filter:drop-shadow(0 0 5px hsl(var(--primary)))}}@keyframes node-pulse{50%{r:4}}@keyframes draw-line{50%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}`}</style><path d="M50 20 C 30 20 30 40 50 40 C 70 40 70 20 50 20 M50 40 C 30 40 30 60 50 60 C 70 60 70 40 50 40 M50 60 C 30 60 30 80 50 80 C 70 80 70 60 50 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" className="brain" /><circle cx="20" cy="30" r="3" fill="currentColor" className="node n1"/><circle cx="80" cy="70" r="3" fill="currentColor" className="node n2"/><circle cx="30" cy="70" r="3" fill="currentColor" className="node n3"/><circle cx="70" cy="30" r="3" fill="currentColor" className="node"/><path d="M50 40 C 30 40 30 30 20 30" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l1" opacity=".5"/><path d="M50 60 C 70 60 70 70 80 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l2" opacity=".5"/><path d="M50 80 C 30 80 30 70 30 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l3" opacity=".5"/></svg>
+);
+
 
 export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -291,6 +317,207 @@ export default function Home() {
           </div>
         </section>
         
+        <section id="how-it-works" className="py-20 md:py-32 bg-secondary/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center">
+              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                Get Started in Seconds
+              </h2>
+              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
+                Connecting with your world has never been easier.
+              </p>
+            </div>
+            <div className="mt-16 grid gap-8 md:grid-cols-3">
+              <div className="text-center">
+                <div className="mx-auto h-24 w-24 flex items-center justify-center text-primary"><HowItWorksIllustration step={1} /></div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">1. Create Your Account</h3>
+                <p className="mt-2 text-muted-foreground">Sign up for free with just your email.</p>
+              </div>
+              <div className="text-center">
+                <div className="mx-auto h-24 w-24 flex items-center justify-center text-primary"><HowItWorksIllustration step={2} /></div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">2. Find Your People</h3>
+                <p className="mt-2 text-muted-foreground">Easily search and add friends or colleagues.</p>
+              </div>
+              <div className="text-center">
+                <div className="mx-auto h-24 w-24 flex items-center justify-center text-primary"><HowItWorksIllustration step={3} /></div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">3. Start Talking</h3>
+                <p className="mt-2 text-muted-foreground">Jump into a chat or a voice call instantly.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="use-cases" className="py-20 md:py-32">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="text-center">
+              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                Built for Your World
+              </h2>
+              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
+                Whether for gaming, work, or just hanging out, MasterVoice is your space to talk.
+              </p>
+            </div>
+            <div className="mt-16 grid gap-8 md:grid-cols-3">
+              <Card className="text-center p-6">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Gamepad2 className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">For Gamers</h3>
+                <p className="mt-2 text-muted-foreground">Coordinate with your team with crystal-clear, low-latency voice chat.</p>
+              </Card>
+               <Card className="text-center p-6">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Briefcase className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">For Work</h3>
+                <p className="mt-2 text-muted-foreground">Host meetings, brainstorm ideas, and stay connected with your remote team.</p>
+              </Card>
+               <Card className="text-center p-6">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                  <Heart className="w-8 h-8 text-primary" />
+                </div>
+                <h3 className="mt-6 font-headline text-xl font-semibold">For Friends</h3>
+                <p className="mt-2 text-muted-foreground">Catch up, make plans, and share moments with your closest friends.</p>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section id="admin-controls" className="py-20 md:py-32 bg-secondary/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-12 md:grid-cols-2 md:items-center">
+              <div className="order-2 md:order-1">
+                <Badge variant="secondary" className="mb-4">Business Plan</Badge>
+                <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                  Powerful Admin Controls
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                  Manage your community with ease. Our business plan gives you access to a full suite of tools to monitor activity, manage users, and customize permissions.
+                </p>
+                <ul className="mt-6 space-y-4">
+                  <li className="flex items-start gap-3">
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span><strong className="font-semibold">Analytics Dashboard:</strong> Get insights into user engagement and activity.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <Users className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span><strong className="font-semibold">User Management:</strong> Easily view, manage, and moderate all users.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <ShieldCheck className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span><strong className="font-semibold">Custom Roles:</strong> Define roles and permissions to fit your organization.</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="order-1 md:order-2 h-64 md:h-80 text-primary">
+                <AdminIllustration />
+              </div>
+            </div>
+          </div>
+        </section>
+
+         <section id="ai-features" className="py-20 md:py-32">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-12 md:grid-cols-2 md:items-center">
+              <div>
+                 <Badge variant="outline" className="mb-4">Coming Soon</Badge>
+                <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                  AI-Powered Connections
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                 Our smart suggestion engine, powered by Google's Gemini, helps you discover new friends and communities based on your interests and activity.
+                </p>
+                <ul className="mt-6 space-y-4">
+                  <li className="flex items-start gap-3">
+                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span><strong className="font-semibold">Smart Suggestions:</strong> Get personalized recommendations for new people to connect with.</span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <BrainCircuit className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <span><strong className="font-semibold">Interest Matching:</strong> Find groups and users that share your passions and hobbies.</span>
+                  </li>
+                </ul>
+              </div>
+              <div className="h-64 md:h-80 text-primary">
+                <AIConnectIllustration />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section id="testimonials" className="py-20 md:py-32 bg-secondary/30">
+          <div className="container mx-auto px-4 md:px-6">
+             <div className="text-center">
+              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                Loved by Teams and Friends
+              </h2>
+              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
+                Don't just take our word for it. Here's what people are saying about MasterVoice.
+              </p>
+            </div>
+            <div className="mt-16 grid gap-8 md:grid-cols-3">
+              <Card className="p-6 bg-card">
+                <div className="flex text-yellow">
+                  <Star /><Star /><Star /><Star /><Star />
+                </div>
+                <p className="mt-4">"The audio quality is insane. It feels like my teammates are right in the room with me. A total game-changer for our late-night sessions."</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar1')?.imageUrl || ''} data-ai-hint="man portrait" alt="Avatar 1" width={40} height={40} className="rounded-full" />
+                  <div>
+                    <p className="font-semibold">Alex R.</p>
+                    <p className="text-sm text-muted-foreground">Pro Gamer</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-6 bg-card">
+                <div className="flex text-yellow">
+                  <Star /><Star /><Star /><Star /><Star />
+                </div>
+                <p className="mt-4">"As a remote team, communication is key. MasterVoice has become our virtual office. It's simple, reliable, and just works."</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar2')?.imageUrl || ''} data-ai-hint="woman portrait" alt="Avatar 2" width={40} height={40} className="rounded-full" />
+                  <div>
+                    <p className="font-semibold">Jessica M.</p>
+                    <p className="text-sm text-muted-foreground">Project Manager</p>
+                  </div>
+                </div>
+              </Card>
+              <Card className="p-6 bg-card">
+                <div className="flex text-yellow">
+                  <Star /><Star /><Star /><Star /><Star />
+                </div>
+                <p className="mt-4">"My friends and I use this every day to stay in touch. It's so much better than just texting. We love the group call feature!"</p>
+                <div className="mt-4 flex items-center gap-3">
+                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar3')?.imageUrl || ''} data-ai-hint="person portrait" alt="Avatar 3" width={40} height={40} className="rounded-full" />
+                  <div>
+                    <p className="font-semibold">Sam K.</p>
+                    <p className="text-sm text-muted-foreground">Student</p>
+                  </div>
+                </div>
+              </Card>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-20 md:py-32">
+          <div className="container mx-auto px-4 md:px-6 text-center">
+             <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground md:text-5xl">
+              Ready to Find Your Harmony?
+            </h2>
+            <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
+              Join thousands of communities, friends, and teams communicating on MasterVoice today. It's free to get started.
+            </p>
+            <div className="mt-8">
+              <Button size="lg" asChild>
+                <Link href="/signup">
+                  Sign Up For Free
+                  <MoveRight className="ml-2 h-4 w-4" />
+                </Link>
+              </Button>
+            </div>
+          </div>
+        </section>
+
         <section id="pricing" className="py-20 md:py-32 bg-secondary/30 border-y">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
