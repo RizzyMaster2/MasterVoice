@@ -45,6 +45,54 @@ interface FriendsClientPageProps {
   allUsers: UserProfile[];
 }
 
+const EmptyFriendsIllustration = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-muted-foreground">
+        <style>{`
+        .person { animation: float 3s ease-in-out infinite; }
+        .person-1 { animation-delay: 0s; }
+        .person-2 { animation-delay: -1.5s; }
+        .plus { transform-origin: center; animation: pop-in 0.5s 1s ease-out forwards; opacity: 0; }
+        .line { stroke-dasharray: 20; stroke-dashoffset: 20; animation: draw-line 0.5s 0.5s forwards; }
+        @keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+        @keyframes draw-line { to { stroke-dashoffset: 0; } }
+        @keyframes pop-in { from { transform: scale(0); } to { transform: scale(1); } }
+        `}</style>
+        <g className="person person-1">
+            <circle cx="35" cy="35" r="8" fill="currentColor" />
+            <path d="M35 43 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" fill="currentColor" />
+        </g>
+        <g className="person person-2">
+            <circle cx="65" cy="35" r="8" fill="currentColor" />
+            <path d="M65 43 a 15 15 0 0 1 0 30 a 15 15 0 0 1 0 -30" fill="currentColor" />
+        </g>
+        <line x1="45" y1="55" x2="55" y2="55" stroke="currentColor" strokeWidth="2" className="line" />
+        <g className="plus">
+            <line x1="80" y1="50" x2="80" y2="60" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+            <line x1="75" y1="55" x2="85" y2="55" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+        </g>
+    </svg>
+);
+
+const NoUsersFoundIllustration = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-muted-foreground">
+        <style>{`
+        .glass { transform-origin: 35px 65px; animation: search 3s ease-in-out infinite; }
+        .question-mark { opacity: 0; animation: fade-in 1s 0.5s ease-in forwards; }
+        @keyframes search { 0%, 100% { transform: rotate(0deg); } 25% { transform: rotate(-20deg); } 75% { transform: rotate(20deg); } }
+        @keyframes fade-in { to { opacity: 1; } }
+        `}</style>
+        <g className="glass">
+            <circle cx="50" cy="50" r="20" stroke="currentColor" strokeWidth="4" fill="none" />
+            <line x1="65" y1="65" x2="80" y2="80" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+        </g>
+        <text x="42" y="58" fontFamily="sans-serif" fontSize="20" fill="currentColor" className="question-mark">?</text>
+        <circle cx="20" cy="20" r="5" fill="currentColor" opacity="0.3" style={{animation: 'fade-in 1s 1s forwards'}} />
+        <circle cx="80" cy="25" r="3" fill="currentColor" opacity="0.3" style={{animation: 'fade-in 1s 1.2s forwards'}} />
+        <circle cx="25" cy="80" r="4" fill="currentColor" opacity="0.3" style={{animation: 'fade-in 1s 1.4s forwards'}} />
+    </svg>
+);
+
+
 export function FriendsClientPage({
   currentUser,
   initialFriends,
@@ -206,7 +254,7 @@ export function FriendsClientPage({
                   </div>
                 ) : (
                   <div className="text-center text-muted-foreground p-8">
-                    <Users className="h-12 w-12 mx-auto mb-4" />
+                    <EmptyFriendsIllustration />
                     <p>Your friends list is empty. Go to the "Add Friend" tab to find people!</p>
                   </div>
                 )}
@@ -347,7 +395,7 @@ export function FriendsClientPage({
                   </div>
                 ) : (
                   <div className="text-center text-muted-foreground p-8">
-                     <UserX className="h-12 w-12 mx-auto mb-4" />
+                     <NoUsersFoundIllustration />
                      <p>{searchQuery ? 'No users found.' : 'No new suggestions at the moment.'}</p>
                   </div>
                 )}

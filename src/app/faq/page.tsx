@@ -1,8 +1,8 @@
 
+
 import { MainHeader } from '@/components/app/main-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { HelpCircle } from 'lucide-react';
 
 const faqs = [
     {
@@ -35,6 +35,26 @@ const faqs = [
     }
 ];
 
+const FaqIcon = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary">
+        <style>{`
+        .bubble { transform-origin: 50% 80%; animation: pop-bubble 0.6s ease-out forwards; opacity: 0; }
+        .bubble-1 { animation-delay: 0.1s; }
+        .bubble-2 { animation-delay: 0.3s; }
+        .bubble-3 { animation-delay: 0.5s; }
+        .mark { transform-origin: 50% 50%; animation: pop-mark 0.5s 0.7s ease-out forwards; opacity: 0; }
+        @keyframes pop-bubble { 0% { transform: scale(0); opacity: 0; } 80% { transform: scale(1.1); } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes pop-mark { 0% { transform: scale(0.5) rotate(-30deg); opacity: 0; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } }
+        `}</style>
+        <path className="bubble bubble-1" fill="currentColor" opacity="0.3" d="M40,60 Q20,60 20,40 Q20,20 40,20 L60,20 Q80,20 80,40 Q80,60 60,60 L50,60 Q45,60 45,65 L55,65 Q55,75 45,75 Z" />
+        <path className="bubble bubble-2" fill="currentColor" opacity="0.6" d="M60,80 Q80,80 80,60 Q80,40 60,40 L40,40 Q20,40 20,60 Q20,80 40,80 L50,80 Q55,80 55,75 L45,75 Q45,70 50,70 Z" />
+        <g className="mark">
+            <text x="42" y="65" fontSize="30" fontWeight="bold" fill="var(--primary-foreground, white)">?</text>
+        </g>
+    </svg>
+);
+
+
 export default function FaqPage() {
   return (
     <div className="flex flex-col min-h-screen bg-background">
@@ -44,7 +64,7 @@ export default function FaqPage() {
           <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm">
             <CardHeader className="text-center">
               <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-                <HelpCircle className="h-8 w-8 text-primary" />
+                <FaqIcon />
               </div>
               <CardTitle className="font-headline text-4xl">Frequently Asked Questions</CardTitle>
               <p className="text-muted-foreground pt-2">

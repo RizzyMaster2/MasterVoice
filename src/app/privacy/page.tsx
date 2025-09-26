@@ -1,7 +1,25 @@
 
+
 import { MainHeader } from '@/components/app/main-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ShieldCheck } from 'lucide-react';
+
+const PrivacyIcon = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary">
+        <style>{`
+        .shield { animation: pop-in 0.6s ease-out forwards; transform-origin: center; }
+        .check { stroke-dasharray: 50; stroke-dashoffset: 50; animation: draw-check 0.5s 0.5s forwards; }
+        .sparkle { opacity: 0; animation: sparkle-anim 1s 0.8s ease-out forwards; }
+        @keyframes pop-in { 0% { transform: scale(0.5); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+        @keyframes draw-check { to { stroke-dashoffset: 0; } }
+        @keyframes sparkle-anim { 0% { transform: scale(0); opacity: 0; } 50% { opacity: 1; } 100% { transform: scale(1.5) translateY(-5px); opacity: 0; } }
+        `}</style>
+        <path className="shield" d="M50 10 L90 30 L90 70 C90 85, 50 95, 50 95 C50 95, 10 85, 10 70 L10 30 Z" fill="currentColor" opacity="0.2" />
+        <path className="shield" d="M50 10 L90 30 L90 70 C90 85, 50 95, 50 95 C50 95, 10 85, 10 70 L10 30 Z" stroke="currentColor" strokeWidth="4" fill="none" />
+        <path className="check" d="M35 50 L48 63 L65 40" stroke="var(--primary-foreground, white)" strokeWidth="6" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+        <path className="sparkle" fill="var(--primary-foreground, white)" d="M70 25 l 5 -10 l 5 10 l 10 5 l -10 5 l -5 10 l -5 -10 l -10 -5 Z" />
+    </svg>
+);
+
 
 export default function PrivacyPolicyPage() {
   return (
@@ -12,7 +30,7 @@ export default function PrivacyPolicyPage() {
           <Card className="max-w-4xl mx-auto bg-card/80 backdrop-blur-sm">
             <CardHeader className="text-center">
                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10 mb-4">
-                <ShieldCheck className="h-8 w-8 text-primary" />
+                <PrivacyIcon />
               </div>
               <CardTitle className="font-headline text-4xl">Privacy Policy</CardTitle>
               <CardDescription>Last updated: <span className="font-medium">{new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></CardDescription>
