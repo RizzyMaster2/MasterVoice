@@ -74,18 +74,24 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
+    console.log('HomeClientLayout: refreshAllData started');
     try {
         const [chatsData, usersData, requestsData] = await Promise.all([
           getChats(),
           getUsers(),
           getFriendRequests(),
         ]);
+        console.log('HomeClientLayout: Fetched data', {
+            chatsCount: chatsData.length,
+            usersCount: usersData.length,
+            requestsCount: requestsData.incoming.length + requestsData.outgoing.length
+        });
         setChats(chatsData);
         setAllUsers(usersData.filter(u => u.id !== user.id));
         setFriendRequests(requestsData);
 
     } catch (error) {
-        console.error("Failed to refresh data", error);
+        console.error("HomeClientLayout: Failed to refresh data", error);
         toast({
             title: 'Error Fetching Data',
             description: 'Could not load your chats and contacts. Please try again later.',
@@ -95,20 +101,29 @@ export function HomeClientLayout({
   }, [user, toast]);
 
   useEffect(() => {
+    console.log('HomeClientLayout: Initial mount, starting data load.');
     setIsLoading(true);
-    refreshAllData().finally(() => setIsLoading(false));
+    refreshAllData().finally(() => {
+        console.log('HomeClientLayout: Initial data load finished.');
+        setIsLoading(false)
+    });
   }, [refreshAllData]);
 
   useEffect(() => {
     const chatIdFromUrl = searchParams.get('chat');
+    console.log(`HomeClientLayout: URL changed. Chat ID from URL: ${chatIdFromUrl}`);
     
     if (chatIdFromUrl && chats.length > 0) {
         const list = pathname.includes('/groups') ? groups : friends;
         const chatToSelect = list.find(c => c.id === chatIdFromUrl);
         if (chatToSelect) {
+            console.log(`HomeClientLayout: Found chat to select from URL:`, chatToSelect);
             setSelectedChat(chatToSelect);
+        } else {
+            console.log(`HomeClientLayout: Chat ID ${chatIdFromUrl} not found in current list.`);
         }
     } else if (!chatIdFromUrl) {
+      console.log('HomeClientLayout: No chat ID in URL, clearing selected chat.');
       setSelectedChat(null);
     }
   }, [searchParams, chats, friends, groups, pathname]);
@@ -116,6 +131,7 @@ export function HomeClientLayout({
 
   useEffect(() => {
     if (!user) return;
+    console.log('HomeClientLayout: Setting up realtime subscriptions.');
     
     const channel = supabase
       .channel('home-layout-realtime')
@@ -123,23 +139,40 @@ export function HomeClientLayout({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats' },
         (payload) => {
+            console.log('HomeClientLayout: Realtime change detected in `chats` table.', payload);
             refreshAllData();
             if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
+                console.log(`HomeClientLayout: Active chat ${selectedChat.id} was deleted. Clearing selection.`);
                 setSelectedChat(null);
                 router.replace(pathname);
             }
         }
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, () => refreshAllData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => refreshAllData())
-      .subscribe();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, (payload) => {
+          console.log('HomeClientLayout: Realtime change detected in `chat_participants` table.', payload);
+          refreshAllData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, (payload) => {
+          console.log('HomeClientLayout: Realtime change detected in `friend_requests` table.', payload);
+          refreshAllData()
+      })
+      .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+              console.log('HomeClientLayout: Realtime channel subscribed successfully.');
+          }
+          if (status === 'CHANNEL_ERROR') {
+              console.error('HomeClientLayout: Realtime channel error.', err);
+          }
+      });
 
     return () => {
+      console.log('HomeClientLayout: Cleaning up realtime channel.');
       supabase.removeChannel(channel);
     };
   }, [user, supabase, refreshAllData, selectedChat, router, pathname]);
 
   const handleChatDeleted = useCallback(() => {
+    console.log('HomeClientLayout: handleChatDeleted called.');
     router.replace(pathname); 
     refreshAllData().then(() => {
         setSelectedChat(null);
@@ -159,6 +192,8 @@ export function HomeClientLayout({
       handleChatDeleted,
       isLoading
   };
+  
+  console.log('HomeClientLayout: Rendering with state:', { isLoading, selectedChatId: selectedChat?.id, chatsCount: chats.length });
 
   return (
     <HomeClientContext.Provider value={value}>
@@ -166,3 +201,5 @@ export function HomeClientLayout({
     </HomeClientContext.Provider>
   );
 }
+
+    
