@@ -33,6 +33,26 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
     setIsClient(true);
   }, []);
 
+  // Restore selected chat from localStorage on initial load
+  useEffect(() => {
+    if (isClient && chats.length > 0 && !selectedChat) {
+      const savedChatId = localStorage.getItem('selectedChatId');
+      if (savedChatId) {
+        const chat = friends.find(c => c.id === savedChatId);
+        if (chat) {
+          setSelectedChat(chat);
+        }
+      }
+    }
+  }, [isClient, chats, friends, selectedChat]);
+
+  // Save selected chat to localStorage
+  useEffect(() => {
+    if (isClient && selectedChat) {
+      localStorage.setItem('selectedChatId', selectedChat.id);
+    }
+  }, [selectedChat, isClient]);
+
   useEffect(() => {
     if (!user) return;
     
@@ -79,6 +99,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
   }
 
   const handleChatDeleted = () => {
+    localStorage.removeItem('selectedChatId');
     refreshChats().then(() => {
         setSelectedChat(null);
     });
@@ -99,5 +120,3 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
     </div>
   );
 }
-
-    

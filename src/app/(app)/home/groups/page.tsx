@@ -50,6 +50,27 @@ export default function GroupsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Restore selected chat from localStorage on initial load
+   useEffect(() => {
+    if (isClient && chats.length > 0 && !selectedChat) {
+      const savedChatId = localStorage.getItem('selectedChatId');
+      if (savedChatId) {
+        const chat = groups.find(c => c.id === savedChatId);
+        if (chat) {
+          setSelectedChat(chat);
+        }
+      }
+    }
+  }, [isClient, chats, groups, selectedChat]);
+
+  // Save selected chat to localStorage
+  useEffect(() => {
+    if (isClient && selectedChat) {
+      localStorage.setItem('selectedChatId', selectedChat.id);
+    }
+  }, [selectedChat, isClient]);
+
+
    useEffect(() => {
     if (!user) return;
 
@@ -91,6 +112,13 @@ export default function GroupsPage() {
       status: 'online', // Placeholder
   }
 
+  const handleChatDeleted = () => {
+    localStorage.removeItem('selectedChatId');
+    refreshData().then(() => {
+        setSelectedChat(null);
+    });
+  }
+
   return (
     <>
       <div className="flex-1 flex flex-col gap-6 h-full">
@@ -103,11 +131,9 @@ export default function GroupsPage() {
             setSelectedChat={setSelectedChat}
             listType="group"
             onChatUpdate={refreshData}
-            onChatDeleted={refreshData}
+            onChatDeleted={handleChatDeleted}
         />
       </div>
     </>
   );
 }
-
-    
