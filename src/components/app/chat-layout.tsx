@@ -1,41 +1,47 @@
+'use client'
 
-
-'use client';
-
-import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo, useCallback } from 'react';
+import {
+  useState,
+  useEffect,
+  useTransition,
+  useRef,
+  useMemo,
+  useCallback,
+  type FormEvent,
+  type ChangeEvent,
+  type ReactNode,
+} from 'react';
 import {
   Card,
-  CardFooter,
   CardHeader,
+  CardFooter,
 } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { cn } from '@/lib/utils';
-import type { UserProfile, Message, Chat } from '@/lib/data';
-import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2 } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
-import { Skeleton } from '../ui/skeleton';
-import { useToast } from '@/hooks/use-toast';
+import { cn, getErrorMessage } from '@/lib/utils';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
 import {
   AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
+  AlertDialogTrigger,
   AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { format, isToday, isYesterday, parseISO } from 'date-fns';
-import { useRouter, usePathname } from 'next/navigation';
-import { getErrorMessage } from '@/lib/utils';
-
+import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2 } from 'lucide-react';
+import type { Chat, Message, UserProfile } from '@/lib/data';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -74,8 +80,16 @@ const parseMessageContent = (content: string): ReactNode[] => {
   return parts;
 };
 
-
-export function ChatLayout({ currentUser, chats: parentChats, allUsers, selectedChat, setSelectedChat, listType, onChatUpdate, onChatDeleted }: ChatLayoutProps) {
+export function ChatLayout({
+  currentUser,
+  chats: parentChats,
+  allUsers,
+  selectedChat,
+  setSelectedChat,
+  listType,
+  onChatUpdate,
+  onChatDeleted,
+}: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -90,7 +104,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   const router = useRouter();
   const pathname = usePathname();
 
-
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
     allUsers.forEach(user => map.set(user.id, user));
@@ -98,20 +111,12 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     return map;
   }, [allUsers, currentUser]);
 
-  const handleStartCall = () => {
-     toast({
-      title: 'Feature Coming Soon',
-      description: 'Voice calling is not available at the moment.',
-      variant: 'info'
-    });
-  };
-  
   const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current) {
-        const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
-        if (viewport) {
-            viewport.scrollTop = viewport.scrollHeight;
-        }
+      const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
+      if (viewport) {
+        viewport.scrollTop = viewport.scrollHeight;
+      }
     }
   }, []);
 
@@ -121,9 +126,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       const serverMessages = await getMessages(chatId);
       setMessages(serverMessages);
     } catch (error) {
-      toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+      toast({ title: 'Error', description: 'Could not fetch messages.', variant: 'destructive' });
     } finally {
-        setIsLoadingMessages(false);
+      setIsLoadingMessages(false);
     }
   }, [toast]);
 
@@ -131,20 +136,17 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     if (selectedChat?.id) {
       fetchMessages(selectedChat.id);
     } else {
-        setMessages([]);
+      setMessages([]);
     }
   }, [selectedChat?.id, fetchMessages]);
-
 
   useEffect(() => {
     setTimeout(scrollToBottom, 100);
   }, [messages, scrollToBottom]);
 
-
   useEffect(() => {
-    if (!selectedChat) {
-      return;
-    }
+    if (!selectedChat) return;
+
     const channel = supabase
       .channel(`chat-room:${selectedChat.id}`)
       .on(
@@ -153,107 +155,81 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         (payload) => {
           const newMessage = payload.new as Message;
           if (!newMessage.profiles) {
-              newMessage.profiles = userMap.get(newMessage.sender_id) || null;
+            newMessage.profiles = userMap.get(newMessage.sender_id) || null;
           }
-           setMessages(currentMessages => {
-              if (currentMessages.some(m => m.id === newMessage.id)) {
-                  return currentMessages;
-              }
-              const optimisticMessageId = `temp-${newMessage.content}`;
-              const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
-              newMessages.push(newMessage);
-              return newMessages;
+          setMessages(current => {
+            if (current.some(m => m.id === newMessage.id)) return current;
+            return [...current, newMessage];
           });
         }
       )
       .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          // console.log('Realtime subscribed');
-        }
         if (status === 'CHANNEL_ERROR') {
-           toast({
+          console.error('Realtime channel error:', err);
+          toast({
             title: 'Realtime Connection Error',
-            description: getErrorMessage(err) || 'Could not connect to real-time server.',
+            description: getErrorMessage(err),
             variant: 'destructive',
           });
         }
       });
-      
+
     return () => {
-        supabase.removeChannel(channel);
+      supabase.removeChannel(channel);
     };
-    
   }, [selectedChat, supabase, toast, userMap]);
-
-
-  const getInitials = (name: string | undefined | null) =>
-    name
-      ?.split(' ')
-      .map((n) => n[0])
-      .join('')
-      .toUpperCase() || 'U';
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
 
-    const messageContent = newMessage;
+    const content = newMessage;
     setNewMessage('');
-    
     startSendingTransition(() => {
-        sendMessage(selectedChat.id, messageContent).catch((error) => {
-            console.error("Failed to send message", error);
-            toast({
-                title: "Error",
-                description: getErrorMessage(error),
-                variant: "destructive"
-            });
-            if (selectedChat?.id) {
-              fetchMessages(selectedChat.id);
-            }
-        });
+      sendMessage(selectedChat.id, content).catch(error => {
+        toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+        fetchMessages(selectedChat.id);
+      });
     });
   };
+  
+  const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
+    // Placeholder for file upload logic
+    toast({ title: "File upload not implemented yet.", variant: "info" });
+  };
+  
+  const handleStartCall = () => {
+    // Placeholder for starting a call
+    toast({ title: "Voice calls coming soon!", variant: "info" });
+  };
+
 
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
   };
-  
-  const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
-    if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
-      return;
-    }
-    const file = event.target.files[0];
-    startSendingTransition(async () => {
+
+  const handleSelectChat = (chat: Chat) => {
+    setSelectedChat(chat);
+    router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
+  };
+
+  const handleDeleteChat = () => {
+    if (!selectedChat || selectedChat.is_group || !selectedChat.otherParticipant) return;
+    const chatId = selectedChat.id;
+    const friendName = selectedChat.otherParticipant.display_name;
+
+    startDeletingTransition(async () => {
       try {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${authUser.id}-${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(filePath, file);
-
-        if (uploadError) {
-          throw uploadError;
-        }
-
-        const { data } = supabase.storage.from('files').getPublicUrl(filePath);
-        
-        if (!data.publicUrl) {
-            throw new Error('Could not get public URL for the uploaded file.');
-        }
-
-        await sendMessage(selectedChat.id, data.publicUrl, 'file');
-        
+        await deleteChat(chatId, selectedChat.otherParticipant.id);
         toast({
-          title: 'File Sent',
-          description: 'Your file has been sent successfully.',
+          title: 'Friend Removed',
+          description: `You are no longer friends with ${friendName}.`,
+          variant: 'success',
         });
+        onChatDeleted();
       } catch (error) {
-        console.error('Failed to upload and send file:', error);
         toast({
-          title: 'Upload Failed',
+          title: 'Error Removing Friend',
           description: getErrorMessage(error),
           variant: 'destructive',
         });
@@ -261,52 +237,19 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     });
   };
 
-  const handleDeleteChat = () => {
-    if (!selectedChat || selectedChat.is_group || !selectedChat.otherParticipant) return;
-    
-    const chatId = selectedChat.id;
-    const friendName = selectedChat.otherParticipant.display_name;
-
-    startDeletingTransition(async () => {
-      try {
-        await deleteChat(chatId, selectedChat.otherParticipant!.id);
-        toast({
-          title: 'Friend Removed',
-          description: `You are no longer friends with ${friendName}.`,
-          variant: 'success'
-        });
-        onChatDeleted();
-      } catch (error) {
-        console.error("Failed to delete chat:", error);
-        toast({
-          title: "Error Removing Friend",
-          description: getErrorMessage(error),
-          variant: "destructive",
-        });
-      }
-    });
-  };
-  
   const formatMessageTimestamp = (timestamp: string) => {
     const date = parseISO(timestamp);
-    if (isToday(date)) {
-      return format(date, 'p'); // e.g., 5:30 PM
-    }
-    if (isYesterday(date)) {
-      return 'Yesterday';
-    }
-    return format(date, 'MMM d'); // e.g., Jul 22
-  };
-  
-  const filteredChats = parentChats.filter((chat) =>
-    (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-  
-   const handleSelectChat = (chat: Chat) => {
-    setSelectedChat(chat);
-    router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
+    if (isToday(date)) return format(date, 'p');
+    if (isYesterday(date)) return 'Yesterday';
+    return format(date, 'MMM d');
   };
 
+  const getInitials = (name: string | undefined | null) =>
+    name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
+
+  const filteredChats = parentChats.filter(chat =>
+    (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
+  );
 
   return (
     <Card className="flex h-full w-full">
@@ -534,7 +477,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
-              <UserPlus className="mx-auto h-12 w-12 text-muted-foreground/50" />
+              <Users className="mx-auto h-12 w-12 text-muted-foreground/50" />
               <p className="mt-4 text-lg font-semibold">{listType === 'friend' ? 'Select a friend' : 'Select a group'}</p>
               <p className="text-muted-foreground">
                 {listType === 'friend' ? 'Start a conversation from your friends list.' : 'Select a group to see the conversation.'}
