@@ -75,6 +75,14 @@ export function FriendsClientPage({
     });
   }, []);
 
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshAllData();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [refreshAllData]);
+
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
         toast({

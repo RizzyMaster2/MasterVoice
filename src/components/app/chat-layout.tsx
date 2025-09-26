@@ -127,25 +127,47 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   };
   
  const fetchMessages = useCallback(async (chatId: string) => {
-    setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(serverMessages);
+      setMessages(currentMessages => {
+          const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
+          const confirmedServerIds = new Set(serverMessages.map(m => m.id));
+          const unconfirmedOptimistic = optimisticMessages.filter(om => 
+              !serverMessages.some(sm => sm.content === om.content && sm.sender_id === om.sender_id)
+          );
+
+          // This logic is tricky. For simplicity, we'll just replace if there are no pending optimistic messages.
+          // A more robust solution would merge based on content and timestamp.
+          const finalMessages = [...serverMessages, ...unconfirmedOptimistic];
+
+          return finalMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      });
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
-    } finally {
-        setIsLoadingMessages(false);
-        setTimeout(scrollToBottom, 100);
     }
   }, [toast]);
 
 
   useEffect(() => {
     if (selectedChat) {
-      fetchMessages(selectedChat.id);
+      setIsLoadingMessages(true);
+      fetchMessages(selectedChat.id).finally(() => {
+        setIsLoadingMessages(false);
+        setTimeout(scrollToBottom, 100);
+      });
     } else {
       setMessages([]);
     }
+  }, [selectedChat, fetchMessages]);
+
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const interval = setInterval(() => {
+        fetchMessages(selectedChat.id);
+    }, 3000);
+
+    return () => clearInterval(interval);
   }, [selectedChat, fetchMessages]);
 
   const getInitials = (name: string | undefined | null) =>
@@ -179,8 +201,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // Refetch messages to confirm
-        await fetchMessages(selectedChat.id);
+        // We no longer need to refetch here, the polling will handle it.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -415,11 +436,11 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                         {msg.sender_id !== currentUser.id && (
                             <Avatar className="h-8 w-8">
                             <AvatarImage
-                                src={msg.profiles?.photo_url || undefined}
-                                alt={msg.profiles?.display_name || ''}
+                                src={userMap.get(msg.sender_id)?.photo_url || undefined}
+                                alt={userMap.get(msg.sender_id)?.display_name || ''}
                             />
                             <AvatarFallback>
-                                {getInitials(msg.profiles?.display_name)}
+                                {getInitials(userMap.get(msg.sender_id)?.display_name)}
                             </AvatarFallback>
                             </Avatar>
                         )}

@@ -32,7 +32,15 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
       setSelectedChat(sortedChats[0]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [initialChats]); // Depend on initialChats to re-run if it changes
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshChats();
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
+  }, [refreshChats]);
 
 
   if (!isClient) {
