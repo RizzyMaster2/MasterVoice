@@ -127,36 +127,21 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   };
   
  const fetchMessages = useCallback(async (chatId: string) => {
+    setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
-       setMessages(currentMessages => {
-        const optimisticMessageIds = new Set(
-          currentMessages.filter(m => m.id.toString().startsWith('temp-')).map(m => m.id)
-        );
-        const confirmedServerIds = new Set(serverMessages.map(m => m.id));
-        
-        // Filter out optimistic messages that are now confirmed
-        const unconfirmedOptimistic = currentMessages.filter(m => 
-          m.id.toString().startsWith('temp-') &&
-          !serverMessages.some(sm => sm.content === m.content && sm.sender_id === m.sender_id)
-        );
-
-        // Combine server messages with unconfirmed optimistic messages
-        const finalMessages = [...serverMessages, ...unconfirmedOptimistic];
-
-        return finalMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      });
+      setMessages(serverMessages);
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+    } finally {
+        setIsLoadingMessages(false);
     }
   }, [toast]);
 
 
   useEffect(() => {
     if (selectedChat) {
-      setIsLoadingMessages(true);
       fetchMessages(selectedChat.id).finally(() => {
-        setIsLoadingMessages(false);
         setTimeout(scrollToBottom, 100);
       });
     } else {
@@ -173,8 +158,21 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
         (payload) => {
-          // New message received, refetch all messages
-          fetchMessages(selectedChat.id);
+          const newMessage = payload.new as Message;
+          
+          setMessages(currentMessages => {
+            // Remove the optimistic message if it exists
+            const filteredMessages = currentMessages.filter(m => 
+              !(m.id.toString().startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id)
+            );
+            
+            // Add the new message from the server, ensuring no duplicates from race conditions
+            if (!filteredMessages.some(m => m.id === newMessage.id)) {
+              return [...filteredMessages, newMessage];
+            }
+            return filteredMessages;
+          });
+          
           setTimeout(scrollToBottom, 100);
         }
       )
@@ -192,12 +190,11 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         }
       });
       
-    // Cleanup function
     return () => {
         supabase.removeChannel(channel);
     };
 
-  }, [selectedChat, supabase, fetchMessages, toast]);
+  }, [selectedChat, supabase, toast]);
 
 
   const getInitials = (name: string | undefined | null) =>
@@ -214,7 +211,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
-    // Optimistic UI update
     const optimisticMessage: Message = {
       id: `temp-${Date.now()}`,
       created_at: new Date().toISOString(),
@@ -231,7 +227,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // No longer need to manually refetch, the realtime listener will handle it.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -239,7 +234,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        // On failure, remove the optimistic message
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       }
     });
@@ -275,8 +269,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         }
 
         await sendMessage(selectedChat.id, data.publicUrl, 'file');
-        // Realtime listener will handle the update
-
+        
         toast({
           title: 'File Sent',
           description: 'Your file has been sent successfully.',
