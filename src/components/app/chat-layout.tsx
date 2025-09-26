@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -26,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
@@ -108,7 +109,7 @@ export function ChatLayout({
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
     allUsers.forEach(user => map.set(user.id, user));
-    map.set(currentUser.id, currentUser);
+    map.set(currentUser.id, currentUser); // Ensure current user is in the map
     return map;
   }, [allUsers, currentUser]);
 
@@ -155,6 +156,8 @@ export function ChatLayout({
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
         (payload) => {
           const newMessage = payload.new as Message;
+          // When a new message comes in via realtime, the `profiles` relation is not loaded.
+          // We need to manually look it up from our `userMap`.
           if (!newMessage.profiles) {
             newMessage.profiles = userMap.get(newMessage.sender_id) || null;
           }
@@ -492,7 +495,3 @@ export function ChatLayout({
     </Card>
   );
 }
-
-    
-
-    
