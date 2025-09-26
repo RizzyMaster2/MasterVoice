@@ -1,11 +1,10 @@
 
-import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
-import { Suspense } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
 
@@ -35,11 +34,9 @@ export default async function HomePage() {
     <>
       <div className="flex-1 flex flex-col gap-6 h-full">
         {!isVerified && <UnverifiedAccountWarning />}
-        <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
-          <HomeClientLayout
-              currentUser={currentUserProfile}
-          />
-        </Suspense>
+        <HomeClientLayout
+            currentUser={currentUserProfile}
+        />
       </div>
     </>
   );

@@ -38,30 +38,27 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
         setChats(chatsData);
         setAllUsers(usersData);
         setFriendRequests(requestsData);
+
+        // After data is loaded, check URL for a chat to select
+        const chatIdFromUrl = searchParams.get('chat');
+        if (chatIdFromUrl) {
+            const chatToSelect = chatsData.find(c => c.id === chatIdFromUrl && !c.is_group);
+            if (chatToSelect) {
+                setSelectedChat(chatToSelect);
+            }
+        }
     } catch (error) {
         console.error("Failed to refresh data", error);
+    } finally {
+        setIsLoading(false);
     }
-  }, []);
+  }, [searchParams]);
 
   useEffect(() => {
     setIsLoading(true);
-    refreshAllData().finally(() => setIsLoading(false));
+    refreshAllData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Restore selected chat from URL on initial load
-  useEffect(() => {
-    if (!isLoading && chats.length > 0 && !selectedChat) {
-      const chatIdFromUrl = searchParams.get('chat');
-      if (chatIdFromUrl) {
-        const chat = friends.find(c => c.id === chatIdFromUrl);
-        if (chat) {
-          setSelectedChat(chat);
-        }
-      }
-    }
-  }, [isLoading, chats, friends, selectedChat, searchParams]);
-
 
   useEffect(() => {
     if (!user) return;
