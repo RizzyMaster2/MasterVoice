@@ -14,7 +14,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2 } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -95,10 +95,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
-  const [isTyping, setIsTyping] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
@@ -142,44 +140,16 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
  const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(currentMessages => {
-        const optimisticMessages = currentMessages.filter(
-          m => m.id.toString().startsWith('temp-') && m.sender_id === currentUser.id
-        );
-        
-        const serverMessageIds = new Set(serverMessages.map(m => m.id));
-        const confirmedOptimisticMessages = new Set<string>();
-
-        // Find optimistic messages that are now confirmed
-        optimisticMessages.forEach(om => {
-          // A more reliable check: find a server message with same content from same sender that isn't already in the list by a different temp ID.
-          const confirmed = serverMessages.find(sm => sm.sender_id === om.sender_id && sm.content === om.content && !currentMessages.some(cm => cm.id === sm.id));
-          if (confirmed) {
-            confirmedOptimisticMessages.add(om.id);
-          }
-        });
-        
-        // Combine server messages with unconfirmed optimistic messages
-        const finalMessages = [
-          ...serverMessages,
-          ...optimisticMessages.filter(om => !confirmedOptimisticMessages.has(om.id))
-        ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        
-        // Remove duplicates just in case
-        const uniqueMessages = Array.from(new Map(finalMessages.map(m => [m.id, m])).values());
-
-        return uniqueMessages;
-      });
+      setMessages(serverMessages);
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     }
     setTimeout(scrollToBottom, 100);
-  }, [toast, currentUser.id]);
+  }, [toast]);
 
 
   useEffect(() => {
     if (selectedChat) {
-      // Clear old messages and fetch new ones when chat changes
       setIsLoadingMessages(true);
       setMessages([]);
       getMessages(selectedChat.id).then(initialMessages => {
@@ -190,7 +160,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     } else {
       setMessages([]);
     }
-  }, [selectedChat]);
+  }, [selectedChat, getMessages]);
+
 
   // Polling for new messages
   useEffect(() => {
@@ -234,8 +205,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // After sending, we don't need to manually replace. The next poll will pick it up.
-        // We can trigger a fetch immediately for a faster update
+        // Immediately fetch messages after sending to confirm
         await fetchMessages(selectedChat.id);
       } catch (error) {
         console.error("Failed to send message", error);
@@ -423,13 +393,11 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                       {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
                     </h2>
                      <div className="h-5">
-                      {isTyping ? (
-                          <p className="text-sm text-muted-foreground animate-pulse">Typing...</p>
-                      ) : (
-                         selectedChat.is_group && (
+                      
+                         {selectedChat.is_group && (
                             <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
                          )
-                      )}
+                      }
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={handleStartCall}>
@@ -458,6 +426,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                             className="bg-destructive hover:bg-destructive/90"
                             disabled={isDeleting}
                           >
+                            {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                             {isDeleting ? 'Removing...' : 'Remove Friend'}
                           </AlertDialogAction>
                         </AlertDialogFooter>
@@ -569,7 +538,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                   disabled={isSending}
                 />
                 <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
-                  <Send className="h-4 w-4" />
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>
             </CardFooter>
@@ -589,3 +558,5 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
+
+    
