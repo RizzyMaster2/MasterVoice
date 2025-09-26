@@ -197,20 +197,20 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
-    startSendingTransition(async () => {
-        const optimisticMessage: Message = {
-            id: `temp-${Date.now()}`,
-            created_at: new Date().toISOString(),
-            content: messageContent,
-            sender_id: currentUser.id,
-            chat_id: selectedChat.id,
-            type: 'text',
-            file_url: null,
-            profiles: currentUser,
-        };
-        setMessages(prev => [...prev, optimisticMessage]);
-        setTimeout(scrollToBottom, 0);
+    const optimisticMessage: Message = {
+        id: `temp-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        content: messageContent,
+        sender_id: currentUser.id,
+        chat_id: selectedChat.id,
+        type: 'text',
+        file_url: null,
+        profiles: currentUser,
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+    setTimeout(scrollToBottom, 0);
 
+    startSendingTransition(async () => {
         try {
             await sendMessage(selectedChat.id, messageContent);
             // Realtime will trigger the actual update
@@ -427,11 +427,13 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
-                {isLoadingMessages && messages.length === 0 ? (
-                   <div className="space-y-4">
+                {isLoadingMessages ? (
+                   <div className="space-y-4 p-6">
                         <Skeleton className="h-12 w-3/4" />
                         <Skeleton className="h-12 w-3/4 ml-auto" />
                         <Skeleton className="h-12 w-2/4" />
+                        <Skeleton className="h-12 w-3/4" />
+                        <Skeleton className="h-12 w-1/2 ml-auto" />
                    </div>
                 ) : (
                     <div className="space-y-4">
