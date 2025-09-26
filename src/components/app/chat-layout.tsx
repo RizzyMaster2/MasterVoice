@@ -33,6 +33,7 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { chatBot } from '@/ai/flows/chat-bot';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
 
 
 interface ChatLayoutProps {
@@ -148,10 +149,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
 
   useEffect(() => {
-    if (isLoadingMessages) {
-      setTimeout(scrollToBottom, 100);
-    }
-  }, [isLoadingMessages, scrollToBottom]);
+    setTimeout(scrollToBottom, 100);
+  }, [messages, scrollToBottom]);
 
 
   useEffect(() => {
@@ -164,12 +163,16 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           (payload) => {
             const newMessage = payload.new as Message;
              setMessages(currentMessages => {
+                // If the message is already in the list (e.g. optimistic update), don't add it again
+                if (currentMessages.some(m => m.id === newMessage.id)) {
+                    return currentMessages;
+                }
                 const optimisticMessageId = `temp-${newMessage.content}`;
+                // Remove optimistic message if it exists
                 const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
                 newMessages.push(newMessage);
                 return newMessages;
             });
-            setTimeout(scrollToBottom, 100);
           }
         )
         .subscribe((status, err) => {
@@ -190,7 +193,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           supabase.removeChannel(channel);
       };
     }
-  }, [selectedChat, supabase, toast, scrollToBottom]);
+  }, [selectedChat, supabase, toast]);
 
 
   const getInitials = (name: string | undefined | null) =>
@@ -207,27 +210,30 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
+    const optimisticMessage: Message = {
+        id: `temp-${messageContent}-${Date.now()}`,
+        created_at: new Date().toISOString(),
+        content: messageContent,
+        sender_id: currentUser.id,
+        chat_id: selectedChat.id,
+        type: 'text',
+        file_url: null,
+        profiles: currentUser,
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+    
     startSendingTransition(() => {
-       const optimisticMessage: Message = {
-            id: `temp-${messageContent}`,
-            created_at: new Date().toISOString(),
-            content: messageContent,
-            sender_id: currentUser.id,
-            chat_id: selectedChat.id,
-            type: 'text',
-            file_url: null,
-            profiles: currentUser,
-        };
-        setMessages(prev => [...prev, optimisticMessage]);
-        setTimeout(scrollToBottom, 0);
-
-        sendMessage(selectedChat.id, messageContent).catch((error) => {
+        sendMessage(selectedChat.id, messageContent).then(sentMessage => {
+             // Replace optimistic message with confirmed message from server
+             setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? (sentMessage as Message) : m));
+        }).catch((error) => {
             console.error("Failed to send message", error);
             toast({
                 title: "Error",
                 description: getErrorMessage(error),
                 variant: "destructive"
             });
+            // Remove optimistic message on failure
             setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
         });
     });
@@ -304,7 +310,17 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       }
     });
   };
-
+  
+  const formatMessageTimestamp = (timestamp: string) => {
+    const date = parseISO(timestamp);
+    if (isToday(date)) {
+      return format(date, 'p'); // e.g., 5:30 PM
+    }
+    if (isYesterday(date)) {
+      return 'Yesterday';
+    }
+    return format(date, 'MMM d'); // e.g., Jul 22
+  };
   
   const filteredChats = parentChats.filter((chat) =>
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -488,7 +504,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                                 </div>
                               )}
                             <p className="text-xs opacity-70 mt-1 text-right">
-                                {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                {formatMessageTimestamp(msg.created_at)}
                             </p>
                         </div>
                         </div>
@@ -548,5 +564,3 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
-
-    
