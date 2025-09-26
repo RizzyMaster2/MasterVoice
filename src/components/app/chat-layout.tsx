@@ -1,3 +1,4 @@
+
 'use client'
 
 import {
@@ -25,7 +26,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
@@ -145,7 +146,7 @@ export function ChatLayout({
   }, [messages, scrollToBottom]);
 
   useEffect(() => {
-    if (!selectedChat) return;
+    if (!selectedChat?.id) return;
 
     const channel = supabase
       .channel(`chat-room:${selectedChat.id}`)
@@ -177,7 +178,7 @@ export function ChatLayout({
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, toast, userMap]);
+  }, [selectedChat?.id, supabase, toast, userMap]);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
@@ -188,7 +189,9 @@ export function ChatLayout({
     startSendingTransition(() => {
       sendMessage(selectedChat.id, content).catch(error => {
         toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
-        fetchMessages(selectedChat.id);
+        if (selectedChat?.id) {
+            fetchMessages(selectedChat.id);
+        }
       });
     });
   };
@@ -489,3 +492,5 @@ export function ChatLayout({
     </Card>
   );
 }
+
+    
