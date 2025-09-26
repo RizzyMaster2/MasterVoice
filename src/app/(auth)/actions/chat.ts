@@ -287,7 +287,7 @@ export async function getMessages(chatId: string): Promise<Message[]> {
     const supabase = createClient(cookieStore);
     const { data, error } = await supabase
       .from('messages')
-      .select('*, profiles (id, display_name, photo_url)')
+      .select('*')
       .eq('chat_id', chatId)
       .order('created_at', { ascending: true });
 
@@ -597,5 +597,7 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
+
+    
 
     

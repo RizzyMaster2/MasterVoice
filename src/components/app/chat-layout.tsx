@@ -164,9 +164,9 @@ export function ChatLayout({
         (payload) => {
           console.log('ChatLayout: Realtime new message received:', payload);
           const newMessage = payload.new as Message;
+          // No profile data comes from the subscription, so we add it manually.
           if (!newMessage.profiles) {
             newMessage.profiles = userMap.get(newMessage.sender_id) || null;
-            console.log('ChatLayout: Manually added profile to new message:', newMessage.profiles);
           }
           setMessages(current => [...current, newMessage]);
         }
@@ -514,3 +514,5 @@ export function ChatLayout({
     </Card>
   );
 }
+
+    
