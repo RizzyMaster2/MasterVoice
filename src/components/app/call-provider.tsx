@@ -158,17 +158,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
       }
     };
     
-    // Listen for direct 1-on-1 call offers
-    const directSignalChannels = allUsers
+    // Listen for direct 1-on-1 call offers from ALL users.
+    const allUserChannels = allUsers
         .filter(u => u.id !== user.id)
-        .map(u => 
-            supabase.channel(`signaling-channel-${[user.id, u.id].sort().join('-')}`)
+        .map(u => {
+            const channelId = `signaling-channel-${[user.id, u.id].sort().join('-')}`;
+            return supabase.channel(channelId)
                 .on('broadcast', { event: 'call-offer' }, handleOffer)
-                .subscribe()
+                .subscribe();
+        }
     );
     
     return () => {
-        directSignalChannels.forEach(channel => channel.unsubscribe());
+        allUserChannels.forEach(channel => channel.unsubscribe());
     };
   }, [user, supabase, activeCall, incomingCall, findUserById, allUsers]);
 

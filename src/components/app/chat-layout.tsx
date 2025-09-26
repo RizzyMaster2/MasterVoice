@@ -147,11 +147,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         setIsLoadingMessages(true);
         setMessages([]); // Clear previous messages
         const fetchedMessages = await getMessages(selectedChat.id);
-        const messagesWithProfiles = fetchedMessages.map(msg => ({
-            ...msg,
-            profiles: userMap.get(msg.sender_id)
-        }));
-        setMessages(messagesWithProfiles);
+        setMessages(fetchedMessages);
         setIsLoadingMessages(false);
         setTimeout(scrollToBottom, 100);
       } else {
@@ -168,37 +164,38 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     const channel = supabase.channel(`chat_${selectedChat.id}`);
 
     // Listen for new messages
-    channel.on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          
-          setMessages((prevMessages) => {
-            // If the message is already in the list (e.g., an optimistic update), don't add it again.
+    const handleNewMessage = (payload: any) => {
+        const newMessage = payload.new as Message;
+        
+        setMessages((prevMessages) => {
+            // Check if the message is already in the list
             if (prevMessages.some((msg) => msg.id === newMessage.id)) {
-              return prevMessages;
+                return prevMessages;
             }
-            // Replace the optimistic message with the real one from the DB
-            const tempMessageIndex = prevMessages.findIndex(msg => msg.id.startsWith('temp-') && msg.content === newMessage.content);
+            // Check if this is a replacement for an optimistic message
+            const tempId = `temp-${newMessage.sender_id}-${newMessage.content}`;
+            const optimisticIndex = prevMessages.findIndex(msg => msg.id === tempId);
             
-            const finalMessage = {
+            const finalMessageWithProfile = {
                 ...newMessage,
                 profiles: userMap.get(newMessage.sender_id)
             };
 
-            if (tempMessageIndex !== -1) {
+            if (optimisticIndex > -1) {
                 const updatedMessages = [...prevMessages];
-                updatedMessages[tempMessageIndex] = finalMessage;
+                updatedMessages[optimisticIndex] = finalMessageWithProfile;
                 return updatedMessages;
+            } else {
+                 return [...prevMessages, finalMessageWithProfile];
             }
+        });
+        setTimeout(scrollToBottom, 100);
+    };
 
-            // Otherwise, it's a new message from another user, so append it.
-            return [...prevMessages, finalMessage];
-          });
-
-          setTimeout(scrollToBottom, 100);
-        }
+    channel.on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
+        handleNewMessage
       );
 
     // Listen for typing indicators
@@ -247,9 +244,11 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         });
     }
 
-    const tempMessageId = `temp-${Date.now()}`;
     const messageContent = newMessage;
     setNewMessage('');
+    
+    // Create a more specific temp ID
+    const tempMessageId = `temp-${currentUser.id}-${messageContent}`;
 
     // Optimistically add message to UI
     const optimisticMessage: Message = {
@@ -647,7 +646,3 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     </Card>
   );
 }
-
-    
-
-    
