@@ -145,45 +145,43 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     if (!selectedChat) {
       return;
     }
-      const channel = supabase
-        .channel(`chat-room:${selectedChat.id}`)
-        .on(
-          'postgres_changes',
-          { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-          (payload) => {
-            const newMessage = payload.new as Message;
-            // Add sender profile from userMap if it's missing
-            if (!newMessage.profiles) {
-                newMessage.profiles = userMap.get(newMessage.sender_id) || null;
-            }
-             setMessages(currentMessages => {
-                if (currentMessages.some(m => m.id === newMessage.id)) {
-                    return currentMessages;
-                }
-                const optimisticMessageId = `temp-${newMessage.content}`;
-                const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
-                newMessages.push(newMessage);
-                return newMessages;
-            });
+    const channel = supabase
+      .channel(`chat-room:${selectedChat.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
+        (payload) => {
+          const newMessage = payload.new as Message;
+          if (!newMessage.profiles) {
+              newMessage.profiles = userMap.get(newMessage.sender_id) || null;
           }
-        )
-        .subscribe((status, err) => {
-          if (status === 'SUBSCRIBED') {
-            // Do nothing on success
-          }
-          if (status === 'CHANNEL_ERROR') {
-            console.error('Realtime channel error:', err);
-             toast({
-              title: 'Realtime Connection Error',
-              description: getErrorMessage(err) || 'Could not connect to real-time server.',
-              variant: 'destructive',
-            });
-          }
-        });
-        
-      return () => {
-          supabase.removeChannel(channel);
-      };
+           setMessages(currentMessages => {
+              if (currentMessages.some(m => m.id === newMessage.id)) {
+                  return currentMessages;
+              }
+              const optimisticMessageId = `temp-${newMessage.content}`;
+              const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
+              newMessages.push(newMessage);
+              return newMessages;
+          });
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          // console.log('Realtime subscribed');
+        }
+        if (status === 'CHANNEL_ERROR') {
+           toast({
+            title: 'Realtime Connection Error',
+            description: getErrorMessage(err) || 'Could not connect to real-time server.',
+            variant: 'destructive',
+          });
+        }
+      });
+      
+    return () => {
+        supabase.removeChannel(channel);
+    };
     
   }, [selectedChat, supabase, toast, userMap]);
 
@@ -210,8 +208,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                 description: getErrorMessage(error),
                 variant: "destructive"
             });
-            // Revert optimistic update on failure - can be improved
-            fetchMessages(selectedChat.id); 
+            if (selectedChat?.id) {
+              fetchMessages(selectedChat.id);
+            }
         });
     });
   };

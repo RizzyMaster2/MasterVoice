@@ -18,7 +18,7 @@ function GroupsPageContent() {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const { user, isVerified } = useUser();
+  const { user, isVerified, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -27,16 +27,16 @@ function GroupsPageContent() {
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
+    setIsLoading(true);
     try {
         const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
         setChats(chatsData);
         setAllUsers(usersData);
         
-        // If the currently selected group was deleted, reset selection
         if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
             setSelectedChat(null);
+             router.replace('/home/groups');
         } else if (selectedChat) {
-            // Reselect the chat to get fresh participant data
             const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
             setSelectedChat(freshSelectedChat || null);
         }
@@ -50,11 +50,12 @@ function GroupsPageContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [selectedChat, toast]);
+  }, [selectedChat, toast, router]);
 
 
   useEffect(() => {
-    setIsLoading(true);
+    if (isUserLoading) return;
+
     const timeoutId = setTimeout(() => {
         if (isLoading) {
             toast({
@@ -70,7 +71,7 @@ function GroupsPageContent() {
     
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isUserLoading]);
 
   // Restore selected chat from URL on initial load
    useEffect(() => {
@@ -83,7 +84,8 @@ function GroupsPageContent() {
         }
       }
     }
-  }, [isLoading, groups, selectedChat?.id, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, groups, searchParams]);
 
 
    useEffect(() => {
@@ -96,25 +98,22 @@ function GroupsPageContent() {
         { event: '*', schema: 'public', table: 'chats', filter: 'is_group=eq.true' },
         (payload) => {
             refreshData();
-            if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
-                setSelectedChat(null);
-            }
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chat_participants' },
-        () => refreshData()
+        (payload) => refreshData()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshData, selectedChat]);
+  }, [user, supabase, refreshData]);
 
 
-  if (isLoading || !user) {
+  if (isLoading || isUserLoading || !user) {
     return (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
             {user && !isVerified && <UnverifiedAccountWarning />}

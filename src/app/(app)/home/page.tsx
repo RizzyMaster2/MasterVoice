@@ -28,6 +28,7 @@ function HomePageContent() {
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
+    setIsLoading(true);
     try {
         const [chatsData, usersData] = await Promise.all([
           getChats(),
@@ -49,7 +50,7 @@ function HomePageContent() {
 
   useEffect(() => {
     if (isUserLoading) return; // Wait for user to be loaded
-    setIsLoading(true);
+    
     const timeoutId = setTimeout(() => {
         if (isLoading) {
             toast({
@@ -64,7 +65,8 @@ function HomePageContent() {
     refreshAllData();
 
     return () => clearTimeout(timeoutId);
-  }, [isUserLoading, refreshAllData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isUserLoading]);
 
   // Restore selected chat from URL after data has loaded
   useEffect(() => {
@@ -77,7 +79,8 @@ function HomePageContent() {
           }
       }
     }
-  }, [isLoading, friends, searchParams, selectedChat?.id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoading, friends, searchParams]);
 
 
   useEffect(() => {
@@ -88,7 +91,7 @@ function HomePageContent() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${user.id}`},
-        () => refreshAllData()
+        (payload) => refreshAllData()
       )
       .on(
         'postgres_changes',
@@ -97,20 +100,21 @@ function HomePageContent() {
             refreshAllData();
             if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
                 setSelectedChat(null);
+                router.replace('/home');
             }
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'friend_requests' },
-        () => refreshAllData()
+        (payload) => refreshAllData()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshAllData, selectedChat]);
+  }, [user, supabase, refreshAllData, selectedChat, router]);
 
 
   if (isLoading || isUserLoading || !user) {
