@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo, useCallback } from 'react';
@@ -111,21 +112,16 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   }, [allUsers, currentUser]);
 
   const handleStartCall = () => {
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'Voice calling is not available at the moment.',
-      variant: 'info'
-    });
-    // if (selectedChat?.otherParticipant) {
-    //   startCall(selectedChat.otherParticipant);
-    // } else if (selectedChat?.is_group) {
-    //     const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
-    //     if(otherParticipant) {
-    //         startCall(otherParticipant, selectedChat.id);
-    } else {
-    //         toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
-    //     }
-    // }
+    if (selectedChat?.otherParticipant) {
+      startCall(selectedChat.otherParticipant, selectedChat.id);
+    } else if (selectedChat?.is_group) {
+        const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
+        if(otherParticipant) {
+            startCall(otherParticipant, selectedChat.id);
+        } else {
+            toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
+        }
+    }
   };
 
   const handleJoinCall = () => {
@@ -156,18 +152,18 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
         // Find optimistic messages that are now confirmed
         optimisticMessages.forEach(om => {
-          const confirmed = serverMessages.find(sm => sm.sender_id === om.sender_id && sm.content === om.content && !serverMessageIds.has(om.id));
+          // A more reliable check: find a server message with same content from same sender that isn't already in the list by a different temp ID.
+          const confirmed = serverMessages.find(sm => sm.sender_id === om.sender_id && sm.content === om.content && !currentMessages.some(cm => cm.id === sm.id));
           if (confirmed) {
             confirmedOptimisticMessages.add(om.id);
           }
         });
         
-        // Filter out old optimistic messages that have been confirmed
-        const remainingOptimistic = optimisticMessages.filter(om => !confirmedOptimisticMessages.has(om.id));
-
-        const finalMessages = [...serverMessages, ...remainingOptimistic].sort(
-            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-        );
+        // Combine server messages with unconfirmed optimistic messages
+        const finalMessages = [
+          ...serverMessages,
+          ...optimisticMessages.filter(om => !confirmedOptimisticMessages.has(om.id))
+        ].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
         
         // Remove duplicates just in case
         const uniqueMessages = Array.from(new Map(finalMessages.map(m => [m.id, m])).values());
@@ -194,8 +190,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     } else {
       setMessages([]);
     }
-    // Don't include fetchMessages here to avoid re-running when messages state changes
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat]);
 
   // Polling for new messages
@@ -241,7 +235,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       try {
         await sendMessage(selectedChat.id, messageContent);
         // After sending, we don't need to manually replace. The next poll will pick it up.
-        // This simplifies the logic and prevents race conditions.
         // We can trigger a fetch immediately for a faster update
         await fetchMessages(selectedChat.id);
       } catch (error) {
@@ -259,8 +252,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-
-    // Typing indicator logic removed
   };
   
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
