@@ -135,66 +135,60 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     } finally {
         setIsLoadingMessages(false);
+         setTimeout(scrollToBottom, 100);
     }
   }, [toast]);
 
 
   useEffect(() => {
     if (selectedChat) {
-      fetchMessages(selectedChat.id).finally(() => {
-        setTimeout(scrollToBottom, 100);
-      });
+      fetchMessages(selectedChat.id);
+
+      const channel = supabase
+        .channel(`messages-for-${selectedChat.id}`)
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
+          (payload) => {
+            const newMessage = payload.new as Message;
+            
+            setMessages(currentMessages => {
+              // Remove the optimistic message if it exists
+              const filteredMessages = currentMessages.filter(m => 
+                !(m.id.toString().startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id)
+              );
+              
+              // Add the new message from the server, ensuring no duplicates from race conditions
+              if (!filteredMessages.some(m => m.id === newMessage.id)) {
+                return [...filteredMessages, newMessage];
+              }
+              return filteredMessages;
+            });
+            
+            setTimeout(scrollToBottom, 100);
+          }
+        )
+        .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            console.log('Realtime channel subscribed for chat:', selectedChat.id);
+          }
+          if (status === 'CHANNEL_ERROR') {
+            console.error('Realtime channel error:', err);
+             toast({
+              title: 'Realtime Connection Error',
+              description: getErrorMessage(err) || 'Could not connect to real-time server.',
+              variant: 'destructive',
+            });
+          }
+        });
+        
+      return () => {
+          supabase.removeChannel(channel);
+      };
     } else {
       setMessages([]);
     }
-  }, [selectedChat, fetchMessages]);
-  
-  useEffect(() => {
-    if (!selectedChat) return;
-
-    const channel = supabase
-      .channel(`messages-for-${selectedChat.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          
-          setMessages(currentMessages => {
-            // Remove the optimistic message if it exists
-            const filteredMessages = currentMessages.filter(m => 
-              !(m.id.toString().startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id)
-            );
-            
-            // Add the new message from the server, ensuring no duplicates from race conditions
-            if (!filteredMessages.some(m => m.id === newMessage.id)) {
-              return [...filteredMessages, newMessage];
-            }
-            return filteredMessages;
-          });
-          
-          setTimeout(scrollToBottom, 100);
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          console.log('Realtime channel subscribed for chat:', selectedChat.id);
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime channel error:', err);
-           toast({
-            title: 'Realtime Connection Error',
-            description: getErrorMessage(err) || 'Could not connect to real-time server.',
-            variant: 'destructive',
-          });
-        }
-      });
-      
-    return () => {
-        supabase.removeChannel(channel);
-    };
-
-  }, [selectedChat, supabase, toast]);
+  }, [selectedChat, supabase, toast, fetchMessages]);
 
 
   const getInitials = (name: string | undefined | null) =>
