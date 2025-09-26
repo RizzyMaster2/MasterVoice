@@ -103,15 +103,13 @@ export async function getChats(): Promise<Chat[]> {
         return [];
     }
 
-    // 3. Fetch the last message for each of those chats
+    // 3. Fetch the last message for each of those chats using an RPC
     const { data: lastMessages, error: messagesError } = await supabase
-        .from('last_message_view')
-        .select('*')
-        .in('chat_id', chatIds);
+      .rpc('get_last_messages_for_chats', { p_chat_ids: chatIds });
 
      if (messagesError) {
         console.error('Error fetching last messages:', messagesError);
-        // Continue without last messages if this fails
+        // Continue without last messages if this fails, but log the error.
     }
 
     const lastMessageMap = new Map(lastMessages?.map(m => [m.chat_id, m]) || []);
@@ -562,5 +560,7 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
+
+    
 
     
