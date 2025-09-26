@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
@@ -76,20 +77,19 @@ export function FriendsClientPage({
   
    useEffect(() => {
     if (!currentUser.id) return;
-    const channel = supabase.channel(`friend-requests-and-chats-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `to_user_id=eq.${currentUser.id}` }, payload => {
+    
+    // Listen for changes that affect this user
+    const changes = supabase.channel(`realtime-friends-for-${currentUser.id}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `or(from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id})` }, payload => {
         refreshAllData();
       })
-       .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `from_user_id=eq.${currentUser.id}` }, payload => {
-        refreshAllData();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` }, payload => {
+       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` }, payload => {
         refreshAllData();
       })
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(changes);
     };
   }, [supabase, currentUser.id, refreshAllData]);
 

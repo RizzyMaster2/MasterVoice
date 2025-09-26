@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo } from 'react';
+import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo, useCallback } from 'react';
 import {
   Card,
   CardFooter,
@@ -140,13 +141,13 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     }
   };
   
-  const fetchMessages = async (chatId: string) => {
+  const fetchMessages = useCallback(async (chatId: string) => {
     setIsLoadingMessages(true);
     const fetchedMessages = await getMessages(chatId);
     setMessages(fetchedMessages);
     setIsLoadingMessages(false);
     setTimeout(scrollToBottom, 100);
-  };
+  }, []);
 
 
   useEffect(() => {
@@ -155,51 +156,48 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     } else {
       setMessages([]);
     }
-  }, [selectedChat]);
+  }, [selectedChat, fetchMessages]);
 
   // Realtime listeners
   useEffect(() => {
     if (!selectedChat || !currentUser) return;
 
-    const channel = supabase.channel(`chat_${selectedChat.id}`);
-
-    // Listen for new messages
-    const handleNewMessage = (payload: any) => {
-      // Re-fetch all messages to ensure sync. This is more robust.
-      if (selectedChat) {
-        fetchMessages(selectedChat.id);
-      }
-    };
-
-    channel.on(
+    // Listen for new messages on the 'messages' table
+    const messagesChannel = supabase.channel(`realtime-messages-for-chat-${selectedChat.id}`)
+      .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        handleNewMessage
-      );
+        (payload) => {
+            fetchMessages(selectedChat.id);
+        }
+      ).subscribe();
 
-    // Listen for typing indicators
+    // Broadcast and receive typing indicators on a separate broadcast channel
+    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
+    
     let typingTimer: NodeJS.Timeout;
-    channel.on('broadcast', { event: 'typing' }, ({ payload }) => {
+    typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
         if (payload.userId !== currentUser.id) {
             setIsTyping(true);
             clearTimeout(typingTimer);
             typingTimer = setTimeout(() => setIsTyping(false), 2000);
         }
     });
-     channel.on('broadcast', { event: 'stopped-typing' }, ({ payload }) => {
+     typingChannel.on('broadcast', { event: 'stopped-typing' }, ({ payload }) => {
         if (payload.userId !== currentUser.id) {
             setIsTyping(false);
             clearTimeout(typingTimer);
         }
     });
 
-    channel.subscribe();
+    typingChannel.subscribe();
   
     return () => {
       setIsTyping(false);
-      supabase.removeChannel(channel);
+      supabase.removeChannel(messagesChannel);
+      supabase.removeChannel(typingChannel);
     };
-  }, [selectedChat, supabase, currentUser]);
+  }, [selectedChat, supabase, currentUser, fetchMessages]);
   
   const getInitials = (name: string | undefined | null) =>
     name
@@ -211,12 +209,13 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
-
+    
+    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
     // Stop broadcasting typing event
     if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
         typingTimeoutRef.current = null;
-        supabase.channel(`chat_${selectedChat.id}`).send({
+        typingChannel.send({
             type: 'broadcast',
             event: 'stopped-typing',
             payload: { userId: currentUser.id },
@@ -244,8 +243,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // The realtime listener will handle updating the UI with the permanent message,
-        // so we don't need to manually replace the optimistic one here.
+        // The realtime listener will handle updating the UI, so we don't need to do anything here
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -263,12 +261,12 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     setNewMessage(e.target.value);
 
     if (!selectedChat) return;
-    const channel = supabase.channel(`chat_${selectedChat.id}`);
+    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
 
     if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
     } else {
-        channel.send({
+        typingChannel.send({
             type: 'broadcast',
             event: 'typing',
             payload: { userId: currentUser.id },
@@ -276,7 +274,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     }
 
     typingTimeoutRef.current = setTimeout(() => {
-        channel.send({
+        typingChannel.send({
             type: 'broadcast',
             event: 'stopped-typing',
             payload: { userId: currentUser.id },
