@@ -19,11 +19,12 @@ export const getErrorMessage = (error: unknown): string => {
     message = 'An unknown error occurred.';
   }
 
+  // Attempt to parse Supabase-specific errors, which might be stringified JSON
   try {
-    // Supabase can sometimes stringify a JSON object in the message
     const parsed = JSON.parse(message);
-    return parsed.message || parsed.error_description || message;
+    return parsed.message || parsed.error_description || parsed.error || message;
   } catch (e) {
+    // If parsing fails, it's not JSON, so return the original message
     return message;
   }
 };

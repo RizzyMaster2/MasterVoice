@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { useRouter, usePathname } from 'next/navigation';
+import { getErrorMessage } from '@/lib/utils';
 
 
 interface ChatLayoutProps {
@@ -46,23 +47,6 @@ interface ChatLayoutProps {
   onChatUpdate: () => void;
   onChatDeleted: () => void;
 }
-
-// Helper to extract a user-friendly error message
-const getErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    try {
-      // Supabase can sometimes stringify a JSON object in the message
-      const parsed = JSON.parse(error.message);
-      return parsed.message || error.message;
-    } catch (e) {
-      return error.message;
-    }
-  }
-  if (typeof error === 'string') {
-    return error;
-  }
-  return 'An unknown error occurred.';
-};
 
 const parseMessageContent = (content: string): ReactNode[] => {
   const codeBlockRegex = /```(\w+)?\n([\s\S]*?)```/g;
