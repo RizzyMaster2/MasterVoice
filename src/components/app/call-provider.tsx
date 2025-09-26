@@ -1,3 +1,4 @@
+
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -47,10 +48,18 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   
   const endCall = useCallback(() => {
-    // Realtime hangup logic removed
+    if (activeCall && user) {
+        const channel = supabase.channel(`signaling:${user.id}`);
+        channel.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { from: user.id },
+        });
+        channel.unsubscribe();
+    }
     setActiveCall(null);
     setIncomingCall(null);
-  }, []);
+  }, [activeCall, user, supabase]);
 
 
   useEffect(() => {
@@ -61,33 +70,54 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     fetchUsers();
   }, []);
 
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase.channel(`signaling:${user.id}`);
+    
+    channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
+        const caller = findUserById(payload.from);
+        if (caller && !activeCall) {
+            setIncomingCall({ otherParticipant: caller, offer: payload.offer });
+        }
+    });
+
+    channel.on('broadcast', { event: 'hangup' }, () => {
+        if (activeCall || incomingCall) {
+            endCall();
+            toast({ title: "Call Ended", description: "The other user has ended the call." });
+        }
+    });
+    
+    channel.subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+            // console.log(`Subscribed to signaling channel: ${user.id}`);
+        }
+        if (err) {
+            console.error('Signaling channel subscription error:', err);
+        }
+    });
+
+    return () => {
+        channel.unsubscribe();
+    };
+
+  }, [user, supabase, findUserById, activeCall, incomingCall, endCall, toast]);
+
   const findUserById = useCallback((userId: string) => {
     return allUsers.find(u => u.id === userId);
   }, [allUsers]);
 
   const startCall = useCallback(async (participant: UserProfile, chatId?: string) => {
-     toast({
-      title: 'Feature Coming Soon',
-      description: 'Voice calling is not available at the moment.',
-      variant: 'info'
-    });
-    // All realtime logic removed
-  }, [toast]);
+     if (!user) return;
+     setActiveCall({ otherParticipant: participant });
+  }, [user]);
 
   const joinCall = (chatId: string) => {
     toast({
       title: 'Feature Coming Soon',
-      description: 'Voice calling is not available at the moment.',
+      description: 'Group voice calling is not available at the moment.',
       variant: 'info'
     });
-    // For now, this just opens the voice call component
-    // In a real app, this would need to negotiate a connection with existing participants
-    // if (user && activeGroupCalls[chatId]) {
-    //   const otherParticipant = findUserById(activeGroupCalls[chatId].participants[0]); // Just picking the first one for now
-    //    if (otherParticipant) {
-    //        setActiveCall({ otherParticipant: otherParticipant });
-    //    }
-    // }
   };
 
   const acceptCall = () => {
@@ -98,8 +128,16 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   };
 
   const declineCall = () => {
-    // Realtime rejection logic removed
     if (incomingCall && user) {
+        const channel = supabase.channel(`signaling:${incomingCall.otherParticipant.id}`);
+        channel.subscribe(() => {
+            channel.send({
+                type: 'broadcast',
+                event: 'hangup',
+                payload: { from: user.id },
+            });
+            channel.unsubscribe();
+        });
         setIncomingCall(null);
     }
   };
@@ -126,3 +164,5 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     </CallContext.Provider>
   );
 }
+
+    

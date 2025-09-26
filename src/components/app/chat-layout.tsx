@@ -29,8 +29,14 @@ import { createClient } from '@/lib/supabase/client';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO, formatDistanceToNow } from 'date-fns';
-import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
+import { getMessages, sendMessage, deleteChat, deleteMessage } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   AlertDialog,
   AlertDialogTrigger,
@@ -42,8 +48,9 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2 } from 'lucide-react';
+import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
 import type { Chat, Message, UserProfile } from '@/lib/data';
+import { useCall } from './call-provider';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -105,6 +112,7 @@ export function ChatLayout({
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  const { startCall } = useCall();
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -165,6 +173,14 @@ export function ChatLayout({
           setMessages(current => [...current, newMessage]);
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
+        (payload) => {
+          const deletedMessageId = payload.old.id;
+          setMessages(current => current.filter(m => m.id !== deletedMessageId));
+        }
+      )
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
           // Quietly subscribed
@@ -206,7 +222,27 @@ export function ChatLayout({
   };
   
   const handleStartCall = () => {
-    toast({ title: "Voice calls coming soon!", variant: "info" });
+    if (selectedChat?.otherParticipant) {
+      startCall(selectedChat.otherParticipant);
+    }
+  };
+
+  const handleCopyMessage = (content: string) => {
+    navigator.clipboard.writeText(content);
+    toast({ title: 'Message copied to clipboard' });
+  };
+  
+  const handleDeleteMessage = (messageId: string) => {
+    // Optimistic update
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+    startDeletingTransition(async () => {
+      try {
+        await deleteMessage(messageId);
+      } catch (error) {
+        toast({ title: 'Error deleting message', description: getErrorMessage(error), variant: 'destructive' });
+        fetchMessages(selectedChat!.id); // Refetch messages on error
+      }
+    });
   };
 
 
@@ -308,11 +344,6 @@ export function ChatLayout({
                         <p className="font-semibold truncate">
                             {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
                         </p>
-                        {chat.last_message_timestamp && (
-                           <p className="text-xs text-muted-foreground whitespace-nowrap">
-                                {formatLastMessageTime(chat.last_message_timestamp)}
-                           </p>
-                        )}
                    </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {chat.is_group 
@@ -409,15 +440,36 @@ export function ChatLayout({
                         <Skeleton className="h-12 w-1/2 ml-auto" />
                    </div>
                 ) : (
-                    <div className="space-y-4">
+                    <div className="space-y-1">
                     {messages.map((msg) => (
                         <div
                         key={msg.id}
                         className={cn(
-                            'flex items-end gap-2',
-                            msg.sender_id === currentUser.id && 'justify-end'
+                            'group/message flex items-end gap-2 w-full',
+                            msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'
                         )}
                         >
+                        {msg.sender_id === currentUser.id && (
+                           <div className="opacity-0 group-hover/message:opacity-100 transition-opacity">
+                             <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7">
+                                    <MoreHorizontal className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
+                                      <Copy className="mr-2 h-4 w-4" />
+                                      Copy
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem className="text-destructive" onClick={() => handleDeleteMessage(msg.id)}>
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      Delete
+                                  </DropdownMenuItem>
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                           </div>
+                        )}
                         {msg.sender_id !== currentUser.id && (
                             <Avatar className="h-8 w-8">
                             <AvatarImage
@@ -514,3 +566,5 @@ export function ChatLayout({
     </Card>
   );
 }
+
+    

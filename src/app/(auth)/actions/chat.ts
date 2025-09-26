@@ -76,6 +76,16 @@ export async function getChats(): Promise<Chat[]> {
     
     const allUsers = await getUsers();
     const userMap = new Map(allUsers.map(u => [u.id, u]));
+    userMap.set(authUser.id, {
+      id: authUser.id,
+      display_name: authUser.user_metadata?.display_name || authUser.email,
+      photo_url: authUser.user_metadata?.photo_url || '',
+      created_at: authUser.created_at,
+      email: authUser.email || null,
+      status: 'online',
+      bio: authUser.user_metadata?.bio || null,
+    });
+
 
     // 1. Get all chat_ids the user is a part of
     const { data: userChatLinks, error: chatLinksError } = await supabase
@@ -334,6 +344,45 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   }
 }
 
+export async function deleteMessage(messageId: string) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
+  try {
+    const user = await getCurrentUser();
+    const userId = user.id;
+
+    // First, verify the user is the sender of the message
+    const { data: message, error: fetchError } = await supabase
+      .from('messages')
+      .select('sender_id')
+      .eq('id', messageId)
+      .single();
+    
+    if (fetchError || !message) {
+      throw new Error('Message not found.');
+    }
+    
+    if (message.sender_id !== userId) {
+      throw new Error('You can only delete your own messages.');
+    }
+    
+    // If they are the sender, delete the message
+    const { error: deleteError } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId);
+      
+    if (deleteError) {
+      throw new Error(deleteError.message);
+    }
+    
+  } catch(error) {
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    throw new Error(message);
+  }
+}
+
 export async function deleteChat(chatId: string, otherParticipantId: string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
@@ -547,3 +596,5 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
+
+    

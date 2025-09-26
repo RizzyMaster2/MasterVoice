@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -97,8 +98,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const isLocalUserSpeaking = useActiveSpeaker(localStream);
   const isRemoteUserSpeaking = useActiveSpeaker(remoteStream);
   
-  // Realtime channel reference is kept for structure, but will not be subscribed to.
-  const signalingChannelRef = useRef(supabase.channel(`signaling-channel-disabled`));
+  const signalingChannelRef = useRef(supabase.channel(`signaling:${[currentUser.id, otherParticipantId].sort().join(':')}`));
 
   const cleanup = useCallback(() => {
     localStream?.getTracks().forEach(track => track.stop());
@@ -110,14 +110,24 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
+    
+    if (signalingChannelRef.current) {
+      signalingChannelRef.current.unsubscribe();
+    }
   }, [localStream, remoteStream]);
 
 
   const handleClose = useCallback((notify = true) => {
-    // Realtime hangup logic removed
+    if (notify) {
+        signalingChannelRef.current.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { from: currentUser.id },
+        });
+    }
     cleanup();
     onClose();
-  }, [cleanup, onClose]);
+  }, [cleanup, onClose, currentUser.id]);
 
   useEffect(() => {
     let timerInterval: NodeJS.Timeout | null = null;
@@ -173,7 +183,13 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
-      // Realtime logic removed
+      if (event.candidate) {
+        signalingChannelRef.current.send({
+            type: 'broadcast',
+            event: 'ice-candidate',
+            payload: { to: otherParticipantId, candidate: event.candidate },
+        });
+      }
     };
 
     pc.ontrack = event => {
@@ -190,7 +206,58 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
     };
     
-    // All realtime handler logic is removed. Calls will not connect.
+    const channel = signalingChannelRef.current;
+    
+    const createOffer = async () => {
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      channel.send({
+          type: 'broadcast',
+          event: 'offer',
+          payload: { to: otherParticipantId, from: currentUser.id, offer },
+      });
+    };
+
+    if (!initialOffer) {
+        createOffer();
+    }
+    
+    channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
+        if (payload.to === currentUser.id) {
+            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+        }
+    });
+
+    channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+        if (payload.to === currentUser.id && payload.candidate) {
+            try {
+                await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+            } catch (e) {
+                console.error('Error adding received ice candidate', e);
+            }
+        }
+    });
+
+    channel.on('broadcast', { event: 'hangup' }, () => {
+        handleClose(false);
+    });
+    
+    if (initialOffer) {
+        pc.setRemoteDescription(new RTCSessionDescription(initialOffer)).then(async () => {
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            channel.send({
+                type: 'broadcast',
+                event: 'answer',
+                payload: { to: otherParticipantId, from: currentUser.id, answer },
+            });
+            setStatus('connecting');
+        }).catch(e => console.error("Error setting remote description from offer", e));
+    }
+
+    channel.subscribe((status, err) => {
+        if (err) console.error("Signaling channel subscription failed", err);
+    });
 
     return () => { pc.close(); };
   }, [localStream, supabase, currentUser.id, otherParticipantId, handleClose, initialOffer, toast, otherParticipant.display_name]);
@@ -275,3 +342,5 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
+
+    
