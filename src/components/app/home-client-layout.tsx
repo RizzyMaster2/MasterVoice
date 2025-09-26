@@ -60,7 +60,7 @@ export function HomeClientLayout({
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
   const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useUser();
   const supabase = createClient();
@@ -95,29 +95,15 @@ export function HomeClientLayout({
   }, [user, toast]);
 
   useEffect(() => {
-    // Initial load is handled by server, so we can set loading to false.
-    setIsLoading(false);
-    
-    // Set up a timeout for initial data load issues if needed,
-    // though less critical now with server-side initial props.
-    const timeoutId = setTimeout(() => {
-        if (isLoading) {
-            toast({
-                title: 'Data is taking a while to load',
-                description: 'Still waiting for data from the server. Your connection may be slow.',
-                variant: 'warning',
-            });
-        }
-    }, 20000);
-
-    return () => clearTimeout(timeoutId);
-  }, [isLoading, toast]);
+    setIsLoading(true);
+    refreshAllData().finally(() => setIsLoading(false));
+  }, [refreshAllData]);
 
   useEffect(() => {
     const chatIdFromUrl = searchParams.get('chat');
-    const list = pathname.includes('/groups') ? groups : friends;
     
-    if (chatIdFromUrl && list.length > 0) {
+    if (chatIdFromUrl && chats.length > 0) {
+        const list = pathname.includes('/groups') ? groups : friends;
         const chatToSelect = list.find(c => c.id === chatIdFromUrl);
         if (chatToSelect) {
             setSelectedChat(chatToSelect);
@@ -125,7 +111,7 @@ export function HomeClientLayout({
     } else if (!chatIdFromUrl) {
       setSelectedChat(null);
     }
-  }, [searchParams, friends, groups, pathname]);
+  }, [searchParams, chats, friends, groups, pathname]);
 
 
   useEffect(() => {
@@ -140,7 +126,7 @@ export function HomeClientLayout({
             refreshAllData();
             if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
                 setSelectedChat(null);
-                router.replace(pathname); // use pathname to stay on current page
+                router.replace(pathname);
             }
         }
       )
