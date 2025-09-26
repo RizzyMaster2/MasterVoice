@@ -169,7 +169,7 @@ export function ChatLayout({
           console.error('Realtime channel error:', err);
           toast({
             title: 'Realtime Connection Error',
-            description: getErrorMessage(err),
+            description: getErrorMessage(err) || 'Could not connect to real-time server.',
             variant: 'destructive',
           });
         }
@@ -492,5 +492,7 @@ export function ChatLayout({
     </Card>
   );
 }
+
+    
 
     
