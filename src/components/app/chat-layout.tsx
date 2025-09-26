@@ -20,8 +20,6 @@ import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { CodeBlock } from './code-block';
-import { useCall } from './call-provider';
-import { ActiveCallBar } from './active-call-bar';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -100,7 +98,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
-  const { startCall, activeGroupCalls, joinCall } = useCall();
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -110,22 +107,19 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   }, [allUsers, currentUser]);
 
   const handleStartCall = () => {
-    if (selectedChat?.otherParticipant) {
-      startCall(selectedChat.otherParticipant, selectedChat.id);
-    } else if (selectedChat?.is_group) {
-        const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
-        if(otherParticipant) {
-            startCall(otherParticipant, selectedChat.id);
-        } else {
-            toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
-        }
-    }
+     toast({
+      title: 'Feature Coming Soon',
+      description: 'Voice calling is not available at the moment.',
+      variant: 'info'
+    });
   };
 
   const handleJoinCall = () => {
-    if (selectedChat) {
-      joinCall(selectedChat.id);
-    }
+    toast({
+      title: 'Feature Coming Soon',
+      description: 'Group calling is not available at the moment.',
+      variant: 'info'
+    });
   }
 
   const scrollToBottom = () => {
@@ -140,11 +134,21 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
  const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(serverMessages);
+      setMessages(currentMessages => {
+          const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
+          const serverMessageIds = new Set(serverMessages.map(m => m.id));
+          const confirmedOptimistic = optimisticMessages.filter(om => 
+              !serverMessages.some(sm => sm.content === om.content && sm.sender_id === om.sender_id)
+          );
+          
+          const combined = [...serverMessages, ...confirmedOptimistic];
+          combined.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+
+          return combined;
+      });
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     }
-    setTimeout(scrollToBottom, 100);
   }, [toast]);
 
 
@@ -205,8 +209,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // Immediately fetch messages after sending to confirm
-        await fetchMessages(selectedChat.id);
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -214,8 +216,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        // Remove optimistic message on failure
-        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+        // On failure, we'll let the next poll clean it up to avoid complex state logic
       }
     });
   };
@@ -255,7 +256,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           title: 'File Sent',
           description: 'Your file has been sent successfully.',
         });
-        await fetchMessages(selectedChat.id); // Fetch after successful upload
       } catch (error) {
         console.error('Failed to upload and send file:', error);
         toast({
@@ -283,7 +283,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           variant: 'success'
         });
         
-        // Let the parent component handle state update via polling/real-time
         setSelectedChat(null);
 
 
@@ -303,15 +302,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  const activeCall = selectedChat ? activeGroupCalls[selectedChat.id] : null;
-
-  const callParticipants = useMemo(() => {
-    if (!activeCall) return [];
-    return activeCall.participants
-      .map(id => allUsers.find(u => u.id === id))
-      .filter((p): p is UserProfile => !!p);
-  }, [activeCall, allUsers]);
-
   return (
     <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
@@ -393,7 +383,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                       {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
                     </h2>
                      <div className="h-5">
-                      
                          {selectedChat.is_group && (
                             <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
                          )
@@ -434,15 +423,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                     </AlertDialog>
                   )}
               </div>
-              {activeCall && (
-                <ActiveCallBar 
-                  participants={callParticipants} 
-                  onJoin={handleJoinCall}
-                  onDecline={() => {
-                    // Implement decline logic if needed, e.g., hiding the bar for the current user
-                  }}
-                />
-              )}
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
@@ -558,5 +538,3 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
-
-    
