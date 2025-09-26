@@ -3,12 +3,13 @@
 
 import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
 import { Skeleton } from '../ui/skeleton';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
@@ -20,6 +21,7 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
   const [friendRequests, setFriendRequests] = useState<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>({ incoming: [], outgoing: []});
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const { toast } = useToast();
 
   const { user } = useUser();
   const supabase = createClient();
@@ -39,26 +41,50 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
         setAllUsers(usersData);
         setFriendRequests(requestsData);
 
-        // After data is loaded, check URL for a chat to select
-        const chatIdFromUrl = searchParams.get('chat');
-        if (chatIdFromUrl) {
-            const chatToSelect = chatsData.find(c => c.id === chatIdFromUrl && !c.is_group);
-            if (chatToSelect) {
-                setSelectedChat(chatToSelect);
-            }
-        }
     } catch (error) {
         console.error("Failed to refresh data", error);
+        toast({
+            title: 'Error Fetching Data',
+            description: 'Could not load your chats and contacts. Please try again later.',
+            variant: 'destructive'
+        });
     } finally {
         setIsLoading(false);
     }
-  }, [searchParams]);
+  }, [toast]);
 
   useEffect(() => {
     setIsLoading(true);
+    const timeoutId = setTimeout(() => {
+        if (isLoading) {
+            toast({
+                title: 'Failed to Load Data',
+                description: 'Chat data could not be loaded. Please check your connection and refresh the page.',
+                variant: 'destructive',
+            });
+            setIsLoading(false); // Stop showing loading skeleton
+        }
+    }, 20000); // 20 seconds timeout
+
     refreshAllData();
+
+    return () => clearTimeout(timeoutId);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  useEffect(() => {
+    // This effect runs after the initial data load to restore selection from URL.
+    if (!isLoading && chats.length > 0) {
+      const chatIdFromUrl = searchParams.get('chat');
+      if (chatIdFromUrl) {
+          const chatToSelect = chats.find(c => c.id === chatIdFromUrl && !c.is_group);
+          if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
+              setSelectedChat(chatToSelect);
+          }
+      }
+    }
+  }, [isLoading, chats, searchParams, selectedChat?.id]);
+
 
   useEffect(() => {
     if (!user) return;
@@ -84,8 +110,12 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
           schema: 'public',
           table: 'chats',
         },
-        () => {
+        (payload) => {
             refreshAllData();
+            // If the selected chat was deleted, deselect it
+            if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
+                setSelectedChat(null);
+            }
         }
       )
       .on(
@@ -113,7 +143,7 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshAllData]);
+  }, [user, supabase, refreshAllData, selectedChat]);
 
 
   if (isLoading) {

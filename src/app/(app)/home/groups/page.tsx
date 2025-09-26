@@ -11,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { createClient } from '@/lib/supabase/client';
 import { useSearchParams, useRouter } from 'next/navigation';
+import { useToast } from '@/hooks/use-toast';
 
 function GroupsPageContent() {
   const [chats, setChats] = useState<AppChat[]>([]);
@@ -21,43 +22,68 @@ function GroupsPageContent() {
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
 
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
-    const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
-    setChats(chatsData);
-    setAllUsers(usersData);
-    
-    // If the currently selected group was deleted, reset selection
-    if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
-        setSelectedChat(null);
-    } else if (selectedChat) {
-        // Reselect the chat to get fresh participant data
-        const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
-        setSelectedChat(freshSelectedChat || null);
+    try {
+        const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
+        setChats(chatsData);
+        setAllUsers(usersData);
+        
+        // If the currently selected group was deleted, reset selection
+        if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
+            setSelectedChat(null);
+        } else if (selectedChat) {
+            // Reselect the chat to get fresh participant data
+            const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
+            setSelectedChat(freshSelectedChat || null);
+        }
+    } catch (error) {
+        console.error("Failed to refresh group data:", error);
+        toast({
+            title: 'Error Fetching Groups',
+            description: 'Could not load your group chats. Please try again later.',
+            variant: 'destructive'
+        });
+    } finally {
+        setIsLoading(false);
     }
-  }, [selectedChat]);
+  }, [selectedChat, toast]);
 
 
   useEffect(() => {
     setIsLoading(true);
-    refreshData().finally(() => setIsLoading(false));
+    const timeoutId = setTimeout(() => {
+        if (isLoading) {
+            toast({
+                title: 'Failed to Load Data',
+                description: 'Group chat data could not be loaded. Please check your connection and refresh the page.',
+                variant: 'destructive',
+            });
+            setIsLoading(false);
+        }
+    }, 20000); // 20 seconds timeout
+
+    refreshData();
+    
+    return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore selected chat from URL on initial load
    useEffect(() => {
-    if (!isLoading && chats.length > 0 && !selectedChat) {
+    if (!isLoading && groups.length > 0) {
       const chatIdFromUrl = searchParams.get('chat');
       if (chatIdFromUrl) {
         const chat = groups.find(c => c.id === chatIdFromUrl);
-        if (chat) {
+        if (chat && chat.id !== selectedChat?.id) {
           setSelectedChat(chat);
         }
       }
     }
-  }, [isLoading, chats, groups, selectedChat, searchParams]);
+  }, [isLoading, groups, selectedChat?.id, searchParams]);
 
 
    useEffect(() => {
@@ -67,8 +93,13 @@ function GroupsPageContent() {
       .channel('groups-page-channel')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'chats' },
-        () => refreshData()
+        { event: '*', schema: 'public', table: 'chats', filter: 'is_group=eq.true' },
+        (payload) => {
+            refreshData();
+            if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
+                setSelectedChat(null);
+            }
+        }
       )
       .on(
         'postgres_changes',
@@ -80,7 +111,7 @@ function GroupsPageContent() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshData]);
+  }, [user, supabase, refreshData, selectedChat]);
 
 
   if (isLoading || !user) {
