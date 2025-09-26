@@ -8,11 +8,15 @@ import { useState, useMemo, useEffect, useCallback } from 'react';
 import { getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
+import { useUser } from '@/hooks/use-user';
+import { createClient } from '@/lib/supabase/client';
 
 export function HomeClientLayout({ currentUser, initialChats, allUsers, initialFriendRequests }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const { user } = useUser();
+  const supabase = createClient();
   
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
@@ -35,12 +39,29 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
   }, [initialChats]); // Depend on initialChats to re-run if it changes
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      refreshChats();
-    }, 5000); // Poll every 5 seconds
+    if (!user) return;
+    
+    // Listen for inserts or deletes to the user's chats
+    const channel = supabase
+      .channel('home-client-layout-channel')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chat_participants',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+            refreshChats();
+        }
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
-  }, [refreshChats]);
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase, refreshChats]);
 
 
   if (!isClient) {
@@ -53,7 +74,13 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
 
   const handleChatDeleted = () => {
     refreshChats().then(() => {
-        setSelectedChat(null);
+        const newFriends = chats.filter(c => !c.is_group && c.id !== selectedChat?.id);
+        if (newFriends.length > 0) {
+            const sorted = [...newFriends].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+            setSelectedChat(sorted[0]);
+        } else {
+            setSelectedChat(null);
+        }
     });
   }
 

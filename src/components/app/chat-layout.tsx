@@ -129,18 +129,22 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
  const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(currentMessages => {
-          const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
-          const confirmedServerIds = new Set(serverMessages.map(m => m.id));
-          const unconfirmedOptimistic = optimisticMessages.filter(om => 
-              !serverMessages.some(sm => sm.content === om.content && sm.sender_id === om.sender_id)
-          );
+       setMessages(currentMessages => {
+        const optimisticMessageIds = new Set(
+          currentMessages.filter(m => m.id.toString().startsWith('temp-')).map(m => m.id)
+        );
+        const confirmedServerIds = new Set(serverMessages.map(m => m.id));
+        
+        // Filter out optimistic messages that are now confirmed
+        const unconfirmedOptimistic = currentMessages.filter(m => 
+          m.id.toString().startsWith('temp-') &&
+          !serverMessages.some(sm => sm.content === m.content && sm.sender_id === m.sender_id)
+        );
 
-          // This logic is tricky. For simplicity, we'll just replace if there are no pending optimistic messages.
-          // A more robust solution would merge based on content and timestamp.
-          const finalMessages = [...serverMessages, ...unconfirmedOptimistic];
+        // Combine server messages with unconfirmed optimistic messages
+        const finalMessages = [...serverMessages, ...unconfirmedOptimistic];
 
-          return finalMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        return finalMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
       });
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
@@ -159,16 +163,42 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       setMessages([]);
     }
   }, [selectedChat, fetchMessages]);
-
+  
   useEffect(() => {
     if (!selectedChat) return;
 
-    const interval = setInterval(() => {
-        fetchMessages(selectedChat.id);
-    }, 3000);
+    const channel = supabase
+      .channel(`messages-for-${selectedChat.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
+        (payload) => {
+          // New message received, refetch all messages
+          fetchMessages(selectedChat.id);
+          setTimeout(scrollToBottom, 100);
+        }
+      )
+      .subscribe((status, err) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('Realtime channel subscribed for chat:', selectedChat.id);
+        }
+        if (status === 'CHANNEL_ERROR') {
+          console.error('Realtime channel error:', err);
+           toast({
+            title: 'Realtime Connection Error',
+            description: getErrorMessage(err) || 'Could not connect to real-time server.',
+            variant: 'destructive',
+          });
+        }
+      });
+      
+    // Cleanup function
+    return () => {
+        supabase.removeChannel(channel);
+    };
 
-    return () => clearInterval(interval);
-  }, [selectedChat, fetchMessages]);
+  }, [selectedChat, supabase, fetchMessages, toast]);
+
 
   const getInitials = (name: string | undefined | null) =>
     name
@@ -201,7 +231,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // We no longer need to refetch here, the polling will handle it.
+        // No longer need to manually refetch, the realtime listener will handle it.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -245,7 +275,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         }
 
         await sendMessage(selectedChat.id, data.publicUrl, 'file');
-        await fetchMessages(selectedChat.id);
+        // Realtime listener will handle the update
 
         toast({
           title: 'File Sent',

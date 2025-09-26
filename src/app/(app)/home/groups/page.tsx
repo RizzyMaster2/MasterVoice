@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
@@ -8,6 +9,7 @@ import { getChats, getUsers } from '@/app/(auth)/actions/chat';
 import { useUser } from '@/hooks/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
+import { createClient } from '@/lib/supabase/client';
 
 export default function GroupsPage() {
   const [chats, setChats] = useState<AppChat[]>([]);
@@ -16,6 +18,7 @@ export default function GroupsPage() {
   const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { user, isVerified } = useUser();
+  const supabase = createClient();
 
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
@@ -32,6 +35,10 @@ export default function GroupsPage() {
     } else if (selectedChat && !groupChats.some(c => c.id === selectedChat.id)) {
         // If the selected group was deleted or is no longer available
         setSelectedChat(groupChats.length > 0 ? groupChats[0] : null);
+    } else if (selectedChat) {
+        // Reselect the chat to get fresh participant data
+        const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
+        setSelectedChat(freshSelectedChat || null);
     }
     
     setIsLoading(false);
@@ -42,6 +49,28 @@ export default function GroupsPage() {
     setIsClient(true);
     refreshData();
   }, [refreshData]);
+
+   useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('groups-channel')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chats' },
+        () => refreshData()
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_participants' },
+        () => refreshData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, supabase, refreshData]);
 
 
   if (!isClient || isLoading || !user) {

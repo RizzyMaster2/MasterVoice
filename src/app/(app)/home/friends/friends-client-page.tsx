@@ -58,7 +58,8 @@ export function FriendsClientPage({
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { isVerified } = useUser();
+  const { user, isVerified } = useUser();
+  const supabase = createClient();
 
   const getInitials = (name: string | null | undefined) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
@@ -76,12 +77,51 @@ export function FriendsClientPage({
   }, []);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      refreshAllData();
-    }, 5000); // Poll every 5 seconds
+    if (!user) return;
+    
+    const friendRequestChannel = supabase
+      .channel('friend-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `to_user_id=eq.${user.id}`,
+        },
+        () => refreshAllData()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `from_user_id=eq.${user.id}`,
+        },
+        () => refreshAllData()
+      )
+      .subscribe();
 
-    return () => clearInterval(interval);
-  }, [refreshAllData]);
+    const chatsChannel = supabase
+      .channel('chats-and-participants')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chats' },
+        () => refreshAllData()
+      )
+       .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'chat_participants' },
+        () => refreshAllData()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(friendRequestChannel);
+      supabase.removeChannel(chatsChannel);
+    };
+  }, [user, supabase, refreshAllData]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
@@ -101,7 +141,7 @@ export function FriendsClientPage({
           description: `Your friend request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        await refreshAllData();
+        // Realtime will handle the update
       } catch (error) {
         toast({
           title: 'Error',
@@ -143,7 +183,7 @@ export function FriendsClientPage({
             break;
         }
         toast({ title, description, variant: variant as any });
-        await refreshAllData();
+        // Realtime will handle the update
       } catch (error) {
         toast({
           title: 'Error',
