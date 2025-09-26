@@ -141,30 +141,68 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   };
   
   const fetchMessages = useCallback(async (chatId: string) => {
-    setIsLoadingMessages(true);
+    // No need to set loading if we are just polling
+    // setIsLoadingMessages(true);
     try {
-        const serverMessages = await getMessages(chatId);
-        setMessages(currentMessages => {
-            const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
-            const serverMessageIds = new Set(serverMessages.map(m => m.id));
-            const uniqueOptimistic = optimisticMessages.filter(om => !serverMessageIds.has(om.id));
-            const newMessages = [...serverMessages, ...uniqueOptimistic];
-            return newMessages.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-        });
+      const serverMessages = await getMessages(chatId);
+      setMessages(currentMessages => {
+        // Get all optimistic messages (the ones with temporary IDs sent by the current user)
+        const optimisticMessages = currentMessages.filter(
+          m => m.id.toString().startsWith('temp-') && m.sender_id === currentUser.id
+        );
+  
+        // Create a set of optimistic message contents for quick lookup
+        const optimisticContents = new Set(optimisticMessages.map(m => m.content));
+  
+        // Filter out server messages that correspond to an optimistic message we already have.
+        // This handles the case where the message is already confirmed.
+        const newServerMessages = serverMessages.filter(
+          sm => !(sm.sender_id === currentUser.id && optimisticContents.has(sm.content))
+        );
+  
+        // Find which optimistic messages have been confirmed by the server
+        const confirmedOptimisticMessages = new Set<string>();
+        for (const sm of serverMessages) {
+          if (sm.sender_id === currentUser.id) {
+            for (const om of optimisticMessages) {
+              if (om.content === sm.content) {
+                confirmedOptimisticMessages.add(om.id);
+                break;
+              }
+            }
+          }
+        }
+  
+        // Filter out the optimistic messages that are now confirmed.
+        const remainingOptimistic = optimisticMessages.filter(
+          om => !confirmedOptimisticMessages.has(om.id)
+        );
+  
+        const finalMessages = [...serverMessages, ...remainingOptimistic].sort(
+            (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+        );
+
+        return finalMessages;
+      });
     } catch (error) {
-        toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+      toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     } finally {
-        setIsLoadingMessages(false);
+      // setIsLoadingMessages(false);
     }
     setTimeout(scrollToBottom, 100);
-  }, [toast]);
+  }, [toast, currentUser.id]);
 
 
   useEffect(() => {
     if (selectedChat) {
       // Clear old messages and fetch new ones when chat changes
+      setIsLoadingMessages(true);
       setMessages([]);
-      fetchMessages(selectedChat.id);
+      getMessages(selectedChat.id).then(initialMessages => {
+        setMessages(initialMessages);
+        setIsLoadingMessages(false);
+        setTimeout(scrollToBottom, 100);
+      });
     } else {
       setMessages([]);
     }
@@ -216,6 +254,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         await sendMessage(selectedChat.id, messageContent);
         // After sending, we don't need to manually replace. The next poll will pick it up.
         // This simplifies the logic and prevents race conditions.
+        // We can trigger a fetch immediately for a faster update
+        await fetchMessages(selectedChat.id);
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -235,46 +275,10 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
     }
-
-    if (selectedChat) {
-        const channel = supabase.channel(`typing-${selectedChat.id}`);
-        channel.subscribe(status => {
-            if (status === 'SUBSCRIBED') {
-                channel.track({ is_typing: true });
-            }
-        });
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-        if (selectedChat) {
-             const channel = supabase.channel(`typing-${selectedChat.id}`);
-             channel.track({ is_typing: false });
-        }
-    }, 2000);
   };
   
   useEffect(() => {
     if (!selectedChat || !currentUser) return;
-
-    const channel = supabase.channel(`typing-${selectedChat.id}`);
-    
-    const sub = channel
-      .on('presence', { event: 'sync' }, () => {
-        const newState = channel.presenceState();
-        const otherUsersTyping = Object.keys(newState)
-          .filter(presenceId => {
-              const pres = newState[presenceId] as unknown as { metas: { is_typing: boolean, phx_ref: string }[] };
-              const userId = pres.metas[0].phx_ref.split(':')[1];
-              return userId !== currentUser.id && pres.metas[0].is_typing;
-          })
-          .length > 0;
-        setIsTyping(otherUsersTyping);
-      })
-      .subscribe();
-
-    return () => {
-      sub.unsubscribe();
-    };
   }, [selectedChat, currentUser, supabase]);
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -612,3 +616,5 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
+
+    
