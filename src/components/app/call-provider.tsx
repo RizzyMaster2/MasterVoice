@@ -1,4 +1,3 @@
-
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
@@ -48,18 +47,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
   
   const endCall = useCallback(() => {
-    if (activeCall && user) {
-        const channelId = `signaling-channel-${[user.id, activeCall.otherParticipant.id].sort().join('-')}`;
-        const signalingChannel = supabase.channel(channelId);
-        signalingChannel.send({
-            type: 'broadcast',
-            event: 'hangup',
-            payload: { from: user.id, to: activeCall.otherParticipant.id },
-        });
-    }
+    // Realtime hangup logic removed
     setActiveCall(null);
     setIncomingCall(null);
-  }, [activeCall, user, supabase]);
+  }, []);
 
 
   useEffect(() => {
@@ -75,104 +66,29 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [allUsers]);
 
   const startCall = useCallback(async (participant: UserProfile, chatId?: string) => {
-    if (!user || activeCall) return;
-
-    if (chatId) {
-        // This is a group call initiation
-        setActiveCall({ otherParticipant: participant });
-        // Send a group call update
-         const callChannel = supabase.channel(`call-state:${chatId}`);
-         callChannel.subscribe(status => {
-            if (status === 'SUBSCRIBED') {
-                 callChannel.track({ user_id: user.id, status: 'online' });
-            }
-         });
-
-    } else {
-        // This is a 1-on-1 call
-        const tempPc = new RTCPeerConnection();
-        const offer = await tempPc.createOffer();
-        await tempPc.setLocalDescription(offer);
-        tempPc.close();
-
-        const channelId = `signaling-channel-${[user.id, participant.id].sort().join('-')}`;
-        const signalingChannel = supabase.channel(channelId);
-        
-        signalingChannel.subscribe((status) => {
-            if(status === 'SUBSCRIBED') {
-                signalingChannel.send({
-                    type: 'broadcast',
-                    event: 'call-offer',
-                    payload: {
-                      from: user.id,
-                      to: participant.id,
-                      offer: offer,
-                    },
-                  });
-            }
-        });
-
-        setActiveCall({ otherParticipant: participant, offer });
-
-        const timeout = setTimeout(() => {
-            // Check if still ringing. `activeCall` might be stale here due to closure, 
-            // so we check against the offer property which is only set for the caller.
-            setActiveCall(currentActiveCall => {
-                if (currentActiveCall?.offer) { 
-                    toast({ title: 'Call timed out', description: `${participant.display_name} did not answer.` });
-                    endCall();
-                    return null;
-                }
-                return currentActiveCall;
-            });
-        }, 30000);
-
-        signalingChannel.on('broadcast', { event: 'answer' }, () => clearTimeout(timeout));
-        signalingChannel.on('broadcast', { event: 'call-rejected' }, () => clearTimeout(timeout));
-    }
-
-  }, [user, activeCall, supabase, toast, endCall]);
+     toast({
+      title: 'Feature Coming Soon',
+      description: 'Voice calling is not available at the moment.',
+      variant: 'info'
+    });
+    // All realtime logic removed
+  }, [toast]);
 
   const joinCall = (chatId: string) => {
-    // Logic to join an existing group call
+    toast({
+      title: 'Feature Coming Soon',
+      description: 'Voice calling is not available at the moment.',
+      variant: 'info'
+    });
     // For now, this just opens the voice call component
     // In a real app, this would need to negotiate a connection with existing participants
-    if (user && activeGroupCalls[chatId]) {
-      const otherParticipant = findUserById(activeGroupCalls[chatId].participants[0]); // Just picking the first one for now
-       if (otherParticipant) {
-           setActiveCall({ otherParticipant: otherParticipant });
-       }
-    }
+    // if (user && activeGroupCalls[chatId]) {
+    //   const otherParticipant = findUserById(activeGroupCalls[chatId].participants[0]); // Just picking the first one for now
+    //    if (otherParticipant) {
+    //        setActiveCall({ otherParticipant: otherParticipant });
+    //    }
+    // }
   };
-
-
-  useEffect(() => {
-    if (!user || allUsers.length === 0) return;
-
-    const handleOffer = ({ payload }: { payload: any }) => {
-      if (payload.to === user.id && !activeCall && !incomingCall) {
-        const caller = findUserById(payload.from);
-        if (caller) {
-          setIncomingCall({ otherParticipant: caller, offer: payload.offer });
-        }
-      }
-    };
-    
-    // Listen for direct 1-on-1 call offers from ALL users.
-    const allUserChannels = allUsers
-        .filter(u => u.id !== user.id)
-        .map(u => {
-            const channelId = `signaling-channel-${[user.id, u.id].sort().join('-')}`;
-            return supabase.channel(channelId)
-                .on('broadcast', { event: 'call-offer' }, handleOffer)
-                .subscribe();
-        }
-    );
-    
-    return () => {
-        allUserChannels.forEach(channel => channel.unsubscribe());
-    };
-  }, [user, supabase, activeCall, incomingCall, findUserById, allUsers]);
 
   const acceptCall = () => {
     if (incomingCall) {
@@ -182,18 +98,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   };
 
   const declineCall = () => {
+    // Realtime rejection logic removed
     if (incomingCall && user) {
-        const signalingChannel = supabase.channel(`signaling-channel-${[user.id, incomingCall.otherParticipant.id].sort().join('-')}`);
-         signalingChannel.subscribe((status) => {
-            if(status === 'SUBSCRIBED') {
-                 signalingChannel.send({
-                    type: 'broadcast',
-                    event: 'call-rejected',
-                    payload: { from: user.id, to: incomingCall.otherParticipant.id },
-                });
-                signalingChannel.unsubscribe();
-            }
-        });
         setIncomingCall(null);
     }
   };

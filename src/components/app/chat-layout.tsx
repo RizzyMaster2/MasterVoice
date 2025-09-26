@@ -1,5 +1,3 @@
-
-
 'use client';
 
 import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo, useCallback } from 'react';
@@ -113,16 +111,21 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   }, [allUsers, currentUser]);
 
   const handleStartCall = () => {
-    if (selectedChat?.otherParticipant) {
-      startCall(selectedChat.otherParticipant);
-    } else if (selectedChat?.is_group) {
-        const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
-        if(otherParticipant) {
-            startCall(otherParticipant, selectedChat.id);
-        } else {
-            toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
-        }
-    }
+    toast({
+      title: 'Feature Coming Soon',
+      description: 'Voice calling is not available at the moment.',
+      variant: 'info'
+    });
+    // if (selectedChat?.otherParticipant) {
+    //   startCall(selectedChat.otherParticipant);
+    // } else if (selectedChat?.is_group) {
+    //     const otherParticipant = allUsers.find(u => u.id !== currentUser.id && selectedChat.participants.includes(u.id));
+    //     if(otherParticipant) {
+    //         startCall(otherParticipant, selectedChat.id);
+    } else {
+    //         toast({ title: "Cannot start call", description: "No other participants available to call.", variant: "destructive" });
+    //     }
+    // }
   };
 
   const handleJoinCall = () => {
@@ -140,54 +143,39 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     }
   };
   
-  const fetchMessages = useCallback(async (chatId: string) => {
-    // No need to set loading if we are just polling
-    // setIsLoadingMessages(true);
+ const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const serverMessages = await getMessages(chatId);
       setMessages(currentMessages => {
-        // Get all optimistic messages (the ones with temporary IDs sent by the current user)
         const optimisticMessages = currentMessages.filter(
           m => m.id.toString().startsWith('temp-') && m.sender_id === currentUser.id
         );
-  
-        // Create a set of optimistic message contents for quick lookup
-        const optimisticContents = new Set(optimisticMessages.map(m => m.content));
-  
-        // Filter out server messages that correspond to an optimistic message we already have.
-        // This handles the case where the message is already confirmed.
-        const newServerMessages = serverMessages.filter(
-          sm => !(sm.sender_id === currentUser.id && optimisticContents.has(sm.content))
-        );
-  
-        // Find which optimistic messages have been confirmed by the server
+        
+        const serverMessageIds = new Set(serverMessages.map(m => m.id));
         const confirmedOptimisticMessages = new Set<string>();
-        for (const sm of serverMessages) {
-          if (sm.sender_id === currentUser.id) {
-            for (const om of optimisticMessages) {
-              if (om.content === sm.content) {
-                confirmedOptimisticMessages.add(om.id);
-                break;
-              }
-            }
+
+        // Find optimistic messages that are now confirmed
+        optimisticMessages.forEach(om => {
+          const confirmed = serverMessages.find(sm => sm.sender_id === om.sender_id && sm.content === om.content && !serverMessageIds.has(om.id));
+          if (confirmed) {
+            confirmedOptimisticMessages.add(om.id);
           }
-        }
-  
-        // Filter out the optimistic messages that are now confirmed.
-        const remainingOptimistic = optimisticMessages.filter(
-          om => !confirmedOptimisticMessages.has(om.id)
-        );
-  
+        });
+        
+        // Filter out old optimistic messages that have been confirmed
+        const remainingOptimistic = optimisticMessages.filter(om => !confirmedOptimisticMessages.has(om.id));
+
         const finalMessages = [...serverMessages, ...remainingOptimistic].sort(
             (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
         );
+        
+        // Remove duplicates just in case
+        const uniqueMessages = Array.from(new Map(finalMessages.map(m => [m.id, m])).values());
 
-        return finalMessages;
+        return uniqueMessages;
       });
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
-    } finally {
-      // setIsLoadingMessages(false);
     }
     setTimeout(scrollToBottom, 100);
   }, [toast, currentUser.id]);
@@ -272,15 +260,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
 
-    if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-    }
+    // Typing indicator logic removed
   };
   
-  useEffect(() => {
-    if (!selectedChat || !currentUser) return;
-  }, [selectedChat, currentUser, supabase]);
-
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
       return;
@@ -616,5 +598,3 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
-
-    

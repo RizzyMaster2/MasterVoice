@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -98,7 +97,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const isLocalUserSpeaking = useActiveSpeaker(localStream);
   const isRemoteUserSpeaking = useActiveSpeaker(remoteStream);
   
-  const signalingChannelRef = useRef(supabase.channel(`signaling-channel-${[currentUser.id, otherParticipantId].sort().join('-')}`));
+  // Realtime channel reference is kept for structure, but will not be subscribed to.
+  const signalingChannelRef = useRef(supabase.channel(`signaling-channel-disabled`));
 
   const cleanup = useCallback(() => {
     localStream?.getTracks().forEach(track => track.stop());
@@ -114,16 +114,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
 
   const handleClose = useCallback((notify = true) => {
-    if (notify && (status === 'connecting' || status === 'connected')) {
-        signalingChannelRef.current.send({
-            type: 'broadcast',
-            event: 'hangup',
-            payload: { from: currentUser.id, to: otherParticipantId },
-        });
-    }
+    // Realtime hangup logic removed
     cleanup();
     onClose();
-  }, [status, cleanup, onClose, currentUser.id, otherParticipantId]);
+  }, [cleanup, onClose]);
 
   useEffect(() => {
     let timerInterval: NodeJS.Timeout | null = null;
@@ -179,12 +173,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
-      if (event.candidate) {
-        signalingChannelRef.current.send({
-          type: 'broadcast', event: 'ice-candidate',
-          payload: { from: currentUser.id, to: otherParticipantId, candidate: event.candidate },
-        });
-      }
+      // Realtime logic removed
     };
 
     pc.ontrack = event => {
@@ -200,59 +189,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       if(pc.connectionState === 'connected') setStatus('connected');
       else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
     };
-
-    const handleAnswer = async (payload: any) => {
-      if (payload.to === currentUser.id && pc.signalingState === 'have-local-offer') {
-           await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
-      }
-    };
-    const handleIceCandidate = async (payload: any) => {
-      if (payload.to === currentUser.id) await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-    };
-    const handleHangUp = (payload: any) => {
-      if (payload.to === currentUser.id || payload.from === currentUser.id) handleClose(false);
-    };
     
-    const handleCallRejected = (payload: any) => {
-        if (payload.to === currentUser.id) {
-            toast({ title: "Call Declined", description: `${otherParticipant.display_name} declined your call.` });
-            handleClose(false);
-        }
-    };
+    // All realtime handler logic is removed. Calls will not connect.
 
-    const channel = signalingChannelRef.current;
-    channel
-        .on('broadcast', { event: 'answer' }, ({ payload }) => handleAnswer(payload))
-        .on('broadcast', { event: 'ice-candidate' }, ({ payload }) => handleIceCandidate(payload))
-        .on('broadcast', { event: 'hangup' }, ({ payload }) => handleHangUp(payload))
-        .on('broadcast', { event: 'call-rejected' }, ({ payload }) => handleCallRejected(payload))
-        .subscribe();
-    
-    const createOffer = async () => {
-        const offer = await pc.createOffer();
-        await pc.setLocalDescription(offer);
-        // This is the initial "call-offer" that the CallProvider will send.
-        // The VoiceCall component itself no longer sends it.
-    };
-
-    const handleInitialOffer = async () => {
-      if (initialOffer && pc.signalingState === 'stable') {
-        setStatus('connecting');
-        await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        channel.send({
-          type: 'broadcast', event: 'answer',
-          payload: { from: currentUser.id, to: otherParticipantId, answer },
-        });
-      }
-    };
-
-    if (initialOffer) {
-        handleInitialOffer();
-    }
-
-    return () => { channel.unsubscribe(); pc.close(); };
+    return () => { pc.close(); };
   }, [localStream, supabase, currentUser.id, otherParticipantId, handleClose, initialOffer, toast, otherParticipant.display_name]);
   
   const toggleMute = () => {
