@@ -119,13 +119,13 @@ export function HomeClientLayout({
     
     if (chatIdFromUrl && list.length > 0) {
         const chatToSelect = list.find(c => c.id === chatIdFromUrl);
-        if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
+        if (chatToSelect) {
             setSelectedChat(chatToSelect);
         }
     } else if (!chatIdFromUrl) {
       setSelectedChat(null);
     }
-  }, [searchParams, friends, groups, selectedChat?.id, pathname]);
+  }, [searchParams, friends, groups, pathname]);
 
 
   useEffect(() => {
