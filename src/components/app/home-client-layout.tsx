@@ -6,13 +6,12 @@ import type { UserProfile, Chat as AppChat, HomeClientLayoutProps } from '@/lib/
 import { ChatLayout } from '@/components/app/chat-layout';
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { getChats } from '@/app/(auth)/actions/chat';
-import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-function HomeClientLayoutContent({ currentUser, initialChats, allUsers, initialFriendRequests }: HomeClientLayoutProps) {
+function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const [isClient, setIsClient] = useState(false);

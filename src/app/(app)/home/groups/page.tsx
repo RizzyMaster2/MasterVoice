@@ -16,7 +16,6 @@ function GroupsPageContent() {
   const [chats, setChats] = useState<AppChat[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  const [isClient, setIsClient] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const { user, isVerified } = useUser();
   const supabase = createClient();
@@ -26,10 +25,6 @@ function GroupsPageContent() {
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
-    // Keep this loading true to show skeleton on first load.
-    // Subsequent refreshes will be in the background.
-    if (!isClient) setIsLoading(true);
-    
     const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
     setChats(chatsData);
     setAllUsers(usersData);
@@ -42,20 +37,18 @@ function GroupsPageContent() {
         const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
         setSelectedChat(freshSelectedChat || null);
     }
-    
-    setIsLoading(false);
-  }, [selectedChat, isClient]);
+  }, [selectedChat]);
 
 
   useEffect(() => {
-    setIsClient(true);
-    refreshData();
+    setIsLoading(true);
+    refreshData().finally(() => setIsLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore selected chat from URL on initial load
    useEffect(() => {
-    if (isClient && chats.length > 0 && !selectedChat) {
+    if (!isLoading && chats.length > 0 && !selectedChat) {
       const chatIdFromUrl = searchParams.get('chat');
       if (chatIdFromUrl) {
         const chat = groups.find(c => c.id === chatIdFromUrl);
@@ -64,7 +57,7 @@ function GroupsPageContent() {
         }
       }
     }
-  }, [isClient, chats, groups, selectedChat, searchParams]);
+  }, [isLoading, chats, groups, selectedChat, searchParams]);
 
 
    useEffect(() => {
@@ -90,10 +83,10 @@ function GroupsPageContent() {
   }, [user, supabase, refreshData]);
 
 
-  if (!isClient || isLoading || !user) {
+  if (isLoading || !user) {
     return (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
-            {!isVerified && <UnverifiedAccountWarning />}
+            {user && !isVerified && <UnverifiedAccountWarning />}
             <Skeleton className="flex-1 h-full" />
         </div>
     );

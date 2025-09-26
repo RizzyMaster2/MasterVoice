@@ -15,7 +15,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { UserProfile, Message, Chat } from '@/lib/data';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
-import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2, Bot } from 'lucide-react';
+import { Send, Search, UserPlus, Paperclip, Download, Phone, Users, Trash2, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '../ui/skeleton';
@@ -32,7 +32,6 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { chatBot } from '@/ai/flows/chat-bot';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -150,7 +149,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     } else {
         setMessages([]);
     }
-     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedChat?.id, fetchMessages]);
 
 
@@ -168,13 +166,15 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
           (payload) => {
             const newMessage = payload.new as Message;
+            // Add sender profile from userMap if it's missing
+            if (!newMessage.profiles) {
+                newMessage.profiles = userMap.get(newMessage.sender_id) || null;
+            }
              setMessages(currentMessages => {
-                // If the message is already in the list (e.g. optimistic update), don't add it again
                 if (currentMessages.some(m => m.id === newMessage.id)) {
                     return currentMessages;
                 }
                 const optimisticMessageId = `temp-${newMessage.content}`;
-                // Remove optimistic message if it exists
                 const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
                 newMessages.push(newMessage);
                 return newMessages;
@@ -182,9 +182,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           }
         )
         .subscribe((status, err) => {
-          if (status === 'SUBSCRIBED') {
-            // console.log('Realtime channel subscribed for chat:', selectedChat.id);
-          }
           if (status === 'CHANNEL_ERROR') {
             console.error('Realtime channel error:', err);
              toast({
@@ -199,7 +196,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           supabase.removeChannel(channel);
       };
     }
-  }, [selectedChat, supabase, toast]);
+  }, [selectedChat, supabase, toast, userMap]);
 
 
   const getInitials = (name: string | undefined | null) =>
@@ -216,31 +213,16 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
-    const optimisticMessage: Message = {
-        id: `temp-${messageContent}-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        content: messageContent,
-        sender_id: currentUser.id,
-        chat_id: selectedChat.id,
-        type: 'text',
-        file_url: null,
-        profiles: currentUser,
-    };
-    setMessages(prev => [...prev, optimisticMessage]);
-    
     startSendingTransition(() => {
-        sendMessage(selectedChat.id, messageContent).then(sentMessage => {
-             // Replace optimistic message with confirmed message from server
-             setMessages(prev => prev.map(m => m.id === optimisticMessage.id ? (sentMessage as Message) : m));
-        }).catch((error) => {
+        sendMessage(selectedChat.id, messageContent).catch((error) => {
             console.error("Failed to send message", error);
             toast({
                 title: "Error",
                 description: getErrorMessage(error),
                 variant: "destructive"
             });
-            // Remove optimistic message on failure
-            setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
+            // Revert optimistic update on failure - can be improved
+            fetchMessages(selectedChat.id); 
         });
     });
   };
@@ -483,11 +465,11 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                         {msg.sender_id !== currentUser.id && (
                             <Avatar className="h-8 w-8">
                             <AvatarImage
-                                src={userMap.get(msg.sender_id)?.photo_url || undefined}
-                                alt={userMap.get(msg.sender_id)?.display_name || ''}
+                                src={msg.profiles?.photo_url || userMap.get(msg.sender_id)?.photo_url || undefined}
+                                alt={msg.profiles?.display_name || userMap.get(msg.sender_id)?.display_name || ''}
                             />
                             <AvatarFallback>
-                                {getInitials(userMap.get(msg.sender_id)?.display_name)}
+                                {getInitials(msg.profiles?.display_name || userMap.get(msg.sender_id)?.display_name)}
                             </AvatarFallback>
                             </Avatar>
                         )}
