@@ -140,6 +140,14 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   }, [toast]);
 
   useEffect(() => {
+    if (selectedChat?.id) {
+      fetchMessages(selectedChat.id);
+    }
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat?.id]);
+
+
+  useEffect(() => {
     if (isLoadingMessages) {
       setTimeout(scrollToBottom, 100);
     }
@@ -148,8 +156,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
   useEffect(() => {
     if (selectedChat) {
-      fetchMessages(selectedChat.id);
-
       const channel = supabase
         .channel(`chat-room:${selectedChat.id}`)
         .on(
@@ -157,7 +163,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
           (payload) => {
             const newMessage = payload.new as Message;
-            // Append new message from server and remove any matching optimistic message
              setMessages(currentMessages => {
                 const optimisticMessageId = `temp-${newMessage.content}`;
                 const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
@@ -169,7 +174,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         )
         .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
-            console.log('Realtime channel subscribed for chat:', selectedChat.id);
+            // console.log('Realtime channel subscribed for chat:', selectedChat.id);
           }
           if (status === 'CHANNEL_ERROR') {
             console.error('Realtime channel error:', err);
@@ -184,11 +189,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       return () => {
           supabase.removeChannel(channel);
       };
-    } else {
-      setMessages([]);
-      setIsLoadingMessages(false);
     }
-  }, [selectedChat, supabase, toast, fetchMessages, scrollToBottom]);
+  }, [selectedChat, supabase, toast, scrollToBottom]);
 
 
   const getInitials = (name: string | undefined | null) =>
