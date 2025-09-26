@@ -103,8 +103,7 @@ const pricingTiers = [
 
 const VoiceCallIllustration = () => (
     <svg viewBox="0 0 400 300" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto rounded-lg bg-card" preserveAspectRatio="xMidYMid meet">
-        <style>
-            {`
+        <style>{`
             .wave-line {
                 stroke-width: 2;
                 stroke-linecap: round;
@@ -128,8 +127,7 @@ const VoiceCallIllustration = () => (
             @keyframes dash {
                 to { stroke-dashoffset: -100; }
             }
-            `}
-        </style>
+        `}</style>
         <defs>
             <radialGradient id="grad1" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
                 <stop offset="0%" style={{stopColor: 'hsl(var(--primary))', stopOpacity: 0.3}} />
