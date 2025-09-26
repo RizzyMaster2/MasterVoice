@@ -168,6 +168,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           }
         )
         .subscribe((status, err) => {
+          if (status === 'SUBSCRIBED') {
+            // Do nothing on success
+          }
           if (status === 'CHANNEL_ERROR') {
             console.error('Realtime channel error:', err);
              toast({
@@ -503,14 +506,14 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                   ref={fileInputRef}
                   onChange={handleFileUpload}
                   className="hidden"
-                  disabled={isSending}
+                  disabled={isSending || isLoadingMessages}
                 />
                  <Button
                     type="button"
                     size="icon"
                     variant="ghost"
                     onClick={() => fileInputRef.current?.click()}
-                    disabled={isSending}
+                    disabled={isSending || isLoadingMessages}
                   >
                     <Paperclip className="h-4 w-4" />
                     <span className="sr-only">Attach file</span>
@@ -521,9 +524,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
                   placeholder="Type a message..."
                   className="flex-1"
                   autoComplete="off"
-                  disabled={isSending}
+                  disabled={isSending || isLoadingMessages}
                 />
-                <Button type="submit" size="icon" disabled={isSending || !newMessage.trim()}>
+                <Button type="submit" size="icon" disabled={isSending || isLoadingMessages || !newMessage.trim()}>
                     {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                 </Button>
               </form>
