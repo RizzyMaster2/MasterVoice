@@ -28,7 +28,7 @@ function HomePageContent() {
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
-    if (!isLoading) setIsLoading(true);
+    // This function no longer sets loading state to avoid loops
     try {
         const [chatsData, usersData] = await Promise.all([
           getChats(),
@@ -43,13 +43,32 @@ function HomePageContent() {
             description: 'Could not load your chats and contacts. Please try again later.',
             variant: 'destructive'
         });
-    } finally {
-        setIsLoading(false);
     }
-  }, [user, toast, isLoading]);
+  }, [user, toast]);
 
+  // Initial data load effect - runs only once
   useEffect(() => {
     if (isUserLoading) return; // Wait for user to be loaded
+    
+    const initialFetch = async () => {
+        try {
+            if (!user) return;
+            const [chatsData, usersData] = await Promise.all([
+                getChats(),
+                getUsers(),
+            ]);
+            setChats(chatsData);
+            setAllUsers(usersData.filter(u => u.id !== user.id));
+        } catch (error) {
+             toast({
+                title: 'Failed to Load Data',
+                description: 'Chat data could not be loaded. Please check your connection and refresh the page.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
     
     const timeoutId = setTimeout(() => {
         if (isLoading) {
@@ -62,11 +81,11 @@ function HomePageContent() {
         }
     }, 20000);
 
-    refreshAllData();
+    initialFetch();
 
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserLoading]);
+  }, [isUserLoading, user]);
 
   // Restore selected chat from URL after data has loaded
   useEffect(() => {
@@ -83,6 +102,7 @@ function HomePageContent() {
   }, [isLoading, friends, searchParams]);
 
 
+  // Realtime subscription effect
   useEffect(() => {
     if (!user) return;
     

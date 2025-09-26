@@ -26,19 +26,16 @@ function GroupsPageContent() {
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
-    // Keep loading true if it's already fetching, but allow re-fetching
-    if (!isLoading) setIsLoading(true);
+    // This function no longer sets loading state to avoid loops
     try {
         const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
         setChats(chatsData);
         setAllUsers(usersData);
         
-        // If a chat was selected but is no longer in the list (e.g., deleted), deselect it.
         if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
             setSelectedChat(null);
-            router.replace('/home/groups'); // Use replace to avoid polluting history
+            router.replace('/home/groups');
         } else if (selectedChat) {
-            // If the selected chat still exists, update its data with the fresh data
             const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
             setSelectedChat(freshSelectedChat || null);
         }
@@ -49,14 +46,29 @@ function GroupsPageContent() {
             description: 'Could not load your group chats. Please try again later.',
             variant: 'destructive'
         });
-    } finally {
-        setIsLoading(false);
     }
-  }, [selectedChat, toast, router, isLoading]);
+  }, [selectedChat, toast, router]);
 
 
+  // Initial data load effect - runs only once
   useEffect(() => {
     if (isUserLoading) return;
+
+    const initialFetch = async () => {
+        try {
+            const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
+            setChats(chatsData);
+            setAllUsers(usersData);
+        } catch (error) {
+             toast({
+                title: 'Failed to Load Data',
+                description: 'Group chat data could not be loaded. Please check your connection and refresh the page.',
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     const timeoutId = setTimeout(() => {
         if (isLoading) {
@@ -69,7 +81,7 @@ function GroupsPageContent() {
         }
     }, 20000); // 20 seconds timeout
 
-    refreshData();
+    initialFetch();
     
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -82,16 +94,15 @@ function GroupsPageContent() {
     const chatIdFromUrl = searchParams.get('chat');
     if (chatIdFromUrl) {
       const chat = groups.find(c => c.id === chatIdFromUrl);
-      // Only set if it's not already the selected one to avoid re-renders
       if (chat && chat.id !== selectedChat?.id) {
         setSelectedChat(chat);
       }
     }
-    // Only run when isLoading completes or the specific URL param changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, groups, searchParams]);
 
 
+   // Realtime subscription effect
    useEffect(() => {
     if (!user) return;
 
@@ -100,14 +111,12 @@ function GroupsPageContent() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats', filter: 'is_group=eq.true' },
-        (payload) => {
-            refreshData();
-        }
+        () => refreshData()
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chat_participants' },
-        (payload) => refreshData()
+        () => refreshData()
       )
       .subscribe();
 
