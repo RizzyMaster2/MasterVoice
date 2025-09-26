@@ -26,16 +26,19 @@ function GroupsPageContent() {
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
-    setIsLoading(true);
+    // Keep loading true if it's already fetching, but allow re-fetching
+    if (!isLoading) setIsLoading(true);
     try {
         const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
         setChats(chatsData);
         setAllUsers(usersData);
         
+        // If a chat was selected but is no longer in the list (e.g., deleted), deselect it.
         if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
             setSelectedChat(null);
-             router.replace('/home/groups');
+            router.replace('/home/groups'); // Use replace to avoid polluting history
         } else if (selectedChat) {
+            // If the selected chat still exists, update its data with the fresh data
             const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
             setSelectedChat(freshSelectedChat || null);
         }
@@ -49,7 +52,7 @@ function GroupsPageContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [selectedChat, toast, router]);
+  }, [selectedChat, toast, router, isLoading]);
 
 
   useEffect(() => {
@@ -72,17 +75,19 @@ function GroupsPageContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isUserLoading]);
 
-  // Restore selected chat from URL on initial load
+  // Restore selected chat from URL on initial load and when data changes
    useEffect(() => {
-    if (!isLoading && groups.length > 0) {
-      const chatIdFromUrl = searchParams.get('chat');
-      if (chatIdFromUrl) {
-        const chat = groups.find(c => c.id === chatIdFromUrl);
-        if (chat && chat.id !== selectedChat?.id) {
-          setSelectedChat(chat);
-        }
+    if (isLoading || groups.length === 0) return;
+
+    const chatIdFromUrl = searchParams.get('chat');
+    if (chatIdFromUrl) {
+      const chat = groups.find(c => c.id === chatIdFromUrl);
+      // Only set if it's not already the selected one to avoid re-renders
+      if (chat && chat.id !== selectedChat?.id) {
+        setSelectedChat(chat);
       }
     }
+    // Only run when isLoading completes or the specific URL param changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, groups, searchParams]);
 
@@ -114,7 +119,7 @@ function GroupsPageContent() {
 
   if (isLoading || isUserLoading || !user) {
     return (
-        <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
+        <div className="flex-1 flex flex-col gap-6 h-full">
             {user && !isVerified && <UnverifiedAccountWarning />}
             <Skeleton className="flex-1 h-full" />
         </div>

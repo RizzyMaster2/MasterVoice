@@ -1,13 +1,13 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
+import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { createClient } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Suspense, useState, useMemo, useEffect, useCallback } from 'react';
-import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
+import { getChats, getUsers } from '@/app/(auth)/actions/chat';
 import { useUser } from '@/hooks/use-user';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
@@ -28,7 +28,7 @@ function HomePageContent() {
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
-    setIsLoading(true);
+    if (!isLoading) setIsLoading(true);
     try {
         const [chatsData, usersData] = await Promise.all([
           getChats(),
@@ -46,7 +46,7 @@ function HomePageContent() {
     } finally {
         setIsLoading(false);
     }
-  }, [user, toast]);
+  }, [user, toast, isLoading]);
 
   useEffect(() => {
     if (isUserLoading) return; // Wait for user to be loaded
@@ -70,14 +70,14 @@ function HomePageContent() {
 
   // Restore selected chat from URL after data has loaded
   useEffect(() => {
-    if (!isLoading && friends.length > 0) {
-      const chatIdFromUrl = searchParams.get('chat');
-      if (chatIdFromUrl) {
-          const chatToSelect = friends.find(c => c.id === chatIdFromUrl);
-          if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
-              setSelectedChat(chatToSelect);
-          }
-      }
+    if (isLoading || friends.length === 0) return;
+
+    const chatIdFromUrl = searchParams.get('chat');
+    if (chatIdFromUrl) {
+        const chatToSelect = friends.find(c => c.id === chatIdFromUrl);
+        if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
+            setSelectedChat(chatToSelect);
+        }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoading, friends, searchParams]);
