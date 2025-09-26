@@ -350,7 +350,6 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
       .single();
 
     if (error) {
-      // The most likely error is an RLS violation.
       console.error('Supabase sendMessage error:', error.message);
       throw new Error(error.message);
     }

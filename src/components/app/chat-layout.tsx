@@ -164,16 +164,11 @@ export function ChatLayout({
         (payload) => {
           console.log('ChatLayout: Realtime new message received:', payload);
           const newMessage = payload.new as Message;
-          // When a new message comes in via realtime, the `profiles` relation is not loaded.
-          // We need to manually look it up from our `userMap`.
           if (!newMessage.profiles) {
             newMessage.profiles = userMap.get(newMessage.sender_id) || null;
             console.log('ChatLayout: Manually added profile to new message:', newMessage.profiles);
           }
-          setMessages(current => {
-              console.log('ChatLayout: Appending new message to state.');
-              return [...current, newMessage];
-          });
+          setMessages(current => [...current, newMessage]);
         }
       )
       .subscribe((status, err) => {
@@ -206,30 +201,18 @@ export function ChatLayout({
     
     startSendingTransition(async () => {
         try {
-            const sentMessage = await sendMessage(selectedChat.id, content);
-            if (sentMessage) {
-                console.log('ChatLayout: sendMessage returned message, but will wait for realtime.', sentMessage);
-                // The realtime subscription will handle adding the message to the state
-            } else {
-                console.error('ChatLayout: sendMessage did not return the message. Refetching.');
-                if (selectedChat?.id) fetchMessages(selectedChat.id);
-            }
+            await sendMessage(selectedChat.id, content);
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
-            if (selectedChat?.id) {
-                fetchMessages(selectedChat.id);
-            }
         }
     });
   };
   
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    // Placeholder for file upload logic
     toast({ title: "File upload not implemented yet.", variant: "info" });
   };
   
   const handleStartCall = () => {
-    // Placeholder for starting a call
     toast({ title: "Voice calls coming soon!", variant: "info" });
   };
 
