@@ -112,12 +112,14 @@ export async function getChats(): Promise<Chat[]> {
         }
       }
 
-      // Ensure we only return chats where we could find the other participant for 1-on-1s
-      if (!chat.is_group && !fullChat.otherParticipant) {
-          return null;
-      }
       return fullChat;
-    }).filter(Boolean) as Chat[];
+    }).filter(chat => {
+        // Ensure we only return chats where we could find the other participant for 1-on-1s
+        if (!chat.is_group) {
+            return !!chat.otherParticipant;
+        }
+        return true;
+    });
 
     return processedChats;
   } catch (error) {
@@ -530,5 +532,3 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
-
-    
