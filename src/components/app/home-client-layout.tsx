@@ -21,8 +21,29 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
 
   const refreshAllData = useCallback(async () => {
     const freshChats = await getChats();
+    const currentChatCount = chats.length;
+    
+    if (freshChats.length > currentChatCount) {
+       toast({
+          title: "New Friend",
+          description: "Someone added you as a friend! Your chat list has been updated.",
+          variant: 'info'
+      });
+    } else if (freshChats.length < currentChatCount) {
+         toast({
+            title: "Friend Removed",
+            description: `A user has removed you as a friend.`,
+            variant: 'info'
+        });
+    }
+    
     setChats(freshChats);
-  }, []);
+
+    // If the selected chat was removed, clear it
+    if (selectedChat && !freshChats.some(c => c.id === selectedChat.id)) {
+        setSelectedChat(null);
+    }
+  }, [chats.length, selectedChat, toast]);
 
   useEffect(() => {
     setIsClient(true);
@@ -33,49 +54,14 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Polling for chat list updates
   useEffect(() => {
-    if (!currentUser?.id) return;
-    
-    // Listen for new chats being added or removed for the current user
-    const chatChannel = supabase
-      .channel(`realtime-chat-participants-for-${currentUser.id}`)
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` },
-        (payload) => {
-            const isExisting = payload.eventType === 'INSERT' && chats.some(c => c.id === payload.new.chat_id);
-            
-            if (payload.eventType === 'INSERT' && !isExisting) {
-                toast({
-                    title: "New Friend",
-                    description: "Someone added you as a friend! Your chat list has been updated.",
-                    variant: 'info'
-                });
-            } else if (payload.eventType === 'DELETE') {
-                 const removedChat = chats.find(c => c.id === payload.old.chat_id);
-                 if (removedChat) {
-                     toast({
-                        title: "Friend Removed",
-                        description: `You are no longer friends with ${getErrorMessage(removedChat.otherParticipant?.display_name || 'a user')}.`,
-                        variant: 'info'
-                    });
-                 }
-            }
+      const interval = setInterval(() => {
+        refreshAllData();
+      }, 7000); // Poll every 7 seconds
 
-            refreshAllData();
-            
-            if (payload.eventType === 'DELETE' && selectedChat?.id === payload.old.chat_id) {
-                setSelectedChat(null);
-            }
-        }
-      )
-      .subscribe();
-
-
-    return () => {
-      supabase.removeChannel(chatChannel);
-    };
-  }, [currentUser?.id, supabase, chats, refreshAllData, selectedChat?.id, toast]);
+      return () => clearInterval(interval);
+  }, [refreshAllData]);
 
 
   if (!isClient) {
@@ -99,24 +85,4 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers }: HomeCl
         />
     </div>
   );
-}
-
-function getErrorMessage(error: unknown): string {
-    let message: string;
-    if (error instanceof Error) {
-        message = error.message;
-    } else if (error && typeof error === 'object' && 'message' in error) {
-        message = String((error as { message: unknown }).message);
-    } else if (typeof error === 'string') {
-        message = error;
-    } else {
-        message = 'An unknown error occurred.';
-    }
-
-    try {
-        const parsed = JSON.parse(message);
-        return parsed.message || parsed.error_description || message;
-    } catch (e) {
-        return message;
-    }
 }

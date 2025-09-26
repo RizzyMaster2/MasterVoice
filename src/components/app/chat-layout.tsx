@@ -142,62 +142,47 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   };
   
   const fetchMessages = useCallback(async (chatId: string) => {
-    setIsLoadingMessages(true);
+    // Only set loading true on initial fetch
+    if (messages.length === 0) {
+        setIsLoadingMessages(true);
+    }
     const fetchedMessages = await getMessages(chatId);
-    setMessages(fetchedMessages);
+    
+    // Only update and scroll if there are new messages
+    if (fetchedMessages.length > messages.length) {
+      setMessages(fetchedMessages);
+      setTimeout(scrollToBottom, 100);
+    } else {
+      // Still update if message content changed (e.g. edit) but keep the same length
+      setMessages(fetchedMessages);
+    }
+    
     setIsLoadingMessages(false);
-    setTimeout(scrollToBottom, 100);
-  }, []);
-
+  }, [messages.length]);
 
   useEffect(() => {
     if (selectedChat) {
+      // Clear old messages and fetch new ones when chat changes
+      setMessages([]);
       fetchMessages(selectedChat.id);
     } else {
       setMessages([]);
     }
+    // Don't include fetchMessages here to avoid re-running when messages state changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedChat]);
+
+  // Polling for new messages
+  useEffect(() => {
+    if (!selectedChat) return;
+
+    const interval = setInterval(() => {
+      fetchMessages(selectedChat.id);
+    }, 5000); // Poll every 5 seconds
+
+    return () => clearInterval(interval);
   }, [selectedChat, fetchMessages]);
 
-  // Realtime listeners
-  useEffect(() => {
-    if (!selectedChat || !currentUser) return;
-
-    const messagesChannel = supabase.channel(`realtime-messages-for-chat-${selectedChat.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        async () => {
-           await fetchMessages(selectedChat.id);
-        }
-      ).subscribe();
-      
-    // Broadcast and receive typing indicators on a separate broadcast channel
-    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
-    
-    let typingTimer: NodeJS.Timeout;
-    typingChannel.on('broadcast', { event: 'typing' }, ({ payload }) => {
-        if (payload.userId !== currentUser.id) {
-            setIsTyping(true);
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => setIsTyping(false), 2000);
-        }
-    });
-     typingChannel.on('broadcast', { event: 'stopped-typing' }, ({ payload }) => {
-        if (payload.userId !== currentUser.id) {
-            setIsTyping(false);
-            clearTimeout(typingTimer);
-        }
-    });
-
-    typingChannel.subscribe();
-  
-    return () => {
-      setIsTyping(false);
-      supabase.removeChannel(messagesChannel);
-      supabase.removeChannel(typingChannel);
-    };
-  }, [selectedChat, supabase, currentUser, fetchMessages]);
-  
   const getInitials = (name: string | undefined | null) =>
     name
       ?.split(' ')
@@ -208,18 +193,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim() || !selectedChat) return;
-    
-    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
-    // Stop broadcasting typing event
-    if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-        typingTimeoutRef.current = null;
-        typingChannel.send({
-            type: 'broadcast',
-            event: 'stopped-typing',
-            payload: { userId: currentUser.id },
-        });
-    }
 
     const messageContent = newMessage;
     setNewMessage('');
@@ -238,10 +211,11 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     setMessages(prev => [...prev, optimisticMessage]);
     setTimeout(scrollToBottom, 0);
 
-
     startSendingTransition(async () => {
       try {
-        await sendMessage(selectedChat.id, messageContent);
+        const sentMessage = await sendMessage(selectedChat.id, messageContent);
+        // Replace optimistic message with real one from the server
+        setMessages(prev => prev.map(m => (m.id === optimisticMessage.id ? { ...sentMessage, profiles: currentUser } : m)));
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -249,6 +223,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           description: getErrorMessage(error),
           variant: "destructive"
         });
+        // Remove optimistic message on failure
         setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       }
     });
@@ -257,29 +232,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
 
-    if (!selectedChat) return;
-    const typingChannel = supabase.channel(`typing-for-chat-${selectedChat.id}`);
-
-    if (typingTimeoutRef.current) {
-        clearTimeout(typingTimeoutRef.current);
-    } else {
-        typingChannel.send({
-            type: 'broadcast',
-            event: 'typing',
-            payload: { userId: currentUser.id },
-        });
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-        typingChannel.send({
-            type: 'broadcast',
-            event: 'stopped-typing',
-            payload: { userId: currentUser.id },
-        });
-        typingTimeoutRef.current = null;
-    }, 1500);
+    // Typing indicator logic can be added back here if needed in the future
   };
-
 
   const handleFileUpload = async (event: ChangeEvent<HTMLInputElement>) => {
     if (!event.target.files || event.target.files.length === 0 || !selectedChat || !authUser) {
@@ -312,6 +266,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           title: 'File Sent',
           description: 'Your file has been sent successfully.',
         });
+        fetchMessages(selectedChat.id); // Fetch after successful upload
       } catch (error) {
         console.error('Failed to upload and send file:', error);
         toast({

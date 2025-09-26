@@ -57,7 +57,6 @@ export function FriendsClientPage({
   const [isProcessing, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
-  const supabase = createClient();
   const router = useRouter();
   const { isVerified } = useUser();
 
@@ -75,23 +74,14 @@ export function FriendsClientPage({
     setFriendRequests(requests);
   }, []);
   
-   useEffect(() => {
-    if (!currentUser.id) return;
-    
-    // Listen for changes that affect this user
-    const changes = supabase.channel(`realtime-friends-for-${currentUser.id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests', filter: `or(from_user_id.eq.${currentUser.id},to_user_id.eq.${currentUser.id})` }, payload => {
+  // Polling for updates
+  useEffect(() => {
+    const interval = setInterval(() => {
         refreshAllData();
-      })
-       .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants', filter: `user_id=eq.${currentUser.id}` }, payload => {
-        refreshAllData();
-      })
-      .subscribe();
+    }, 5000); // Poll every 5 seconds
 
-    return () => {
-      supabase.removeChannel(changes);
-    };
-  }, [supabase, currentUser.id, refreshAllData]);
+    return () => clearInterval(interval);
+  }, [refreshAllData]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
@@ -111,7 +101,7 @@ export function FriendsClientPage({
           description: `Your friend request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        // The realtime listener will update the state, no need to manually set it here
+        await refreshAllData(); // Refresh data after action
       } catch (error) {
         toast({
           title: 'Error',
@@ -161,6 +151,7 @@ export function FriendsClientPage({
             break;
         }
         toast({ title, description, variant: variant as any });
+        await refreshAllData(); // Refresh data after action
       } catch (error) {
         toast({
           title: 'Error',
