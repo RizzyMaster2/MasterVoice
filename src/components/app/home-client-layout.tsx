@@ -31,15 +31,13 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
 
   useEffect(() => {
     setIsClient(true);
-    // No longer auto-selecting a chat. User will select one.
   }, []);
 
   useEffect(() => {
     if (!user) return;
     
-    // Listen for inserts or deletes to the user's chats
     const channel = supabase
-      .channel('home-client-layout-channel')
+      .channel(`home-layout-user-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -49,6 +47,18 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
           filter: `user_id=eq.${user.id}`,
         },
         () => {
+            refreshChats();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'chats',
+        },
+        () => {
+            // This is a bit broad, but ensures groups updates are caught too
             refreshChats();
         }
       )
@@ -70,13 +80,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
 
   const handleChatDeleted = () => {
     refreshChats().then(() => {
-        const newFriends = chats.filter(c => !c.is_group && c.id !== selectedChat?.id);
-        if (newFriends.length > 0) {
-            const sorted = [...newFriends].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-            setSelectedChat(sorted[0]);
-        } else {
-            setSelectedChat(null);
-        }
+        setSelectedChat(null);
     });
   }
 
@@ -95,3 +99,5 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
     </div>
   );
 }
+
+    

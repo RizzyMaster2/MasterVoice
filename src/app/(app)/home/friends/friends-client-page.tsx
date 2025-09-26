@@ -80,7 +80,7 @@ export function FriendsClientPage({
     if (!user) return;
     
     const friendRequestChannel = supabase
-      .channel('friend-requests')
+      .channel('friend-requests-global')
       .on(
         'postgres_changes',
         {
@@ -104,7 +104,7 @@ export function FriendsClientPage({
       .subscribe();
 
     const chatsChannel = supabase
-      .channel('chats-and-participants')
+      .channel('chats-and-participants-global')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats' },
@@ -403,3 +403,5 @@ export function FriendsClientPage({
     </div>
   );
 }
+
+    

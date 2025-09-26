@@ -136,9 +136,14 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     } finally {
         setIsLoadingMessages(false);
-        setTimeout(scrollToBottom, 100);
     }
-  }, [toast, scrollToBottom]);
+  }, [toast]);
+
+  useEffect(() => {
+    if (isLoadingMessages) {
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [isLoadingMessages, scrollToBottom]);
 
 
   useEffect(() => {
@@ -146,7 +151,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       fetchMessages(selectedChat.id);
 
       const channel = supabase
-        .channel(`messages-for-${selectedChat.id}`)
+        .channel(`chat-room:${selectedChat.id}`)
         .on(
           'postgres_changes',
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
@@ -541,3 +546,5 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     </Card>
   );
 }
+
+    

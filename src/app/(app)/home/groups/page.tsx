@@ -23,7 +23,10 @@ export default function GroupsPage() {
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshData = useCallback(async () => {
-    setIsLoading(true);
+    // Keep this loading true to show skeleton on first load.
+    // Subsequent refreshes will be in the background.
+    if (!isClient) setIsLoading(true);
+    
     const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
     setChats(chatsData);
     setAllUsers(usersData);
@@ -38,7 +41,7 @@ export default function GroupsPage() {
     }
     
     setIsLoading(false);
-  }, [selectedChat]);
+  }, [selectedChat, isClient]);
 
 
   useEffect(() => {
@@ -51,7 +54,7 @@ export default function GroupsPage() {
     if (!user) return;
 
     const channel = supabase
-      .channel('groups-channel')
+      .channel('groups-page-channel')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'chats' },
@@ -106,3 +109,5 @@ export default function GroupsPage() {
     </>
   );
 }
+
+    
