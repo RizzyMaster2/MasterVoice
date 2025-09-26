@@ -204,9 +204,9 @@ export function ChatLayout({
     console.log(`ChatLayout: handleSendMessage - Sending: "${content}" to chat ${selectedChat.id}`);
     setNewMessage('');
     
-    startSendingTransition(() => {
-      sendMessage(selectedChat.id, content)
-        .then(sentMessage => {
+    startSendingTransition(async () => {
+        try {
+            const sentMessage = await sendMessage(selectedChat.id, content);
             if (sentMessage) {
                 console.log('ChatLayout: sendMessage returned message, but will wait for realtime.', sentMessage);
                 // The realtime subscription will handle adding the message to the state
@@ -214,13 +214,12 @@ export function ChatLayout({
                 console.error('ChatLayout: sendMessage did not return the message. Refetching.');
                 if (selectedChat?.id) fetchMessages(selectedChat.id);
             }
-        })
-        .catch(error => {
+        } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
             if (selectedChat?.id) {
                 fetchMessages(selectedChat.id);
             }
-        });
+        }
     });
   };
   
@@ -253,6 +252,9 @@ export function ChatLayout({
 
     startDeletingTransition(async () => {
       try {
+        if (!selectedChat.otherParticipant) {
+             throw new Error("Cannot delete chat without participant information.");
+        }
         await deleteChat(chatId, selectedChat.otherParticipant.id);
         toast({
           title: 'Friend Removed',
@@ -529,5 +531,3 @@ export function ChatLayout({
     </Card>
   );
 }
-
-    
