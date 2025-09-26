@@ -70,16 +70,32 @@ export async function getChats(): Promise<Chat[]> {
     const supabase = createClient(cookieStore);
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) {
+      return [];
+    }
+
+    // 1. Get all chat_ids the user is a part of
+    const { data: userChatLinks, error: chatLinksError } = await supabase
+      .from('chat_participants')
+      .select('chat_id')
+      .eq('user_id', authUser.id);
+    
+    if (chatLinksError) {
+      console.error("Error fetching user's chat links:", chatLinksError);
+      return [];
+    }
+
+    const chatIds = userChatLinks.map(link => link.chat_id);
+    if (chatIds.length === 0) {
         return [];
     }
-    
-    // Use the RPC function to get chats and last message in one go
-    const { data: chatsData, error: rpcError } = await supabase
-      .rpc('get_user_chats_with_last_message', { p_user_id: authUser.id });
 
-    if (rpcError) {
-      console.error('Error fetching user chats with last message:', rpcError);
-      return [];
+    // 2. Fetch all data for those chats, including all their participants and the last message for each.
+    const { data: chatsData, error: chatsError } = await supabase
+      .rpc('get_chats_with_participants_and_last_message', { p_chat_ids: chatIds });
+
+    if (chatsError) {
+        console.error('Error fetching chats with RPC:', chatsError);
+        return [];
     }
 
     // 3. Get all users to map participant IDs to profiles
@@ -98,7 +114,7 @@ export async function getChats(): Promise<Chat[]> {
           admin_id: chat.admin_id,
           participants: participantIds,
           last_message: chat.last_message_content || null,
-          last_message_timestamp: chat.last_message_timestamp || null,
+          last_message_timestamp: chat.last_message_created_at || null,
       };
 
       if (chat.is_group) {
@@ -111,7 +127,6 @@ export async function getChats(): Promise<Chat[]> {
           fullChat.otherParticipant = userMap.get(otherParticipantId);
         }
       }
-
       return fullChat;
     }).filter(chat => {
         // Ensure we only return chats where we could find the other participant for 1-on-1s
