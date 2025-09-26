@@ -226,10 +226,26 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     const messageContent = newMessage;
     setNewMessage('');
     
+    // Optimistic UI update
+    const optimisticMessage: Message = {
+      id: `temp-${Date.now()}`,
+      created_at: new Date().toISOString(),
+      content: messageContent,
+      sender_id: currentUser.id,
+      chat_id: selectedChat.id,
+      type: 'text',
+      file_url: null,
+      profiles: currentUser,
+    };
+    setMessages(prev => [...prev, optimisticMessage]);
+    setTimeout(scrollToBottom, 0);
+
+
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
-        // The realtime listener will handle updating the UI, so no optimistic update needed here.
+        // The realtime listener will handle updating the UI with the permanent message,
+        // so we don't need to manually replace the optimistic one here.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -237,6 +253,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           description: getErrorMessage(error),
           variant: "destructive"
         });
+        // Remove the optimistic message on failure
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       }
     });
   };
@@ -529,7 +547,8 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
                             'max-w-xs rounded-lg p-3 text-sm md:max-w-md',
                             msg.sender_id === currentUser.id
                                 ? 'bg-primary text-primary-foreground'
-                                : 'bg-muted'
+                                : 'bg-muted',
+                            msg.id.toString().startsWith('temp-') && 'opacity-70'
                             )}
                         >
                              {msg.type === 'file' && msg.file_url ? (
