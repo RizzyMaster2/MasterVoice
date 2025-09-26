@@ -28,13 +28,9 @@ export default function GroupsPage() {
     setChats(chatsData);
     setAllUsers(usersData);
     
-    const groupChats = chatsData.filter(c => c.is_group);
-    if (groupChats.length > 0 && !selectedChat) {
-        const sortedGroups = [...groupChats].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-        setSelectedChat(sortedGroups[0]);
-    } else if (selectedChat && !groupChats.some(c => c.id === selectedChat.id)) {
-        // If the selected group was deleted or is no longer available
-        setSelectedChat(groupChats.length > 0 ? groupChats[0] : null);
+    // If the currently selected group was deleted, reset selection
+    if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
+        setSelectedChat(null);
     } else if (selectedChat) {
         // Reselect the chat to get fresh participant data
         const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
@@ -48,7 +44,8 @@ export default function GroupsPage() {
   useEffect(() => {
     setIsClient(true);
     refreshData();
-  }, [refreshData]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
    useEffect(() => {
     if (!user) return;
@@ -76,6 +73,7 @@ export default function GroupsPage() {
   if (!isClient || isLoading || !user) {
     return (
         <div className="flex-1 flex flex-col lg:flex-row gap-6 h-full">
+            {!isVerified && <UnverifiedAccountWarning />}
             <Skeleton className="flex-1 h-full" />
         </div>
     );
