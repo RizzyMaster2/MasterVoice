@@ -123,11 +123,9 @@ export function ChatLayout({
   }, []);
 
   const fetchMessages = useCallback(async (chatId: string) => {
-    console.log(`ChatLayout: fetchMessages called for chatId: ${chatId}`);
     setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
-      console.log(`ChatLayout: fetchMessages found ${serverMessages.length} messages.`);
       setMessages(serverMessages);
     } catch (error) {
       toast({ title: 'Error', description: 'Could not fetch messages.', variant: 'destructive' });
@@ -137,7 +135,6 @@ export function ChatLayout({
   }, [toast]);
 
   useEffect(() => {
-    console.log('ChatLayout: selectedChat changed:', selectedChat?.id);
     if (selectedChat?.id) {
       fetchMessages(selectedChat.id);
     } else {
@@ -151,18 +148,15 @@ export function ChatLayout({
 
   useEffect(() => {
     if (!selectedChat?.id) {
-        console.log('ChatLayout: No selected chat ID, skipping realtime subscription.');
         return;
     };
 
-    console.log(`ChatLayout: Setting up realtime subscription for chat-room:${selectedChat.id}`);
     const channel = supabase
       .channel(`chat-room:${selectedChat.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
         (payload) => {
-          console.log('ChatLayout: Realtime new message received:', payload);
           const newMessage = payload.new as Message;
           // No profile data comes from the subscription, so we add it manually.
           if (!newMessage.profiles) {
@@ -173,7 +167,7 @@ export function ChatLayout({
       )
       .subscribe((status, err) => {
         if (status === 'SUBSCRIBED') {
-            console.log(`ChatLayout: Successfully subscribed to channel: chat-room:${selectedChat.id}`);
+          // Quietly subscribed
         }
         if (status === 'CHANNEL_ERROR') {
           console.error('Realtime channel error:', err);
@@ -186,7 +180,6 @@ export function ChatLayout({
       });
     
     return () => {
-      console.log(`ChatLayout: Cleaning up realtime channel: chat-room:${selectedChat.id}`);
       supabase.removeChannel(channel);
     };
   }, [selectedChat?.id, supabase, toast, userMap]);
@@ -196,7 +189,6 @@ export function ChatLayout({
     if (!newMessage.trim() || !selectedChat) return;
 
     const content = newMessage;
-    console.log(`ChatLayout: handleSendMessage - Sending: "${content}" to chat ${selectedChat.id}`);
     setNewMessage('');
     
     startSendingTransition(async () => {
@@ -222,7 +214,6 @@ export function ChatLayout({
   };
 
   const handleSelectChat = (chat: Chat) => {
-    console.log('ChatLayout: handleSelectChat', chat);
     setSelectedChat(chat);
     router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
   };
@@ -231,7 +222,6 @@ export function ChatLayout({
     if (!selectedChat || selectedChat.is_group || !selectedChat.otherParticipant) return;
     const chatId = selectedChat.id;
     const friendName = selectedChat.otherParticipant.display_name;
-    console.log(`ChatLayout: handleDeleteChat - Deleting chat ${chatId} with friend ${friendName}`);
 
     startDeletingTransition(async () => {
       try {
@@ -269,12 +259,6 @@ export function ChatLayout({
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  console.log('ChatLayout: Rendering with props:', {
-    selectedChatId: selectedChat?.id,
-    listType,
-    chatsCount: parentChats.length,
-    isLoadingMessages
-  });
 
   return (
     <Card className="flex h-full w-full">

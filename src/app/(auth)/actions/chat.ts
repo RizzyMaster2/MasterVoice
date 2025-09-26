@@ -10,12 +10,10 @@ import { cookies } from 'next/headers';
 
 // Get the current logged-in user and their auth data
 async function getCurrentUser() {
-  console.log('actions/chat: getCurrentUser');
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
-    console.error('actions/chat: User not authenticated');
     throw new Error('User not authenticated');
   }
   return user;
@@ -23,13 +21,11 @@ async function getCurrentUser() {
 
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
-  console.log('actions/chat: getUsers');
   try {
     const supabaseAdmin = createAdminClient();
     const { data: { users }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
     
     if (authUsersError) {
-      console.error('Error fetching users from auth:', authUsersError);
       throw new Error('Could not fetch users from authentication system.');
     }
 
@@ -59,7 +55,6 @@ export async function getUsers(): Promise<UserProfile[]> {
         status: profile?.status || 'offline',
       };
     });
-    console.log(`actions/chat: getUsers - Found ${combinedUsers.length} users.`);
     return combinedUsers;
 
   } catch (error) {
@@ -70,16 +65,13 @@ export async function getUsers(): Promise<UserProfile[]> {
 
 // Fetch all chats for the current user
 export async function getChats(): Promise<Chat[]> {
-  console.log('actions/chat: getChats');
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     const { data: { user: authUser } } = await supabase.auth.getUser();
     if (!authUser) {
-        console.log('actions/chat: getChats - No authenticated user, returning empty array.');
         return [];
     }
-    console.log(`actions/chat: getChats - Fetching for user: ${authUser.id}`);
     
     // 1. Get all chat_ids the user is a part of.
     const { data: userChatLinks, error: chatIdsError } = await supabase
@@ -93,7 +85,6 @@ export async function getChats(): Promise<Chat[]> {
     }
 
     const chatIds = userChatLinks.map(link => link.chat_id);
-    console.log(`actions/chat: getChats - User is in chat IDs:`, chatIds);
     if (chatIds.length === 0) {
         return [];
     }
@@ -140,13 +131,11 @@ export async function getChats(): Promise<Chat[]> {
 
       // Ensure we only return chats where we could find the other participant for 1-on-1s
       if (!chat.is_group && !fullChat.otherParticipant) {
-          console.warn(`actions/chat: getChats - Could not find other participant for 1-on-1 chat ${chat.id}`);
           return null;
       }
       return fullChat;
     }).filter(Boolean) as Chat[];
 
-    console.log(`actions/chat: getChats - Processed ${processedChats.length} chats.`);
     return processedChats;
   } catch (error) {
     console.error('getChats failed:', error);
@@ -158,7 +147,6 @@ export async function getChats(): Promise<Chat[]> {
 // This function is now only used INTERNALLY by the accept_friend_request RPC
 // It is no longer exposed as a primary user action.
 export async function createChat(otherUserId: string): Promise<{ chat: Chat | null, isNew: boolean }> {
-  console.log(`actions/chat: createChat with user: ${otherUserId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
@@ -170,7 +158,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
         .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
 
     if (existingError) {
-      console.error('Error checking for existing chats:', existingError);
       throw new Error(existingError.message);
     }
 
@@ -178,7 +165,6 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
     const userMap = new Map(allUsers.map(u => [u.id, u]));
 
     if (existingChat && existingChat.length > 0) {
-      console.log(`actions/chat: createChat - Found existing chat: ${existingChat[0].chat_id}`);
       const { data: chatDetails, error: detailsError } = await supabase
         .from('chats')
         .select('*, chat_participants!inner(*)')
@@ -199,19 +185,16 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
       return { chat: chatToReturn, isNew: false };
     }
 
-    console.log('actions/chat: createChat - No existing chat found, creating new one.');
     const { data: newChatId, error: rpcError } = await supabase
       .rpc('create_chat_and_add_participants', { other_user_id: otherUserId });
 
     if (rpcError) {
-      console.error('Error creating chat via RPC:', rpcError);
       throw new Error(rpcError.message);
     }
 
      if (!newChatId) {
       throw new Error('Chat creation returned no ID.');
     }
-    console.log(`actions/chat: createChat - Successfully created new chat: ${newChatId}`);
 
     // After creating, fetch the full chat to return
      const { data: finalNewChat, error: newChatError } = await supabase
@@ -241,13 +224,11 @@ export async function createChat(otherUserId: string): Promise<{ chat: Chat | nu
     
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
-    console.error('createChat failed:', message);
     throw new Error(message);
   }
 }
 
 export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
-    console.log(`actions/chat: createGroupChat - Name: ${name}, Participants:`, participantIds);
     try {
         const cookieStore = cookies();
         const supabase = createClient(cookieStore);
@@ -265,23 +246,19 @@ export async function createGroupChat(name: string, participantIds: string[]): P
             .single();
 
         if (rpcError || !newGroup) {
-            console.error('Error creating group chat via RPC:', rpcError);
             throw new Error(rpcError.message);
         }
         
-        console.log(`actions/chat: createGroupChat - Successfully created group: ${newGroup.id}`);
         revalidatePath('/home/groups');
         return { ...newGroup, participants: allParticipantIds };
 
     } catch (error) {
-        console.error('createGroupChat failed:', error);
         throw new Error(error instanceof Error ? error.message : 'An unknown error occurred.');
     }
 }
 
 // Fetch messages for a specific chat
 export async function getMessages(chatId: string): Promise<Message[]> {
-  console.log(`actions/chat: getMessages for chatId: ${chatId}`);
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
@@ -295,7 +272,6 @@ export async function getMessages(chatId: string): Promise<Message[]> {
       console.error('Error fetching messages:', error);
       return [];
     }
-    console.log(`actions/chat: getMessages - Found ${data.length} messages for chat ${chatId}.`);
     return data as Message[];
   } catch(error) {
       console.error('getMessages failed:', error);
@@ -305,7 +281,6 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 
 // Send a new message
 export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
-  console.log(`actions/chat: sendMessage to chatId: ${chatId}, content: "${content}"`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
@@ -322,7 +297,6 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
       .single();
 
     if (participantError || !participant) {
-      console.error(`actions/chat: sendMessage - User ${userId} is not a member of chat ${chatId}`);
       throw new Error('You are not a member of this chat.');
     }
     
@@ -350,21 +324,17 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
       .single();
 
     if (error) {
-      console.error('Supabase sendMessage error:', error.message);
       throw new Error(error.message);
     }
     
-    console.log(`actions/chat: sendMessage - Successfully inserted message:`, data);
     return data;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred while sending the message.';
-    console.error(`sendMessage failed:`, message);
     throw new Error(message);
   }
 }
 
 export async function deleteChat(chatId: string, otherParticipantId: string) {
-  console.log(`actions/chat: deleteChat - ChatId: ${chatId}, OtherParticipantId: ${otherParticipantId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
@@ -383,7 +353,6 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
 
     const participantIds = participants.map(p => p.user_id);
     if (!participantIds.includes(userId) || !participantIds.includes(otherParticipantId)) {
-      console.error(`actions/chat: deleteChat - Permission denied. User ${userId} tried to delete chat ${chatId}.`);
       throw new Error('You do not have permission to delete this chat.');
     }
 
@@ -395,16 +364,13 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
       .eq('id', chatId);
 
     if (deleteError) {
-      console.error('Supabase delete chat error:', deleteError);
       throw new Error(deleteError.message);
     }
 
-    console.log(`actions/chat: deleteChat - Successfully deleted chat ${chatId}`);
     revalidatePath('/home/friends');
 
   } catch(error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    console.error(`deleteChat failed:`, message);
     throw new Error(message);
   }
 }
@@ -412,7 +378,6 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
 // --- Friend Request Actions ---
 
 export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], outgoing: FriendRequest[] }> {
-  console.log('actions/chat: getFriendRequests');
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
@@ -449,7 +414,6 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
         profiles: userMap.get(req.to_user_id)
     })) as FriendRequest[];
 
-    console.log(`actions/chat: getFriendRequests - Found ${processedIncoming.length} incoming and ${processedOutgoing.length} outgoing requests.`);
     return { incoming: processedIncoming, outgoing: processedOutgoing };
   } catch (error) {
     console.error("Error fetching friend requests:", error);
@@ -458,7 +422,6 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
 }
 
 export async function sendFriendRequest(toUserId: string) {
-  console.log(`actions/chat: sendFriendRequest to: ${toUserId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const fromUser = await getCurrentUser();
@@ -480,7 +443,6 @@ export async function sendFriendRequest(toUserId: string) {
     });
   
   if (existingError) {
-    console.error("Error checking for existing friend request via RPC:", existingError);
     throw new Error(existingError.message);
   }
 
@@ -494,7 +456,6 @@ export async function sendFriendRequest(toUserId: string) {
     .rpc('get_existing_chat', { user1_id: fromUserId, user2_id: toUserId });
   
   if (chatError) {
-    console.error("Error checking for existing chat:", chatError);
     throw new Error(chatError.message);
   }
 
@@ -509,33 +470,27 @@ export async function sendFriendRequest(toUserId: string) {
     .single();
   
   if (error) {
-    console.error("Error sending friend request:", error);
     throw new Error(error.message);
   }
 
-  console.log(`actions/chat: sendFriendRequest - Successfully sent request ${insertedRequest.id}`);
   revalidatePath('/home/friends');
 }
 
 export async function acceptFriendRequest(requestId: string): Promise<Chat | null> {
-  console.log(`actions/chat: acceptFriendRequest for request: ${requestId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   const { data: newChatId, error: rpcError } = await supabase.rpc('accept_friend_request', { request_id: requestId });
 
   if (rpcError) {
-    console.error("Error accepting friend request via RPC:", rpcError);
     throw new Error(rpcError.message);
   }
 
   if (!newChatId) {
-    console.log(`actions/chat: acceptFriendRequest - RPC returned no new chat ID.`);
     revalidatePath('/home/friends');
     return null;
   }
   
-  console.log(`actions/chat: acceptFriendRequest - Request accepted, new chat created: ${newChatId}`);
   // Fetch the newly created chat to return it to the client for immediate update
   const { data: newChat, error: chatError } = await supabase
     .from('chats')
@@ -544,7 +499,6 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
     .single();
 
   if (chatError || !newChat) {
-    console.error("Failed to fetch new chat after accepting request:", chatError);
     revalidatePath('/home/friends');
     return null;
   }
@@ -565,7 +519,6 @@ export async function acceptFriendRequest(requestId: string): Promise<Chat | nul
 }
 
 export async function declineFriendRequest(requestId: string) {
-  console.log(`actions/chat: declineFriendRequest for request: ${requestId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { error } = await supabase
@@ -574,7 +527,6 @@ export async function declineFriendRequest(requestId: string) {
     .eq('id', requestId);
     
   if (error) {
-    console.error("Error declining friend request:", error);
     throw new Error(error.message);
   }
 
@@ -582,7 +534,6 @@ export async function declineFriendRequest(requestId: string) {
 }
 
 export async function cancelFriendRequest(requestId: string) {
-  console.log(`actions/chat: cancelFriendRequest for request: ${requestId}`);
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const { error } = await supabase
@@ -591,7 +542,6 @@ export async function cancelFriendRequest(requestId: string) {
     .eq('id', requestId);
     
   if (error) {
-    console.error("Error cancelling friend request:", error);
     throw new Error(error.message);
   }
 
