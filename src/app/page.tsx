@@ -173,20 +173,21 @@ export default function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background text-foreground">
       <MainHeader />
 
       <main className="flex-1">
         <section className="relative py-20 md:py-32">
           <div
             aria-hidden="true"
-            className="absolute inset-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-primary/5 to-transparent"
+            className="absolute inset-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-primary/10 to-transparent"
           />
           <div className="container mx-auto px-4 md:px-6 text-center">
             <Badge
               variant="outline"
-              className="mb-4 border-accent/50 text-accent"
+              className="mb-4 border-accent/50 text-accent font-bold"
             >
+              <Sparkles className="w-3 h-3 mr-2 text-accent"/>
               Voice Calls are Here!
             </Badge>
             <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl">
@@ -215,7 +216,7 @@ export default function Home() {
 
         <section
           id="features"
-          className="py-20 md:py-32 bg-card border-y"
+          className="py-20 md:py-32 bg-secondary/30 border-y"
         >
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
@@ -283,7 +284,7 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <Card className="p-2 shadow-lg overflow-hidden">
+              <Card className="p-2 shadow-lg overflow-hidden bg-card/50">
                 <CardContent className="p-0">
                     <VoiceCallIllustration />
                 </CardContent>
@@ -292,7 +293,7 @@ export default function Home() {
           </div>
         </section>
         
-        <section id="pricing" className="py-20 md:py-32 bg-card border-y">
+        <section id="pricing" className="py-20 md:py-32 bg-secondary/30 border-y">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
               <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
@@ -304,7 +305,7 @@ export default function Home() {
             </div>
             <div className="mt-16 grid gap-8 md:grid-cols-3">
               {pricingTiers.map((tier) => (
-                <Card key={tier.name} className={`flex flex-col ${tier.featured ? 'border-primary ring-2 ring-primary' : ''}`}>
+                <Card key={tier.name} className={`flex flex-col bg-card/80 ${tier.featured ? 'border-primary ring-2 ring-primary' : ''}`}>
                   <CardHeader className="flex-1">
                     <CardTitle className="font-headline text-2xl">{tier.name}</CardTitle>
                     <p className="text-muted-foreground">{tier.description}</p>
@@ -338,13 +339,17 @@ export default function Home() {
         </section>
       </main>
 
-      <footer className="bg-card border-t">
+      <footer className="bg-secondary/30 border-t">
         <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row md:px-6">
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <span className="font-headline text-lg font-bold text-muted-foreground">
               MasterVoice
             </span>
+          </div>
+           <div className="flex gap-4 text-sm text-muted-foreground">
+              <Link href="/faq" className="hover:text-primary transition-colors">FAQ</Link>
+              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
           </div>
           <p className="text-sm text-muted-foreground">
             © <CurrentYear /> MasterVoice. All rights reserved.

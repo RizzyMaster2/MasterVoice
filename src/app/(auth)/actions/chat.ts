@@ -246,7 +246,7 @@ export async function createGroupChat(name: string, participantIds: string[]): P
             .single();
 
         if (rpcError || !newGroup) {
-            throw new Error(rpcError.message);
+            throw new Error(rpcError?.message || 'Failed to create group chat.');
         }
         
         revalidatePath('/home/groups');
@@ -547,7 +547,3 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
-
-    
-
-    
