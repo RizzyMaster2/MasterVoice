@@ -117,7 +117,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       variant: 'info'
     });
   };
-
+  
   const scrollToBottom = useCallback(() => {
     if (scrollAreaRef.current) {
         const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
@@ -126,8 +126,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         }
     }
   }, []);
-  
+
   const fetchMessages = useCallback(async (chatId: string) => {
+    setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
       setMessages(serverMessages);
@@ -142,7 +143,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
 
   useEffect(() => {
     if (selectedChat) {
-      setIsLoadingMessages(true);
       fetchMessages(selectedChat.id);
 
       const channel = supabase
