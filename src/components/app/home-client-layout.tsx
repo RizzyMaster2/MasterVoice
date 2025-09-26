@@ -1,20 +1,26 @@
 
-
 'use client';
 
-import type { UserProfile, Chat as AppChat, HomeClientLayoutProps } from '@/lib/data';
+import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
-import { getChats } from '@/app/(auth)/actions/chat';
+import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
 import { Skeleton } from '../ui/skeleton';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeClientLayoutProps) {
-  const [chats, setChats] = useState<AppChat[]>(initialChats);
+interface HomeClientLayoutProps {
+  currentUser: UserProfile;
+}
+
+function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
+  const [chats, setChats] = useState<AppChat[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [friendRequests, setFriendRequests] = useState<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>({ incoming: [], outgoing: []});
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
   const { user } = useUser();
   const supabase = createClient();
   const searchParams = useSearchParams();
@@ -22,22 +28,30 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
   
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
-  const refreshChats = useCallback(async () => {
+  const refreshAllData = useCallback(async () => {
     try {
-        const freshChats = await getChats();
-        setChats(freshChats);
+        const [chatsData, usersData, requestsData] = await Promise.all([
+          getChats(),
+          getUsers(),
+          getFriendRequests()
+        ]);
+        setChats(chatsData);
+        setAllUsers(usersData);
+        setFriendRequests(requestsData);
     } catch (error) {
-        console.error("Failed to refresh chats", error);
+        console.error("Failed to refresh data", error);
     }
   }, []);
 
   useEffect(() => {
-    setIsClient(true);
+    setIsLoading(true);
+    refreshAllData().finally(() => setIsLoading(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Restore selected chat from URL on initial load
   useEffect(() => {
-    if (isClient && chats.length > 0 && !selectedChat) {
+    if (!isLoading && chats.length > 0 && !selectedChat) {
       const chatIdFromUrl = searchParams.get('chat');
       if (chatIdFromUrl) {
         const chat = friends.find(c => c.id === chatIdFromUrl);
@@ -46,7 +60,7 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
         }
       }
     }
-  }, [isClient, chats, friends, selectedChat, searchParams]);
+  }, [isLoading, chats, friends, selectedChat, searchParams]);
 
 
   useEffect(() => {
@@ -63,7 +77,7 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
           filter: `user_id=eq.${user.id}`,
         },
         () => {
-            refreshChats();
+            refreshAllData();
         }
       )
       .on(
@@ -74,19 +88,38 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
           table: 'chats',
         },
         () => {
-            // This is a bit broad, but ensures groups updates are caught too
-            refreshChats();
+            refreshAllData();
         }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `to_user_id=eq.${user.id}`,
+        },
+        () => refreshAllData()
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'friend_requests',
+          filter: `from_user_id=eq.${user.id}`,
+        },
+        () => refreshAllData()
       )
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshChats]);
+  }, [user, supabase, refreshAllData]);
 
 
-  if (!isClient) {
+  if (isLoading) {
     return (
       <div className="flex-1 flex flex-col h-full">
         <Skeleton className="flex-1 h-full" />
@@ -96,7 +129,7 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
 
   const handleChatDeleted = () => {
     router.replace('/home'); // Clear query params
-    refreshChats().then(() => {
+    refreshAllData().then(() => {
         setSelectedChat(null);
     });
   }
@@ -110,7 +143,7 @@ function HomeClientLayoutContent({ currentUser, initialChats, allUsers }: HomeCl
             selectedChat={selectedChat}
             setSelectedChat={setSelectedChat}
             listType="friend"
-            onChatUpdate={refreshChats}
+            onChatUpdate={refreshAllData}
             onChatDeleted={handleChatDeleted}
         />
     </div>

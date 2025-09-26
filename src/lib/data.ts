@@ -44,9 +44,9 @@ export type FriendRequest = {
 
 export interface HomeClientLayoutProps {
     currentUser: UserProfile;
-    initialChats: Chat[];
-    allUsers: UserProfile[];
-    initialFriendRequests: {
+    initialChats?: Chat[]; // Made optional as it will be fetched on client
+    allUsers?: UserProfile[]; // Made optional
+    initialFriendRequests?: { // Made optional
         incoming: FriendRequest[];
         outgoing: FriendRequest[];
     }
