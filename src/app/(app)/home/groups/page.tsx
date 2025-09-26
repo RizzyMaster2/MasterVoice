@@ -1,181 +1,38 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat } from '@/lib/data';
+import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
-import { getChats, getUsers } from '@/app/(auth)/actions/chat';
-import { useUser } from '@/hooks/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
-import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { createClient } from '@/lib/supabase/client';
-import { useSearchParams, useRouter } from 'next/navigation';
-import { useToast } from '@/hooks/use-toast';
 
-function GroupsPageContent() {
-  const [chats, setChats] = useState<AppChat[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { user, isVerified, isLoading: isUserLoading } = useUser();
-  const supabase = createClient();
-  const searchParams = useSearchParams();
-  const router = useRouter();
-  const { toast } = useToast();
+export default function GroupsPage() {
+  const { 
+    currentUser, 
+    groups, 
+    allUsers, 
+    selectedChat, 
+    setSelectedChat, 
+    refreshAllData,
+    handleChatDeleted,
+    isLoading 
+  } = useHomeClient();
 
-  const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
-
-  const refreshData = useCallback(async () => {
-    // This function no longer sets loading state to avoid loops
-    try {
-        const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
-        setChats(chatsData);
-        setAllUsers(usersData);
-        
-        if (selectedChat && !chatsData.some(c => c.id === selectedChat.id)) {
-            setSelectedChat(null);
-            router.replace('/home/groups');
-        } else if (selectedChat) {
-            const freshSelectedChat = chatsData.find(c => c.id === selectedChat.id);
-            setSelectedChat(freshSelectedChat || null);
-        }
-    } catch (error) {
-        console.error("Failed to refresh group data:", error);
-        toast({
-            title: 'Error Fetching Groups',
-            description: 'Could not load your group chats. Please try again later.',
-            variant: 'destructive'
-        });
-    }
-  }, [selectedChat, toast, router]);
-
-
-  // Initial data load effect
-  useEffect(() => {
-    if (isUserLoading) return;
-
-    const initialFetch = async () => {
-        setIsLoading(true);
-        try {
-            const [chatsData, usersData] = await Promise.all([getChats(), getUsers()]);
-            setChats(chatsData);
-            setAllUsers(usersData);
-        } catch (error) {
-             toast({
-                title: 'Failed to Load Data',
-                description: 'Group chat data could not be loaded. Please check your connection and refresh the page.',
-                variant: 'destructive',
-            });
-        } finally {
-            setIsLoading(false);
-        }
-    };
-
-    const timeoutId = setTimeout(() => {
-        if (isLoading) {
-            toast({
-                title: 'Failed to Load Data',
-                description: 'Group chat data could not be loaded. Please check your connection and refresh the page.',
-                variant: 'destructive',
-            });
-            setIsLoading(false);
-        }
-    }, 20000); // 20 seconds timeout
-
-    initialFetch();
-    
-    return () => clearTimeout(timeoutId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isUserLoading]);
-
-  // Restore selected chat from URL on initial load and when data changes
-   useEffect(() => {
-    if (isLoading || groups.length === 0) return;
-
-    const chatIdFromUrl = searchParams.get('chat');
-    if (chatIdFromUrl) {
-      const chat = groups.find(c => c.id === chatIdFromUrl);
-      if (chat && chat.id !== selectedChat?.id) {
-        setSelectedChat(chat);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLoading, groups, searchParams]);
-
-
-   // Realtime subscription effect
-   useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('groups-page-channel')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chats', filter: 'is_group=eq.true' },
-        () => refreshData()
-      )
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'chat_participants' },
-        () => refreshData()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, supabase, refreshData]);
-
-
-  if (isLoading || isUserLoading || !user) {
-    return (
-        <div className="flex-1 flex flex-col gap-6 h-full">
-            {user && !isVerified && <UnverifiedAccountWarning />}
-            <Skeleton className="flex-1 h-full" />
-        </div>
-    );
-  }
-
-  const currentUserProfile: UserProfile = {
-      id: user.id,
-      display_name: user.user_metadata?.display_name || user.email || 'User',
-      photo_url: user.user_metadata?.photo_url || '',
-      created_at: user.created_at,
-      email: user.email || null,
-      status: 'online', // Placeholder
-  }
-
-  const handleChatDeleted = () => {
-    router.replace('/home/groups'); // Clear query params
-    refreshData().then(() => {
-        setSelectedChat(null);
-    });
+  if (isLoading) {
+    return <Skeleton className="flex-1 h-full" />;
   }
 
   return (
-    <>
-      <div className="flex-1 flex flex-col gap-6 h-full">
-        {!isVerified && <UnverifiedAccountWarning />}
+    <div className="flex-1 flex flex-col h-full">
         <ChatLayout 
-            currentUser={currentUserProfile} 
+            currentUser={currentUser} 
             chats={groups} 
             allUsers={allUsers}
             selectedChat={selectedChat}
             setSelectedChat={setSelectedChat}
             listType="group"
-            onChatUpdate={refreshData}
+            onChatUpdate={refreshAllData}
             onChatDeleted={handleChatDeleted}
         />
-      </div>
-    </>
-  );
-}
-
-
-export default function GroupsPage() {
-  return (
-    <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
-      <GroupsPageContent />
-    </Suspense>
+    </div>
   );
 }

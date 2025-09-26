@@ -1,43 +1,88 @@
 
 'use client';
 
-import type { UserProfile, Chat as AppChat, FriendRequest } from '@/lib/data';
-import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect, useCallback } from 'react';
-import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
-import { Skeleton } from '../ui/skeleton';
-import { useUser } from '@/hooks/use-user';
+import { 
+    useState, 
+    useEffect, 
+    useCallback, 
+    useMemo, 
+    createContext, 
+    useContext,
+    type ReactNode 
+} from 'react';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useSearchParams, useRouter } from 'next/navigation';
 import { useToast } from '@/hooks/use-toast';
+import { useUser } from '@/hooks/use-user';
+import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
+import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+
+interface HomeClientContextType {
+    currentUser: UserProfile;
+    chats: Chat[];
+    friends: Chat[];
+    groups: Chat[];
+    allUsers: UserProfile[];
+    friendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+    selectedChat: Chat | null;
+    setSelectedChat: (chat: Chat | null) => void;
+    refreshAllData: () => void;
+    handleChatDeleted: () => void;
+    isLoading: boolean;
+}
+
+const HomeClientContext = createContext<HomeClientContextType | null>(null);
+
+export function useHomeClient() {
+    const context = useContext(HomeClientContext);
+    if (!context) {
+        throw new Error('useHomeClient must be used within a HomeClientLayout');
+    }
+    return context;
+}
 
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
-  initialChats: AppChat[];
-  allUsers: UserProfile[];
+  initialChats: Chat[];
+  initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+  initialUsers: UserProfile[];
+  children: ReactNode;
 }
 
-export function HomeClientLayout({ currentUser, initialChats, allUsers: initialAllUsers }: HomeClientLayoutProps) {
-  const [chats, setChats] = useState<AppChat[]>(initialChats);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(initialAllUsers);
-  const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  
+export function HomeClientLayout({ 
+    currentUser, 
+    initialChats, 
+    initialFriendRequests,
+    initialUsers,
+    children
+}: HomeClientLayoutProps) {
+  const [chats, setChats] = useState<Chat[]>(initialChats);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
+  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
+  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
   const { user } = useUser();
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
   const { toast } = useToast();
   
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
+  const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
   const refreshAllData = useCallback(async () => {
+    if (!user) return;
     try {
-        const [chatsData, usersData] = await Promise.all([
+        const [chatsData, usersData, requestsData] = await Promise.all([
           getChats(),
           getUsers(),
+          getFriendRequests(),
         ]);
         setChats(chatsData);
-        setAllUsers(usersData);
+        setAllUsers(usersData.filter(u => u.id !== user.id));
+        setFriendRequests(requestsData);
 
     } catch (error) {
         console.error("Failed to refresh data", error);
@@ -47,89 +92,98 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers: initialA
             variant: 'destructive'
         });
     }
-  }, [toast]);
-
+  }, [user, toast]);
 
   useEffect(() => {
-    if (friends.length > 0) {
-      const chatIdFromUrl = searchParams.get('chat');
-      if (chatIdFromUrl) {
-          const chatToSelect = friends.find(c => c.id === chatIdFromUrl);
-          if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
-              setSelectedChat(chatToSelect);
-          }
-      }
+    // Initial load is handled by server, so we can set loading to false.
+    setIsLoading(false);
+    
+    // Set up a timeout for initial data load issues if needed,
+    // though less critical now with server-side initial props.
+    const timeoutId = setTimeout(() => {
+        if (isLoading) {
+            toast({
+                title: 'Data is taking a while to load',
+                description: 'Still waiting for data from the server. Your connection may be slow.',
+                variant: 'warning',
+            });
+        }
+    }, 20000);
+
+    return () => clearTimeout(timeoutId);
+  }, [isLoading, toast]);
+
+  useEffect(() => {
+    const chatIdFromUrl = searchParams.get('chat');
+    const list = pathname.includes('/groups') ? groups : friends;
+    
+    if (chatIdFromUrl && list.length > 0) {
+        const chatToSelect = list.find(c => c.id === chatIdFromUrl);
+        if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
+            setSelectedChat(chatToSelect);
+        }
+    } else if (!chatIdFromUrl) {
+      setSelectedChat(null);
     }
-  }, [friends, searchParams, selectedChat?.id]);
+  }, [searchParams, friends, groups, selectedChat?.id, pathname]);
 
 
   useEffect(() => {
     if (!user) return;
     
     const channel = supabase
-      .channel(`home-layout-user-${user.id}`)
+      .channel('home-layout-realtime')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chat_participants',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-            refreshAllData();
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'chats',
-        },
+        { event: '*', schema: 'public', table: 'chats' },
         (payload) => {
             refreshAllData();
-            // If the selected chat was deleted, deselect it
             if (payload.eventType === 'DELETE' && selectedChat && payload.old.id === selectedChat.id) {
                 setSelectedChat(null);
+                router.replace(pathname); // use pathname to stay on current page
             }
         }
       )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friend_requests',
-        },
-        () => refreshAllData()
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, () => refreshAllData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => refreshAllData())
       .subscribe();
 
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user, supabase, refreshAllData, selectedChat]);
+  }, [user, supabase, refreshAllData, selectedChat, router, pathname]);
 
-  const handleChatDeleted = () => {
-    router.replace('/home'); // Clear query params
+  const handleChatDeleted = useCallback(() => {
+    router.replace(pathname); 
     refreshAllData().then(() => {
         setSelectedChat(null);
     });
-  }
+  },[router, pathname, refreshAllData]);
+
+  const value = {
+      currentUser,
+      chats,
+      friends,
+      groups,
+      allUsers,
+      friendRequests,
+      selectedChat,
+      setSelectedChat: (chat: Chat | null) => {
+          setSelectedChat(chat);
+          if (chat) {
+              router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
+          } else {
+              router.push(pathname, { scroll: false });
+          }
+      },
+      refreshAllData,
+      handleChatDeleted,
+      isLoading
+  };
 
   return (
-    <div className="flex-1 h-full">
-        <ChatLayout 
-            currentUser={currentUser} 
-            chats={friends}
-            allUsers={allUsers}
-            selectedChat={selectedChat}
-            setSelectedChat={setSelectedChat}
-            listType="friend"
-            onChatUpdate={refreshAllData}
-            onChatDeleted={handleChatDeleted}
-        />
-    </div>
+    <HomeClientContext.Provider value={value}>
+        {children}
+    </HomeClientContext.Provider>
   );
 }
