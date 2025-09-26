@@ -28,7 +28,7 @@ import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import { format, isToday, isYesterday, parseISO, formatDistanceToNow } from 'date-fns';
 import { getMessages, sendMessage, deleteChat } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
 import {
@@ -194,6 +194,7 @@ export function ChatLayout({
     startSendingTransition(async () => {
         try {
             await sendMessage(selectedChat.id, content);
+            onChatUpdate();
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
         }
@@ -251,6 +252,11 @@ export function ChatLayout({
     if (isYesterday(date)) return 'Yesterday';
     return format(date, 'MMM d');
   };
+  
+   const formatLastMessageTime = (timestamp: string | null | undefined) => {
+    if (!timestamp) return '';
+    return formatDistanceToNow(parseISO(timestamp), { addSuffix: true });
+  };
 
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
@@ -297,12 +303,19 @@ export function ChatLayout({
                     </>
                    )}
                 </Avatar>
-                <div className="flex-1">
-                  <p className="font-semibold flex items-center gap-2">
-                    {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
-                  </p>
+                <div className="flex-1 overflow-hidden">
+                   <div className="flex items-center justify-between">
+                        <p className="font-semibold truncate">
+                            {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
+                        </p>
+                        {chat.last_message_timestamp && (
+                           <p className="text-xs text-muted-foreground whitespace-nowrap">
+                                {formatLastMessageTime(chat.last_message_timestamp)}
+                           </p>
+                        )}
+                   </div>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.is_group ? `${chat.participants.length} members` : '...'}
+                    {chat.last_message ? chat.last_message : (chat.is_group ? `${chat.participants.length} members` : 'No messages yet.')}
                   </p>
                 </div>
               </div>

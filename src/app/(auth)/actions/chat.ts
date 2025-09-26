@@ -73,31 +73,12 @@ export async function getChats(): Promise<Chat[]> {
         return [];
     }
     
-    // 1. Get all chat_ids the user is a part of.
-    const { data: userChatLinks, error: chatIdsError } = await supabase
-      .from('chat_participants')
-      .select('chat_id')
-      .eq('user_id', authUser.id);
-    
-    if (chatIdsError) {
-      console.error('Error fetching user chat links:', chatIdsError);
-      return [];
-    }
+    // Use the RPC function to get chats and last message in one go
+    const { data: chatsData, error: rpcError } = await supabase
+      .rpc('get_user_chats_with_last_message', { p_user_id: authUser.id });
 
-    const chatIds = userChatLinks.map(link => link.chat_id);
-    if (chatIds.length === 0) {
-        return [];
-    }
-
-    // 2. Fetch all data for those chats, including all their participants
-    const { data: chats, error: chatsError } = await supabase
-      .from('chats')
-      .select('*, chat_participants(user_id)')
-      .in('id', chatIds)
-      .order('created_at', { ascending: false });
-
-    if (chatsError) {
-      console.error('Error fetching chats details:', chatsError);
+    if (rpcError) {
+      console.error('Error fetching user chats with last message:', rpcError);
       return [];
     }
 
@@ -106,16 +87,18 @@ export async function getChats(): Promise<Chat[]> {
     const userMap = new Map(allUsers.map(u => [u.id, u]));
 
     // 4. Process the chats to add participant profiles
-    const processedChats = chats.map((chat) => {
-      const participantIds = chat.chat_participants.map((p: { user_id: any; }) => p.user_id);
+    const processedChats = chatsData.map((chat) => {
+      const participantIds = chat.participant_ids;
       
       const fullChat: Chat = {
-          id: chat.id,
+          id: chat.chat_id,
           created_at: chat.created_at,
           name: chat.name,
           is_group: chat.is_group,
           admin_id: chat.admin_id,
           participants: participantIds,
+          last_message: chat.last_message_content || null,
+          last_message_timestamp: chat.last_message_timestamp || null,
       };
 
       if (chat.is_group) {
@@ -245,8 +228,8 @@ export async function createGroupChat(name: string, participantIds: string[]): P
             .select()
             .single();
 
-        if (rpcError || !newGroup) {
-            throw new Error(rpcError?.message || 'Failed to create group chat.');
+        if (rpcError) {
+            throw new Error(rpcError.message);
         }
         
         revalidatePath('/home/groups');

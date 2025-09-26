@@ -20,6 +20,8 @@ export type Chat = {
   admin_id: string | null;
   otherParticipant?: UserProfile; // Used on the client for 1-on-1 chats
   participantProfiles?: UserProfile[]; // Used on the client for group chats
+  last_message?: string | null;
+  last_message_timestamp?: string | null;
 };
 
 export type Message = {

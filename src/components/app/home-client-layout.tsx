@@ -16,6 +16,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
 import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import { LoadingScreen } from './loading-screen';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
@@ -173,6 +174,9 @@ export function HomeClientLayout({
       isLoading
   };
   
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
 
   return (
     <HomeClientContext.Provider value={value}>
