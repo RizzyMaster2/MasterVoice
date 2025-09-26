@@ -151,21 +151,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
           (payload) => {
             const newMessage = payload.new as Message;
-            
-            setMessages(currentMessages => {
-              // Remove the optimistic message if it exists
-              const filteredMessages = currentMessages.filter(m => 
-                !(m.id.toString().startsWith('temp-') && m.content === newMessage.content && m.sender_id === newMessage.sender_id)
-              );
-              
-              // Add the new message from the server, ensuring no duplicates from race conditions
-              if (!filteredMessages.some(m => m.id === newMessage.id)) {
-                return [...filteredMessages, newMessage];
-              }
-              return filteredMessages;
-            });
-            
-            setTimeout(scrollToBottom, 100);
+            // When a new message comes in, just refetch all messages to ensure consistency
+            fetchMessages(selectedChat.id);
           }
         )
         .subscribe((status, err) => {
@@ -221,6 +208,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
+        // Realtime will trigger the refetch
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
