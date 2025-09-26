@@ -139,23 +139,23 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
         }
     }
   };
+  
+  const fetchMessages = async (chatId: string) => {
+    setIsLoadingMessages(true);
+    const fetchedMessages = await getMessages(chatId);
+    setMessages(fetchedMessages);
+    setIsLoadingMessages(false);
+    setTimeout(scrollToBottom, 100);
+  };
 
 
   useEffect(() => {
-    const fetchMessages = async () => {
-      if (selectedChat) {
-        setIsLoadingMessages(true);
-        setMessages([]); // Clear previous messages
-        const fetchedMessages = await getMessages(selectedChat.id);
-        setMessages(fetchedMessages);
-        setIsLoadingMessages(false);
-        setTimeout(scrollToBottom, 100);
-      } else {
-        setMessages([]);
-      }
-    };
-    fetchMessages();
-  }, [selectedChat, userMap]);
+    if (selectedChat) {
+      fetchMessages(selectedChat.id);
+    } else {
+      setMessages([]);
+    }
+  }, [selectedChat]);
 
   // Realtime listeners
   useEffect(() => {
@@ -165,31 +165,10 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
 
     // Listen for new messages
     const handleNewMessage = (payload: any) => {
-        const newMessage = payload.new as Message;
-        
-        setMessages((prevMessages) => {
-            // Check if the message is already in the list
-            if (prevMessages.some((msg) => msg.id === newMessage.id)) {
-                return prevMessages;
-            }
-            // Check if this is a replacement for an optimistic message
-            const tempId = `temp-${newMessage.sender_id}-${newMessage.content}`;
-            const optimisticIndex = prevMessages.findIndex(msg => msg.id === tempId);
-            
-            const finalMessageWithProfile = {
-                ...newMessage,
-                profiles: userMap.get(newMessage.sender_id)
-            };
-
-            if (optimisticIndex > -1) {
-                const updatedMessages = [...prevMessages];
-                updatedMessages[optimisticIndex] = finalMessageWithProfile;
-                return updatedMessages;
-            } else {
-                 return [...prevMessages, finalMessageWithProfile];
-            }
-        });
-        setTimeout(scrollToBottom, 100);
+      // Re-fetch all messages to ensure sync. This is more robust.
+      if (selectedChat) {
+        fetchMessages(selectedChat.id);
+      }
     };
 
     channel.on(
@@ -220,7 +199,7 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
       setIsTyping(false);
       supabase.removeChannel(channel);
     };
-  }, [selectedChat, supabase, userMap, currentUser]);
+  }, [selectedChat, supabase, currentUser]);
   
   const getInitials = (name: string | undefined | null) =>
     name
@@ -247,26 +226,10 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
     const messageContent = newMessage;
     setNewMessage('');
     
-    // Create a more specific temp ID
-    const tempMessageId = `temp-${currentUser.id}-${messageContent}`;
-
-    // Optimistically add message to UI
-    const optimisticMessage: Message = {
-      id: tempMessageId,
-      content: messageContent,
-      created_at: new Date().toISOString(),
-      sender_id: currentUser.id,
-      chat_id: selectedChat.id,
-      type: 'text',
-      profiles: currentUser,
-      file_url: null,
-    };
-    setMessages(prev => [...prev, optimisticMessage]);
-    setTimeout(scrollToBottom, 100);
-
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
+        // The realtime listener will handle updating the UI, so no optimistic update needed here.
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -274,7 +237,6 @@ export function ChatLayout({ currentUser, chats, setChats, allUsers, selectedCha
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        setMessages(prev => prev.filter(m => m.id !== tempMessageId));
       }
     });
   };
