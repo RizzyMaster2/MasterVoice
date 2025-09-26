@@ -13,33 +13,31 @@ import { useToast } from '@/hooks/use-toast';
 
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
+  initialChats: AppChat[];
+  allUsers: UserProfile[];
 }
 
-function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
-  const [chats, setChats] = useState<AppChat[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [friendRequests, setFriendRequests] = useState<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>({ incoming: [], outgoing: []});
+export function HomeClientLayout({ currentUser, initialChats, allUsers: initialAllUsers }: HomeClientLayoutProps) {
+  const [chats, setChats] = useState<AppChat[]>(initialChats);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(initialAllUsers);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const { toast } = useToast();
-
+  
   const { user } = useUser();
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
+  const { toast } = useToast();
   
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
   const refreshAllData = useCallback(async () => {
     try {
-        const [chatsData, usersData, requestsData] = await Promise.all([
+        const [chatsData, usersData] = await Promise.all([
           getChats(),
           getUsers(),
-          getFriendRequests()
         ]);
         setChats(chatsData);
         setAllUsers(usersData);
-        setFriendRequests(requestsData);
 
     } catch (error) {
         console.error("Failed to refresh data", error);
@@ -48,42 +46,21 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
             description: 'Could not load your chats and contacts. Please try again later.',
             variant: 'destructive'
         });
-    } finally {
-        setIsLoading(false);
     }
   }, [toast]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    const timeoutId = setTimeout(() => {
-        if (isLoading) {
-            toast({
-                title: 'Failed to Load Data',
-                description: 'Chat data could not be loaded. Please check your connection and refresh the page.',
-                variant: 'destructive',
-            });
-            setIsLoading(false); // Stop showing loading skeleton
-        }
-    }, 20000); // 20 seconds timeout
-
-    refreshAllData();
-
-    return () => clearTimeout(timeoutId);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   useEffect(() => {
-    // This effect runs after the initial data load to restore selection from URL.
-    if (!isLoading && chats.length > 0) {
+    if (friends.length > 0) {
       const chatIdFromUrl = searchParams.get('chat');
       if (chatIdFromUrl) {
-          const chatToSelect = chats.find(c => c.id === chatIdFromUrl && !c.is_group);
+          const chatToSelect = friends.find(c => c.id === chatIdFromUrl);
           if (chatToSelect && chatToSelect.id !== selectedChat?.id) {
               setSelectedChat(chatToSelect);
           }
       }
     }
-  }, [isLoading, chats, searchParams, selectedChat?.id]);
+  }, [friends, searchParams, selectedChat?.id]);
 
 
   useEffect(() => {
@@ -124,17 +101,6 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
           event: '*',
           schema: 'public',
           table: 'friend_requests',
-          filter: `to_user_id=eq.${user.id}`,
-        },
-        () => refreshAllData()
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'friend_requests',
-          filter: `from_user_id=eq.${user.id}`,
         },
         () => refreshAllData()
       )
@@ -144,15 +110,6 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
       supabase.removeChannel(channel);
     };
   }, [user, supabase, refreshAllData, selectedChat]);
-
-
-  if (isLoading) {
-    return (
-      <div className="flex-1 flex flex-col h-full">
-        <Skeleton className="flex-1 h-full" />
-      </div>
-    );
-  }
 
   const handleChatDeleted = () => {
     router.replace('/home'); // Clear query params
@@ -175,9 +132,4 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
         />
     </div>
   );
-}
-
-
-export function HomeClientLayout(props: HomeClientLayoutProps) {
-  return <HomeClientLayoutContent {...props} />;
 }
