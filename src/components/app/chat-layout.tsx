@@ -162,7 +162,7 @@ export function ChatLayout({
             newMessage.profiles = userMap.get(newMessage.sender_id) || null;
           }
           setMessages(current => {
-            if (current.some(m => m.id === newMessage.id)) return current;
+            // Simplified update: just append new messages.
             return [...current, newMessage];
           });
         }
