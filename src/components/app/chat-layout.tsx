@@ -34,6 +34,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { chatBot } from '@/ai/flows/chat-bot';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import { useRouter, usePathname } from 'next/navigation';
 
 
 interface ChatLayoutProps {
@@ -103,6 +104,9 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
+  const router = useRouter();
+  const pathname = usePathname();
+
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -143,9 +147,11 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   useEffect(() => {
     if (selectedChat?.id) {
       fetchMessages(selectedChat.id);
+    } else {
+        setMessages([]);
     }
      // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedChat?.id]);
+  }, [selectedChat?.id, fetchMessages]);
 
 
   useEffect(() => {
@@ -326,6 +332,12 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
+   const handleSelectChat = (chat: Chat) => {
+    setSelectedChat(chat);
+    router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
+  };
+
+
   return (
     <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
@@ -345,7 +357,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
             filteredChats.map((chat) => (
               <div
                 key={chat.id}
-                onClick={() => setSelectedChat(chat)}
+                onClick={() => handleSelectChat(chat)}
                 className={cn(
                   'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
                   selectedChat?.id === chat.id && 'bg-accent'

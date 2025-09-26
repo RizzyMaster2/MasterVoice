@@ -4,14 +4,15 @@
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { getChats, getUsers } from '@/app/(auth)/actions/chat';
 import { useUser } from '@/hooks/use-user';
 import { Skeleton } from '@/components/ui/skeleton';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { createClient } from '@/lib/supabase/client';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export default function GroupsPage() {
+function GroupsPageContent() {
   const [chats, setChats] = useState<AppChat[]>([]);
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
@@ -19,6 +20,8 @@ export default function GroupsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const { user, isVerified } = useUser();
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
 
   const groups = useMemo(() => chats.filter(chat => chat.is_group), [chats]);
 
@@ -50,25 +53,18 @@ export default function GroupsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Restore selected chat from localStorage on initial load
+  // Restore selected chat from URL on initial load
    useEffect(() => {
     if (isClient && chats.length > 0 && !selectedChat) {
-      const savedChatId = localStorage.getItem('selectedChatId');
-      if (savedChatId) {
-        const chat = groups.find(c => c.id === savedChatId);
+      const chatIdFromUrl = searchParams.get('chat');
+      if (chatIdFromUrl) {
+        const chat = groups.find(c => c.id === chatIdFromUrl);
         if (chat) {
           setSelectedChat(chat);
         }
       }
     }
-  }, [isClient, chats, groups, selectedChat]);
-
-  // Save selected chat to localStorage
-  useEffect(() => {
-    if (isClient && selectedChat) {
-      localStorage.setItem('selectedChatId', selectedChat.id);
-    }
-  }, [selectedChat, isClient]);
+  }, [isClient, chats, groups, selectedChat, searchParams]);
 
 
    useEffect(() => {
@@ -113,7 +109,7 @@ export default function GroupsPage() {
   }
 
   const handleChatDeleted = () => {
-    localStorage.removeItem('selectedChatId');
+    router.replace('/home/groups'); // Clear query params
     refreshData().then(() => {
         setSelectedChat(null);
     });
@@ -135,5 +131,14 @@ export default function GroupsPage() {
         />
       </div>
     </>
+  );
+}
+
+
+export default function GroupsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
+      <GroupsPageContent />
+    </Suspense>
   );
 }

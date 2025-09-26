@@ -4,19 +4,22 @@
 
 import type { UserProfile, Chat as AppChat, HomeClientLayoutProps } from '@/lib/data';
 import { ChatLayout } from '@/components/app/chat-layout';
-import { useState, useMemo, useEffect, useCallback } from 'react';
+import { useState, useMemo, useEffect, useCallback, Suspense } from 'react';
 import { getChats } from '@/app/(auth)/actions/chat';
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '../ui/skeleton';
 import { useUser } from '@/hooks/use-user';
 import { createClient } from '@/lib/supabase/client';
+import { useSearchParams, useRouter } from 'next/navigation';
 
-export function HomeClientLayout({ currentUser, initialChats, allUsers, initialFriendRequests }: HomeClientLayoutProps) {
+function HomeClientLayoutContent({ currentUser, initialChats, allUsers, initialFriendRequests }: HomeClientLayoutProps) {
   const [chats, setChats] = useState<AppChat[]>(initialChats);
   const [selectedChat, setSelectedChat] = useState<AppChat | null>(null);
   const [isClient, setIsClient] = useState(false);
   const { user } = useUser();
   const supabase = createClient();
+  const searchParams = useSearchParams();
+  const router = useRouter();
   
   const friends = useMemo(() => chats.filter(chat => !chat.is_group), [chats]);
 
@@ -33,25 +36,19 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
     setIsClient(true);
   }, []);
 
-  // Restore selected chat from localStorage on initial load
+  // Restore selected chat from URL on initial load
   useEffect(() => {
     if (isClient && chats.length > 0 && !selectedChat) {
-      const savedChatId = localStorage.getItem('selectedChatId');
-      if (savedChatId) {
-        const chat = friends.find(c => c.id === savedChatId);
+      const chatIdFromUrl = searchParams.get('chat');
+      if (chatIdFromUrl) {
+        const chat = friends.find(c => c.id === chatIdFromUrl);
         if (chat) {
           setSelectedChat(chat);
         }
       }
     }
-  }, [isClient, chats, friends, selectedChat]);
+  }, [isClient, chats, friends, selectedChat, searchParams]);
 
-  // Save selected chat to localStorage
-  useEffect(() => {
-    if (isClient && selectedChat) {
-      localStorage.setItem('selectedChatId', selectedChat.id);
-    }
-  }, [selectedChat, isClient]);
 
   useEffect(() => {
     if (!user) return;
@@ -99,7 +96,7 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
   }
 
   const handleChatDeleted = () => {
-    localStorage.removeItem('selectedChatId');
+    router.replace('/home'); // Clear query params
     refreshChats().then(() => {
         setSelectedChat(null);
     });
@@ -119,4 +116,13 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
         />
     </div>
   );
+}
+
+
+export function HomeClientLayout(props: HomeClientLayoutProps) {
+  return (
+    <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
+      <HomeClientLayoutContent {...props} />
+    </Suspense>
+  )
 }

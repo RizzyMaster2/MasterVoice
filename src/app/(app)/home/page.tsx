@@ -1,4 +1,5 @@
 
+
 import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
@@ -6,6 +7,8 @@ import { getUsers, getChats, getFriendRequests } from '@/app/(auth)/actions/chat
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { Suspense } from 'react';
+import { Skeleton } from '@/components/ui/skeleton';
 
 
 export default async function HomePage() {
@@ -40,12 +43,14 @@ export default async function HomePage() {
     <>
       <div className="flex-1 flex flex-col gap-6 h-full">
         {!isVerified && <UnverifiedAccountWarning />}
-        <HomeClientLayout
-            currentUser={currentUserProfile}
-            initialChats={chatsData}
-            initialFriendRequests={friendRequestsData}
-            allUsers={usersData}
-        />
+        <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
+          <HomeClientLayout
+              currentUser={currentUserProfile}
+              initialChats={chatsData}
+              initialFriendRequests={friendRequestsData}
+              allUsers={usersData}
+          />
+        </Suspense>
       </div>
     </>
   );
