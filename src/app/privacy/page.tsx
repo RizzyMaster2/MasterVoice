@@ -44,7 +44,7 @@ export default function PrivacyPolicyPage() {
               <p>We may update this privacy policy from time to time. The updated version will be indicated by an updated "Revised" date and the updated version will be effective as soon as it is accessible. We encourage you to review this privacy policy frequently to be informed of how we are protecting your information.</p>
               
               <h2>7. How Can You Contact Us About This Policy?</h2>
-              <p>If you have questions or comments about this policy, you may email us at support@mastervoice.example.com</p>
+              <p>If you have questions or comments about this policy, you may email us at support@your-domain.com</p>
 
             </CardContent>
           </Card>
@@ -53,4 +53,3 @@ export default function PrivacyPolicyPage() {
     </div>
   );
 }
-
