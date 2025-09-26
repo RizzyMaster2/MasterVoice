@@ -70,6 +70,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     fetchUsers();
   }, []);
 
+  const findUserById = useCallback((userId: string) => {
+    return allUsers.find(u => u.id === userId);
+  }, [allUsers]);
+
   useEffect(() => {
     if (!user) return;
     const channel = supabase.channel(`signaling:${user.id}`);
@@ -102,10 +106,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     };
 
   }, [user, supabase, findUserById, activeCall, incomingCall, endCall, toast]);
-
-  const findUserById = useCallback((userId: string) => {
-    return allUsers.find(u => u.id === userId);
-  }, [allUsers]);
 
   const startCall = useCallback(async (participant: UserProfile, chatId?: string) => {
      if (!user) return;
@@ -164,5 +164,3 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     </CallContext.Provider>
   );
 }
-
-    
