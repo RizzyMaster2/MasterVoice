@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useTransition, useRef, type FormEvent, type ChangeEvent, type ReactNode, useMemo, useCallback } from 'react';
@@ -40,6 +41,8 @@ interface ChatLayoutProps {
   selectedChat: Chat | null;
   setSelectedChat: (chat: Chat | null) => void;
   listType: 'friend' | 'group';
+  onChatUpdate: () => void;
+  onChatDeleted: () => void;
 }
 
 // Helper to extract a user-friendly error message
@@ -86,7 +89,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
 };
 
 
-export function ChatLayout({ currentUser, chats: parentChats, allUsers, selectedChat, setSelectedChat, listType }: ChatLayoutProps) {
+export function ChatLayout({ currentUser, chats: parentChats, allUsers, selectedChat, setSelectedChat, listType, onChatUpdate, onChatDeleted }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -114,14 +117,6 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     });
   };
 
-  const handleJoinCall = () => {
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'Group calling is not available at the moment.',
-      variant: 'info'
-    });
-  }
-
   const scrollToBottom = () => {
     if (scrollAreaRef.current) {
         const viewport = scrollAreaRef.current.querySelector('div[data-radix-scroll-area-viewport]');
@@ -132,50 +127,25 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
   };
   
  const fetchMessages = useCallback(async (chatId: string) => {
+    setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(currentMessages => {
-          const optimisticMessages = currentMessages.filter(m => m.id.toString().startsWith('temp-'));
-          const serverMessageIds = new Set(serverMessages.map(m => m.id));
-          const confirmedOptimistic = optimisticMessages.filter(om => 
-              !serverMessages.some(sm => sm.content === om.content && sm.sender_id === om.sender_id)
-          );
-          
-          const combined = [...serverMessages, ...confirmedOptimistic];
-          combined.sort((a,b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-
-          return combined;
-      });
+      setMessages(serverMessages);
     } catch (error) {
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
+    } finally {
+        setIsLoadingMessages(false);
+        setTimeout(scrollToBottom, 100);
     }
   }, [toast]);
 
 
   useEffect(() => {
     if (selectedChat) {
-      setIsLoadingMessages(true);
-      setMessages([]);
-      getMessages(selectedChat.id).then(initialMessages => {
-        setMessages(initialMessages);
-        setIsLoadingMessages(false);
-        setTimeout(scrollToBottom, 100);
-      });
+      fetchMessages(selectedChat.id);
     } else {
       setMessages([]);
     }
-  }, [selectedChat, getMessages]);
-
-
-  // Polling for new messages
-  useEffect(() => {
-    if (!selectedChat) return;
-
-    const interval = setInterval(() => {
-      fetchMessages(selectedChat.id);
-    }, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(interval);
   }, [selectedChat, fetchMessages]);
 
   const getInitials = (name: string | undefined | null) =>
@@ -209,6 +179,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startSendingTransition(async () => {
       try {
         await sendMessage(selectedChat.id, messageContent);
+        // Refetch messages to confirm
+        await fetchMessages(selectedChat.id);
       } catch (error) {
         console.error("Failed to send message", error);
         toast({
@@ -216,7 +188,8 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           description: getErrorMessage(error),
           variant: "destructive"
         });
-        // On failure, we'll let the next poll clean it up to avoid complex state logic
+        // On failure, remove the optimistic message
+        setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
       }
     });
   };
@@ -251,6 +224,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
         }
 
         await sendMessage(selectedChat.id, data.publicUrl, 'file');
+        await fetchMessages(selectedChat.id);
 
         toast({
           title: 'File Sent',
@@ -276,16 +250,12 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     startDeletingTransition(async () => {
       try {
         await deleteChat(chatId, selectedChat.otherParticipant!.id);
-
         toast({
           title: 'Friend Removed',
           description: `You are no longer friends with ${friendName}.`,
           variant: 'success'
         });
-        
-        setSelectedChat(null);
-
-
+        onChatDeleted();
       } catch (error) {
         console.error("Failed to delete chat:", error);
         toast({

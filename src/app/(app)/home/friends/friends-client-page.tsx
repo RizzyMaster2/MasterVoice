@@ -67,21 +67,13 @@ export function FriendsClientPage({
   const outgoingRequestUserIds = useMemo(() => new Set(friendRequests.outgoing.map(req => req.to_user_id)), [friendRequests.outgoing]);
   const incomingRequestUserIds = useMemo(() => new Set(friendRequests.incoming.map(req => req.from_user_id)), [friendRequests.incoming]);
 
-
   const refreshAllData = useCallback(async () => {
-    const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
-    setFriends(chats.filter(c => !c.is_group));
-    setFriendRequests(requests);
+    startTransition(async () => {
+        const [chats, requests] = await Promise.all([getChats(), getFriendRequests()]);
+        setFriends(chats.filter(c => !c.is_group));
+        setFriendRequests(requests);
+    });
   }, []);
-  
-  // Polling for updates
-  useEffect(() => {
-    const interval = setInterval(() => {
-        refreshAllData();
-    }, 5000); // Poll every 5 seconds
-
-    return () => clearInterval(interval);
-  }, [refreshAllData]);
 
   const handleSendFriendRequest = (user: UserProfile) => {
     if (!isVerified) {
@@ -101,7 +93,7 @@ export function FriendsClientPage({
           description: `Your friend request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        await refreshAllData(); // Refresh data after action
+        await refreshAllData();
       } catch (error) {
         toast({
           title: 'Error',
@@ -109,18 +101,10 @@ export function FriendsClientPage({
           variant: 'destructive',
         });
       } finally {
-        // We don't set processingId to null here, it will be handled by the useEffect watching isProcessing
+        setProcessingId(null);
       }
     });
   };
-
-  // When a transition finishes, clear the processing ID.
-  useEffect(() => {
-    if (!isProcessing) {
-      setProcessingId(null);
-    }
-  }, [isProcessing]);
-
 
   const handleRequestResponse = (action: 'accept' | 'decline' | 'cancel', request: FriendRequest) => {
     setProcessingId(request.id);
@@ -151,7 +135,7 @@ export function FriendsClientPage({
             break;
         }
         toast({ title, description, variant: variant as any });
-        await refreshAllData(); // Refresh data after action
+        await refreshAllData();
       } catch (error) {
         toast({
           title: 'Error',
@@ -253,10 +237,10 @@ export function FriendsClientPage({
                                                 <p className="font-semibold">{req.profiles?.display_name}</p>
                                             </div>
                                             <div className="flex items-center gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('decline', req)} disabled={isProcessing}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('decline', req)} disabled={isProcessing && processingId === req.id}>
                                                     {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <X className="h-4 w-4 text-destructive" />}
                                                 </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('accept', req)} disabled={isProcessing}>
+                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('accept', req)} disabled={isProcessing && processingId === req.id}>
                                                     {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4 text-green-500" />}
                                                 </Button>
                                             </div>
@@ -279,7 +263,7 @@ export function FriendsClientPage({
                                                 </Avatar>
                                                 <p className="font-semibold">{req.profiles?.display_name}</p>
                                             </div>
-                                            <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('cancel', req)} disabled={isProcessing}>
+                                            <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('cancel', req)} disabled={isProcessing && processingId === req.id}>
                                                 {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive" />}
                                             </Button>
                                         </div>
@@ -339,8 +323,8 @@ export function FriendsClientPage({
                                 <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span tabIndex={0}>
-                                        <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={!isVerified}>
-                                            <Plus className="h-4 w-4" />
+                                        <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={!isVerified || (isProcessing && processingId === user.id)}>
+                                            {isProcessing && processingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                                         </Button>
                                     </span>
                                 </TooltipTrigger>
