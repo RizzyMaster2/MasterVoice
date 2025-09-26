@@ -107,7 +107,6 @@ export function ChatLayout({
   const [isDeleting, startDeletingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const supabase = createClient();
   const { user: authUser } = useUser();
   const { toast } = useToast();
   const router = useRouter();
@@ -134,13 +133,17 @@ export function ChatLayout({
     setIsLoadingMessages(true);
     try {
       const serverMessages = await getMessages(chatId);
-      setMessages(serverMessages);
+      const messagesWithProfiles = serverMessages.map(msg => ({
+          ...msg,
+          profiles: userMap.get(msg.sender_id)
+      }));
+      setMessages(messagesWithProfiles);
     } catch (error) {
       toast({ title: 'Error', description: 'Could not fetch messages.', variant: 'destructive' });
     } finally {
       setIsLoadingMessages(false);
     }
-  }, [toast]);
+  }, [toast, userMap]);
 
   useEffect(() => {
     if (selectedChat?.id) {
@@ -148,57 +151,12 @@ export function ChatLayout({
     } else {
       setMessages([]);
     }
-  }, [selectedChat?.id, fetchMessages]);
+  }, [selectedChat, fetchMessages]);
 
   useEffect(() => {
     setTimeout(scrollToBottom, 100);
   }, [messages, scrollToBottom]);
 
-  useEffect(() => {
-    if (!selectedChat?.id) {
-        return;
-    };
-
-    const channel = supabase
-      .channel(`chat-room:${selectedChat.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        (payload) => {
-          const newMessage = payload.new as Message;
-          // No profile data comes from the subscription, so we add it manually.
-          if (!newMessage.profiles) {
-            newMessage.profiles = userMap.get(newMessage.sender_id) || null;
-          }
-          setMessages(current => [...current, newMessage]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat.id}` },
-        (payload) => {
-          const deletedMessageId = payload.old.id;
-          setMessages(current => current.filter(m => m.id !== deletedMessageId));
-        }
-      )
-      .subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-          // Quietly subscribed
-        }
-        if (status === 'CHANNEL_ERROR') {
-          console.error('Realtime channel error:', err);
-          toast({
-            title: 'Realtime Connection Error',
-            description: getErrorMessage(err) || 'Could not connect to real-time server.',
-            variant: 'destructive',
-          });
-        }
-      });
-    
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [selectedChat?.id, supabase, toast, userMap]);
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
@@ -210,7 +168,7 @@ export function ChatLayout({
     startSendingTransition(async () => {
         try {
             await sendMessage(selectedChat.id, content);
-            onChatUpdate();
+            onChatUpdate(); // This will trigger a refresh from the parent
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
         }
@@ -238,9 +196,12 @@ export function ChatLayout({
     startDeletingTransition(async () => {
       try {
         await deleteMessage(messageId);
+        onChatUpdate(); // Refresh from parent
       } catch (error) {
         toast({ title: 'Error deleting message', description: getErrorMessage(error), variant: 'destructive' });
-        fetchMessages(selectedChat!.id); // Refetch messages on error
+        if (selectedChat) {
+            fetchMessages(selectedChat.id); // Refetch messages on error
+        }
       }
     });
   };
@@ -566,5 +527,3 @@ export function ChatLayout({
     </Card>
   );
 }
-
-    

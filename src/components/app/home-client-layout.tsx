@@ -75,6 +75,7 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
+    // Don't set loading state here to avoid flashing the loading screen on every refresh
     try {
         const [chatsData, usersData, requestsData] = await Promise.all([
           getChats(),
@@ -120,7 +121,7 @@ export function HomeClientLayout({
   useEffect(() => {
     if (!user) return;
     
-    const channel = supabase
+    const realtimeChannel = supabase
       .channel('home-layout-realtime')
       .on(
         'postgres_changes',
@@ -133,12 +134,29 @@ export function HomeClientLayout({
             }
         }
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, () => {
           refreshAllData()
       })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, (payload) => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
           refreshAllData()
       })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat?.id}` },
+        () => {
+           // A new message arrived for the currently selected chat, refresh all data to get it.
+           // This is a simple approach. A more optimized one would be to fetch just the new message.
+           refreshAllData();
+        }
+      )
+       .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages', filter: `chat_id=eq.${selectedChat?.id}` },
+        () => {
+           // A message was deleted in the current chat, refresh.
+           refreshAllData();
+        }
+      )
       .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
               // Quietly subscribed
@@ -149,7 +167,7 @@ export function HomeClientLayout({
       });
 
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(realtimeChannel);
     };
   }, [user, supabase, refreshAllData, selectedChat, router, pathname]);
 
@@ -184,5 +202,3 @@ export function HomeClientLayout({
     </HomeClientContext.Provider>
   );
 }
-
-    
