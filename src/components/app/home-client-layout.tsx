@@ -149,9 +149,5 @@ function HomeClientLayoutContent({ currentUser }: HomeClientLayoutProps) {
 
 
 export function HomeClientLayout(props: HomeClientLayoutProps) {
-  return (
-    <Suspense fallback={<Skeleton className="flex-1 h-full" />}>
-      <HomeClientLayoutContent {...props} />
-    </Suspense>
-  )
+  return <HomeClientLayoutContent {...props} />;
 }

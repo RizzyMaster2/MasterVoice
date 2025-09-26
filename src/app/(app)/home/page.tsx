@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Suspense } from 'react';
 
 
 export default async function HomePage() {
@@ -34,9 +35,11 @@ export default async function HomePage() {
     <>
       <div className="flex-1 flex flex-col gap-6 h-full">
         {!isVerified && <UnverifiedAccountWarning />}
-        <HomeClientLayout
-            currentUser={currentUserProfile}
-        />
+        <Suspense fallback={<Skeleton className="h-full w-full" />}>
+            <HomeClientLayout
+                currentUser={currentUserProfile}
+            />
+        </Suspense>
       </div>
     </>
   );
