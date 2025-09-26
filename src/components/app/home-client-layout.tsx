@@ -31,12 +31,8 @@ export function HomeClientLayout({ currentUser, initialChats, allUsers, initialF
 
   useEffect(() => {
     setIsClient(true);
-    if (friends.length > 0 && !selectedChat) {
-      const sortedChats = [...friends].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      setSelectedChat(sortedChats[0]);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [initialChats]); // Depend on initialChats to re-run if it changes
+    // No longer auto-selecting a chat. User will select one.
+  }, []);
 
   useEffect(() => {
     if (!user) return;

@@ -127,8 +127,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     }
   }, []);
   
- const fetchMessages = useCallback(async (chatId: string) => {
-    setIsLoadingMessages(true);
+  const fetchMessages = useCallback(async (chatId: string) => {
     try {
       const serverMessages = await getMessages(chatId);
       setMessages(serverMessages);
@@ -136,13 +135,14 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       toast({ title: "Error", description: "Could not fetch messages.", variant: "destructive" });
     } finally {
         setIsLoadingMessages(false);
-         setTimeout(scrollToBottom, 100);
+        setTimeout(scrollToBottom, 100);
     }
   }, [toast, scrollToBottom]);
 
 
   useEffect(() => {
     if (selectedChat) {
+      setIsLoadingMessages(true);
       fetchMessages(selectedChat.id);
 
       const channel = supabase
@@ -153,10 +153,12 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
           (payload) => {
             const newMessage = payload.new as Message;
             // Append new message from server and remove any matching optimistic message
-            setMessages(prev => [
-                ...prev.filter(m => !(m.id.toString().startsWith('temp-') && m.content === newMessage.content)),
-                newMessage
-            ]);
+             setMessages(currentMessages => {
+                const optimisticMessageId = `temp-${newMessage.content}`;
+                const newMessages = currentMessages.filter(m => m.id !== optimisticMessageId);
+                newMessages.push(newMessage);
+                return newMessages;
+            });
             setTimeout(scrollToBottom, 100);
           }
         )
@@ -179,6 +181,7 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
       };
     } else {
       setMessages([]);
+      setIsLoadingMessages(false);
     }
   }, [selectedChat, supabase, toast, fetchMessages, scrollToBottom]);
 
@@ -197,32 +200,29 @@ export function ChatLayout({ currentUser, chats: parentChats, allUsers, selected
     const messageContent = newMessage;
     setNewMessage('');
     
-    const optimisticMessage: Message = {
-        id: `temp-${Date.now()}`,
-        created_at: new Date().toISOString(),
-        content: messageContent,
-        sender_id: currentUser.id,
-        chat_id: selectedChat.id,
-        type: 'text',
-        file_url: null,
-        profiles: currentUser,
-    };
-    setMessages(prev => [...prev, optimisticMessage]);
-    setTimeout(scrollToBottom, 0);
+    startSendingTransition(() => {
+       const optimisticMessage: Message = {
+            id: `temp-${messageContent}`,
+            created_at: new Date().toISOString(),
+            content: messageContent,
+            sender_id: currentUser.id,
+            chat_id: selectedChat.id,
+            type: 'text',
+            file_url: null,
+            profiles: currentUser,
+        };
+        setMessages(prev => [...prev, optimisticMessage]);
+        setTimeout(scrollToBottom, 0);
 
-    startSendingTransition(async () => {
-        try {
-            await sendMessage(selectedChat.id, messageContent);
-            // Realtime will trigger the actual update
-        } catch (error) {
+        sendMessage(selectedChat.id, messageContent).catch((error) => {
             console.error("Failed to send message", error);
             toast({
-            title: "Error",
-            description: getErrorMessage(error),
-            variant: "destructive"
+                title: "Error",
+                description: getErrorMessage(error),
+                variant: "destructive"
             });
             setMessages(prev => prev.filter(m => m.id !== optimisticMessage.id));
-        }
+        });
     });
   };
 
