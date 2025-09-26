@@ -60,7 +60,7 @@ export function HomeClientLayout({
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
   const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useUser();
   const supabase = createClient();
@@ -154,14 +154,7 @@ export function HomeClientLayout({
       allUsers,
       friendRequests,
       selectedChat,
-      setSelectedChat: (chat: Chat | null) => {
-          setSelectedChat(chat);
-          if (chat) {
-              router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
-          } else {
-              router.push(pathname, { scroll: false });
-          }
-      },
+      setSelectedChat,
       refreshAllData,
       handleChatDeleted,
       isLoading
