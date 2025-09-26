@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import type { UserProfile, Chat as AppChat } from '@/lib/data';
