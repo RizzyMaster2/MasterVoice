@@ -315,7 +315,10 @@ export function ChatLayout({
                         )}
                    </div>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.last_message ? chat.last_message : (chat.is_group ? `${chat.participants.length} members` : 'No messages yet.')}
+                    {chat.is_group 
+                      ? `${chat.participants.length} members` 
+                      : chat.otherParticipant?.bio || `No bio set for: ${chat.otherParticipant?.display_name}`
+                    }
                   </p>
                 </div>
               </div>
@@ -511,5 +514,3 @@ export function ChatLayout({
     </Card>
   );
 }
-
-    

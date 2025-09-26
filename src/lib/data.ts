@@ -9,6 +9,7 @@ export type UserProfile = {
   email: string | null;
   photo_url: string | null;
   status: string | null;
+  bio: string | null;
 };
 
 export type Chat = {
@@ -62,4 +63,5 @@ export const mapSupabaseUserToAppUser = (user: SupabaseUser): UserProfile => ({
     email: user.email || null,
     photo_url: user.user_metadata.avatar_url || null,
     status: 'online', // Placeholder
+    bio: user.user_metadata.bio || null,
 });

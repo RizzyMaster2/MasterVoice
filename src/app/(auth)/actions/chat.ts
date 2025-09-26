@@ -53,6 +53,7 @@ export async function getUsers(): Promise<UserProfile[]> {
         email: user.email || profile?.email || null,
         photo_url: profile?.photo_url || user.user_metadata?.photo_url || user.user_metadata?.avatar_url || null,
         status: profile?.status || 'offline',
+        bio: profile?.bio || user.user_metadata?.bio || null,
       };
     });
     return combinedUsers;
@@ -103,21 +104,9 @@ export async function getChats(): Promise<Chat[]> {
         return [];
     }
 
-    // 3. Fetch the last message for each of those chats using an RPC
-    const { data: lastMessages, error: messagesError } = await supabase
-      .rpc('get_last_messages_for_chats', { p_chat_ids: chatIds });
-
-     if (messagesError) {
-        console.error('Error fetching last messages:', messagesError);
-        // Continue without last messages if this fails, but log the error.
-    }
-
-    const lastMessageMap = new Map(lastMessages?.map(m => [m.chat_id, m]) || []);
-
-    // 4. Process the chats to add participant profiles and last messages
+    // 3. Process the chats to add participant profiles
     const processedChats = chatsData.map((chat) => {
       const participantIds = chat.chat_participants.map(p => p.user_id);
-      const lastMessage = lastMessageMap.get(chat.id);
       
       const fullChat: Chat = {
           id: chat.id,
@@ -126,8 +115,6 @@ export async function getChats(): Promise<Chat[]> {
           is_group: chat.is_group,
           admin_id: chat.admin_id,
           participants: participantIds,
-          last_message: lastMessage?.content || null,
-          last_message_timestamp: lastMessage?.created_at || null,
       };
 
       if (chat.is_group) {
@@ -560,7 +547,3 @@ export async function cancelFriendRequest(requestId: string) {
 
   revalidatePath('/home/friends');
 }
-
-    
-
-    
