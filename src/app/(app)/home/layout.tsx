@@ -5,20 +5,22 @@ import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
+import { getInitialHomeData as getInitialHomeDataAction } from '@/app/(auth)/actions/chat';
 
 async function getInitialHomeData(userId: string) {
     try {
-        const [usersData, chatsData, friendRequestsData] = await Promise.all([
-            getUsers(),
-            getChats(),
-            getFriendRequests()
-        ]);
-        
-        const allUsers = usersData;
-        const userMap = new Map(allUsers.map(u => [u.id, u]));
-        
-        const processedChats = chatsData.map((chat: Chat) => {
+        const { data: rawData, error } = await getInitialHomeDataAction(userId);
+
+        if (error) {
+            console.error('Error fetching initial home data:', error);
+            throw new Error('Could not load initial data for the application.');
+        }
+
+        const { all_users, chats, incoming_requests, outgoing_requests } = rawData;
+
+        const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
+
+        const processedChats = chats.map((chat: any) => {
             const participantIds = chat.participants;
             if (chat.is_group) {
                 chat.participantProfiles = participantIds
@@ -31,28 +33,31 @@ async function getInitialHomeData(userId: string) {
                 }
             }
             return chat;
-        }).filter(chat => {
+        }).filter((chat: Chat) => {
             if (!chat.is_group) return !!chat.otherParticipant;
             return true;
         });
 
-        const processedIncoming = friendRequestsData.incoming.map(req => ({
+        const processedIncoming = incoming_requests.map((req: any) => ({
             ...req,
             profiles: userMap.get(req.from_user_id)
         })) as FriendRequest[];
         
-        const processedOutgoing = friendRequestsData.outgoing.map(req => ({
+        const processedOutgoing = outgoing_requests.map((req: any) => ({
             ...req,
             profiles: userMap.get(req.to_user_id)
         })) as FriendRequest[];
 
-        return {
-            usersData: allUsers.filter(u => u.id !== userId),
-            chatsData: processedChats,
-            friendRequestsData: { incoming: processedIncoming, outgoing: processedOutgoing }
+        return { 
+            usersData: all_users.filter((u: UserProfile) => u.id !== userId), 
+            chatsData: processedChats, 
+            friendRequestsData: {
+                incoming: processedIncoming,
+                outgoing: processedOutgoing,
+            }
         };
     } catch(error) {
-        console.error('Error fetching initial home data:', error);
+        console.error('Error in getInitialHomeData wrapper:', error);
         throw new Error('Could not load initial data for the application.');
     }
 }
