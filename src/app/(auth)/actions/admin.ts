@@ -24,7 +24,7 @@ async function checkAdminPermissions() {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
-    const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
+    const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
     if (!user || !user.email || !adminEmails.includes(user.email)) {
         throw new Error('Permission denied.');
     }

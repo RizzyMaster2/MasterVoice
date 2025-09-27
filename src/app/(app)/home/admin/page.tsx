@@ -48,7 +48,7 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
+  const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
   if (!user || !user.email || !adminEmails.includes(user.email)) {
     notFound();
   }

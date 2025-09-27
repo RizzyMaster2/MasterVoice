@@ -13,7 +13,7 @@ export function useUser() {
 
     useEffect(() => {
         const checkRoles = (user: User | null) => {
-            const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAIL || '';
+            const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
             const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
             
             if (user && user.email) {

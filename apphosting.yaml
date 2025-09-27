@@ -12,5 +12,7 @@ secretEnv:
     env: NEXT_PUBLIC_SUPABASE_ANON_KEY
   - secret: SUPABASE_SERVICE_ROLE_KEY
     env: SUPABASE_SERVICE_ROLE_KEY
-  - secret: ADMIN_EMAIL
-    env: ADMIN_EMAIL
+  - secret: ADMIN_EMAILS
+    env: ADMIN_EMAILS
+  - secret: GEMINI_API_KEY
+    env: GEMINI_API_KEY
