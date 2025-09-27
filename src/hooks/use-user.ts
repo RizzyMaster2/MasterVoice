@@ -1,9 +1,8 @@
-
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { useToast } from "./use-toast";
 
 export function useUser() {
@@ -14,75 +13,64 @@ export function useUser() {
     const [isLoading, setIsLoading] = useState(true);
     const supabase = createClient();
 
-    const checkRolesAndPlan = useCallback((user: User | null) => {
-        const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
-        const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
-        
-        if (user && user.email) {
-            setIsAdmin(adminEmails.length > 0 && adminEmails.includes(user.email));
-            setPlan(user.user_metadata?.plan || 'free');
-        } else {
-            setIsAdmin(false);
-            setPlan('free');
-        }
-    }, []);
-
-    // This single useEffect handles both the initial fetch and the auth state listener.
-    // It runs ONLY ONCE on component mount.
     useEffect(() => {
-        const fetchUserAndSubscribe = async () => {
+        const checkRolesAndPlan = (user: User | null) => {
+            const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
+            const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
+            
+            if (user && user.email) {
+                setIsAdmin(adminEmails.length > 0 && adminEmails.includes(user.email));
+                setPlan(user.user_metadata?.plan || 'free');
+            } else {
+                setIsAdmin(false);
+                setPlan('free');
+            }
+        };
+
+        const fetchUser = async () => {
             setIsLoading(true);
-            
-            // 1. Fetch initial user
-            const { data: { user: initialUser } } = await supabase.auth.getUser();
-            
-            // 2. Set initial state
-            setUser(initialUser);
-            checkRolesAndPlan(initialUser);
+            const { data, error } = await supabase.auth.getUser();
+            if (!error && data.user) {
+                setUser(data.user);
+                checkRolesAndPlan(data.user);
+            } else {
+                setUser(null);
+                checkRolesAndPlan(null);
+            }
             setIsLoading(false);
-
-            // 3. Set up the listener for future changes
-            const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-                const currentUser = session?.user ?? null;
-                const previousUser = user;
-
-                setUser(currentUser);
-                checkRolesAndPlan(currentUser);
-
-                if (event === "USER_UPDATED" && previousUser?.user_metadata?.plan !== currentUser?.user_metadata?.plan) {
-                    toast({
-                        title: "Plan Updated!",
-                        description: `You are now on the ${currentUser?.user_metadata?.plan || 'free'} plan.`,
-                        variant: "success",
-                    });
-                }
-
-                if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
-                    // This reload is safe because this listener is set up only once.
-                    window.location.reload();
-                }
-            });
-
-            // 4. Return the cleanup function
-            return () => {
-                authListener.subscription.unsubscribe();
-            };
         };
+        fetchUser();
 
-        const unsubscribePromise = fetchUserAndSubscribe();
+        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+            const currentUser = session?.user ?? null;
+            const previousPlan = user?.user_metadata?.plan || 'free';
+            const currentPlan = currentUser?.user_metadata?.plan || 'free';
 
-        // The top-level return for the useEffect hook handles async cleanup
+            setUser(currentUser);
+            checkRolesAndPlan(currentUser);
+
+            if (isLoading) {
+                 setIsLoading(false);
+            }
+
+            if (event === "USER_UPDATED" && previousPlan !== currentPlan) {
+                toast({
+                    title: "Plan Updated!",
+                    description: `You are now on the ${currentPlan} plan.`,
+                    variant: "success",
+                });
+                 // Force a full refresh to make sure all server components and layouts re-evaluate the new plan
+                window.location.reload();
+            } else if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+                window.location.reload();
+            }
+        });
+
         return () => {
-            unsubscribePromise.then(cleanup => {
-                if (cleanup) {
-                    cleanup();
-                }
-            });
+            authListener.subscription.unsubscribe();
         };
-    // The empty dependency array is critical. This hook runs ONLY ONCE.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
+    }, [supabase, isLoading, toast, user]);
 
     const isVerified = !!user?.email_confirmed_at;
     const isProPlan = plan === 'pro' || plan === 'business';
