@@ -463,10 +463,10 @@ export default function Home() {
          <section id="ai-features" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid gap-12 md:grid-cols-2 md:items-center">
-              <div className="order-1 h-48 md:h-64 text-primary flex items-center justify-center">
+              <div className="order-1 md:order-2 h-48 md:h-64 text-primary flex items-center justify-center">
                 <AIConnectIllustration />
               </div>
-              <div className="order-2">
+              <div className="order-2 md:order-1">
                  <Badge variant="outline" className="mb-4">Coming Soon</Badge>
                 <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
                   AI-Powered Connections
