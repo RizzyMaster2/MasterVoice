@@ -26,6 +26,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
 import { Check } from 'lucide-react';
+import { LandingNav } from '@/components/app/landing-nav';
 
 const features = [
   {
@@ -199,9 +200,10 @@ export default function Home() {
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
       <MainHeader />
+      <LandingNav />
 
-      <main className="flex-1">
-        <section className="relative py-20 md:py-32">
+      <main className="flex-1 lg:pl-48">
+        <section id="hero-section" className="relative py-20 md:py-32">
           <div
             aria-hidden="true"
             className="absolute inset-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-primary/10 to-transparent"
