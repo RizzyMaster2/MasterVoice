@@ -187,63 +187,46 @@ const HowItWorksIllustration = ({ step }: { step: number }) => {
   return illustrations[step - 1];
 };
 
-const AdminIllustration = () => (
+const ChartGraphIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
         <style>{`
-            .shield-glow { 
-                animation: glow-pulse 3s infinite ease-in-out;
-            }
-            .shield-outline {
-                 stroke-dasharray: 200; 
-                stroke-dashoffset: 200; 
-                animation: draw-shield 1s 0.2s ease-out forwards; 
-            }
-            .podium-bar {
+            .chart-bar {
                 transform-origin: bottom;
                 opacity: 0;
-                animation: bar-grow 0.5s ease-out forwards;
+                animation: grow-bar 1s ease-out forwards;
             }
-            .bar-1 { animation-delay: 1.0s; }
-            .bar-2 { animation-delay: 0.8s; }
-            .bar-3 { animation-delay: 1.2s; }
-            .figure-body, .figure-head {
-                 opacity: 0;
-                animation: bug-pop 0.5s 1.4s ease-out forwards; 
-                transform-origin: center;
+            .bar-1 { animation-delay: 0.2s; }
+            .bar-2 { animation-delay: 0.4s; }
+            .bar-3 { animation-delay: 0.6s; }
+            .grid-line {
+                stroke-dasharray: 2 3;
+                animation: draw-line 1s forwards;
             }
-
-            @keyframes draw-shield { to { stroke-dashoffset: 0; } }
-            @keyframes bar-grow { 
-                from { transform: scaleY(0); }
-                to { transform: scaleY(1); opacity: 1; } 
+            .axis {
+                animation: draw-line 1s forwards;
             }
-            @keyframes bug-pop { 
-                from { transform: scale(0.5); opacity: 0; }
-                to { transform: scale(1); opacity: 1; }
+            @keyframes grow-bar {
+                from { transform: scaleY(0); opacity: 0; }
+                to { transform: scaleY(1); opacity: 1; }
             }
-             @keyframes glow-pulse {
-                50% { filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.7)); }
+            @keyframes draw-line {
+                from { opacity: 0; }
+                to { opacity: 1; }
             }
         `}</style>
-        <g className="shield-glow">
-            {/* Shield Outline */}
-            <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1" className="shield-outline" />
+        {/* Axis Lines */}
+        <path d="M10 90 H 90" stroke="currentColor" strokeWidth="2" className="axis" />
+        <path d="M10 90 V 10" stroke="currentColor" strokeWidth="2" className="axis" />
 
-            {/* Podium/Bars */}
-            <rect x="28" y="70" width="14" height="15" rx="2" fill="currentColor" className="podium-bar bar-1" />
-            <rect x="43" y="60" width="14" height="25" rx="2" fill="currentColor" className="podium-bar bar-2" />
-            <rect x="58" y="75" width="14" height="10" rx="2" fill="currentColor" className="podium-bar bar-3" />
+        {/* Grid Lines */}
+        <path d="M10 70 H 90" stroke="currentColor" strokeWidth="1" opacity="0.3" className="grid-line" />
+        <path d="M10 50 H 90" stroke="currentColor" strokeWidth="1" opacity="0.3" className="grid-line" />
+        <path d="M10 30 H 90" stroke="currentColor" strokeWidth="1" opacity="0.3" className="grid-line" />
 
-            {/* Figure */}
-            <g className="figure-body">
-                <rect x="45" y="45" width="10" height="15" fill="currentColor" />
-                <path d="M40 50 L30 45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M60 50 L70 45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M45 40 L40 30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-                <path d="M55 40 L60 30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
-            </g>
-             <circle cx="50" cy="35" r="8" fill="currentColor" className="figure-head"/>
-        </g>
+        {/* Bars */}
+        <rect x="20" y="50" width="15" height="40" rx="2" fill="hsl(var(--primary) / 0.5)" className="chart-bar bar-1" />
+        <rect x="42.5" y="30" width="15" height="60" rx="2" fill="hsl(var(--primary))" className="chart-bar bar-2" />
+        <rect x="65" y="65" width="15" height="25" rx="2" fill="hsl(var(--primary) / 0.5)" className="chart-bar bar-3" />
     </svg>
 );
 
@@ -471,7 +454,7 @@ export default function Home() {
                 </ul>
               </div>
               <div className="order-1 md:order-2 h-48 md:h-64 text-primary flex items-center justify-center">
-                <AdminIllustration />
+                <ChartGraphIllustration />
               </div>
             </div>
           </div>
@@ -480,10 +463,10 @@ export default function Home() {
          <section id="ai-features" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid gap-12 md:grid-cols-2 md:items-center">
-              <div className="order-1 md:order-2 h-48 md:h-64 text-primary flex items-center justify-center">
+              <div className="order-1 h-48 md:h-64 text-primary flex items-center justify-center">
                 <AIConnectIllustration />
               </div>
-              <div className="order-2 md:order-1">
+              <div className="order-2">
                  <Badge variant="outline" className="mb-4">Coming Soon</Badge>
                 <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
                   AI-Powered Connections
@@ -591,3 +574,5 @@ export default function Home() {
     </div>
   );
 }
+
+    
