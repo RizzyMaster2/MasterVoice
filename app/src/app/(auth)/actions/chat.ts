@@ -71,7 +71,20 @@ export async function getInitialHomeData(userId: string) {
     const { data, error } = await supabase.rpc('get_initial_home_data', { p_user_id: userId });
 
     if (error) {
+        console.error('Error fetching get_initial_home_data:', error);
         return { data: null, error: error.message };
+    }
+    
+    if (!data) {
+        return { 
+            data: { 
+                all_users: [], 
+                chats: [], 
+                incoming_requests: [], 
+                outgoing_requests: []
+            }, 
+            error: null 
+        };
     }
 
     const { all_users, chats, incoming_requests, outgoing_requests } = data;
@@ -391,43 +404,6 @@ export async function deleteChat(chatId: string, otherParticipantId: string) {
 }
 
 // --- Friend Request Actions ---
-
-export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], outgoing: FriendRequest[] }> {
-  try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const user = await getCurrentUser();
-    const userId = user.id;
-
-    // The data is now fetched via getInitialHomeData, but we keep this function
-    // for targeted refreshes if needed in the future.
-    const { data, error } = await supabase.rpc('get_initial_home_data', { p_user_id: userId });
-
-    if (error) {
-        console.error("Error fetching friend requests via RPC:", error);
-        return { incoming: [], outgoing: [] };
-    }
-
-    const { incoming_requests, outgoing_requests, all_users } = data;
-    const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
-
-    const processedIncoming = incoming_requests.map((req: any) => ({
-        ...req,
-        profiles: userMap.get(req.from_user_id)
-    })) as FriendRequest[];
-    
-    const processedOutgoing = outgoing_requests.map((req: any) => ({
-        ...req,
-        profiles: userMap.get(req.to_user_id)
-    })) as FriendRequest[];
-    
-    return { incoming: processedIncoming, outgoing: processedOutgoing };
-
-  } catch (error) {
-    console.error("Error fetching friend requests:", error);
-    return { incoming: [], outgoing: [] };
-  }
-}
 
 export async function sendFriendRequest(toUserId: string) {
   const cookieStore = cookies();

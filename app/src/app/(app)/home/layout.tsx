@@ -1,7 +1,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
