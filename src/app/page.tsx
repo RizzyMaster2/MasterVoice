@@ -442,7 +442,7 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <div className="order-2 md:order-1 h-64 md:h-80 text-primary flex items-center justify-center">
+              <div className="order-2 md:order-1 h-48 md:h-64 text-primary flex items-center justify-center">
                 <AIConnectIllustration />
               </div>
             </div>
