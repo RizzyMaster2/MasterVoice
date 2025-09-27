@@ -44,16 +44,15 @@ export function useUser() {
             // 3. Set up the listener for future changes
             const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
                 const currentUser = session?.user ?? null;
-                const previousPlan = user?.user_metadata?.plan || 'free';
-                const newPlan = currentUser?.user_metadata?.plan || 'free';
+                const previousUser = user;
 
                 setUser(currentUser);
                 checkRolesAndPlan(currentUser);
 
-                if (event === "USER_UPDATED" && previousPlan !== newPlan) {
+                if (event === "USER_UPDATED" && previousUser?.user_metadata?.plan !== currentUser?.user_metadata?.plan) {
                     toast({
                         title: "Plan Updated!",
-                        description: `You are now on the ${newPlan} plan.`,
+                        description: `You are now on the ${currentUser?.user_metadata?.plan || 'free'} plan.`,
                         variant: "success",
                     });
                 }
