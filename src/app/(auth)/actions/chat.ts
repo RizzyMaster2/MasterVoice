@@ -597,4 +597,39 @@ export async function cancelFriendRequest(requestId: string) {
   revalidatePath('/home/friends');
 }
 
+export async function getFriendsForUser(userId: string): Promise<UserProfile[]> {
+  try {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    // This function will execute a raw SQL query to get friends.
+    // 1. Find all 1-on-1 chats the user is in.
+    // 2. For each chat, find the OTHER participant.
+    // 3. Get the profile of that other participant.
+    const { data: friends, error } = await supabase.rpc('get_user_friends', { p_user_id: userId });
+
+    if (error) {
+        console.error(`Error fetching friends for user ${userId} via RPC:`, error);
+        throw new Error(error.message);
+    }
+
+    // The RPC returns user objects which should match the UserProfile structure.
+    // We need to fetch the full profiles from the `users` (auth) and `profiles` tables
+    // to build the complete UserProfile object.
     
+    const allUsers = await getUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    const friendIds = friends.map((f: { friend_id: string }) => f.friend_id);
+    
+    const friendProfiles = friendIds
+        .map(id => userMap.get(id))
+        .filter((p): p is UserProfile => !!p);
+      
+    return friendProfiles;
+
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+    console.error(`Error in getFriendsForUser for user ${userId}:`, message);
+    throw new Error(message);
+  }
+}

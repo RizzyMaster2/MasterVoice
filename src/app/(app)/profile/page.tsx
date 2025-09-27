@@ -39,7 +39,7 @@ import {
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import type { UserProfile } from '@/lib/data';
-import { getFriendsForUser } from '@/app/(auth)/actions/admin';
+import { getFriendsForUser } from '@/app/(auth)/actions/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
@@ -73,7 +73,6 @@ export default function ProfilePage() {
       if (user) {
         setIsLoadingFriends(true);
         try {
-          // Use the new, more performant function
           const friendList = await getFriendsForUser(user.id);
           setFriends(friendList);
         } catch (error) {

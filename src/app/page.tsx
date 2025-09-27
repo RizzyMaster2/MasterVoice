@@ -190,52 +190,59 @@ const HowItWorksIllustration = ({ step }: { step: number }) => {
 const AdminIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
         <style>{`
-            .shield-outline { 
-                stroke-dasharray: 200; 
+            .shield-glow { 
+                animation: glow-pulse 3s infinite ease-in-out;
+            }
+            .shield-outline {
+                 stroke-dasharray: 200; 
                 stroke-dashoffset: 200; 
                 animation: draw-shield 1s 0.2s ease-out forwards; 
             }
-            .bar { 
-                transform-origin: bottom; 
-                opacity: 0; 
-                animation: bar-grow 0.5s ease-out forwards; 
+            .podium-bar {
+                transform-origin: bottom;
+                opacity: 0;
+                animation: bar-grow 0.5s ease-out forwards;
             }
             .bar-1 { animation-delay: 1.0s; }
             .bar-2 { animation-delay: 0.8s; }
             .bar-3 { animation-delay: 1.2s; }
-            .bug { 
-                opacity: 0; 
+            .figure-body, .figure-head {
+                 opacity: 0;
                 animation: bug-pop 0.5s 1.4s ease-out forwards; 
                 transform-origin: center;
-            }
-            .glow-filter { 
-                animation: glow-pulse 3s infinite ease-in-out;
             }
 
             @keyframes draw-shield { to { stroke-dashoffset: 0; } }
             @keyframes bar-grow { 
+                from { transform: scaleY(0); }
                 to { transform: scaleY(1); opacity: 1; } 
             }
             @keyframes bug-pop { 
-                0% { transform: scale(0.5); opacity: 0; }
-                100% { transform: scale(1); opacity: 1; }
+                from { transform: scale(0.5); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
             }
-            @keyframes glow-pulse {
+             @keyframes glow-pulse {
                 50% { filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.7)); }
             }
         `}</style>
-        
-        <g className="glow-filter">
+        <g className="shield-glow">
+            {/* Shield Outline */}
             <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1" className="shield-outline" />
 
-            <rect x="28" y="55" width="12" height="30" rx="2" fill="hsl(var(--primary))" className="bar bar-1" transform="scale(1, 0)" />
-            <rect x="44" y="40" width="12" height="45" rx="2" fill="hsl(var(--primary))" className="bar bar-2" transform="scale(1, 0)" />
-            <rect x="60" y="60" width="12" height="25" rx="2" fill="hsl(var(--primary))" className="bar bar-3" transform="scale(1, 0)" />
+            {/* Podium/Bars */}
+            <rect x="28" y="70" width="14" height="15" rx="2" fill="currentColor" className="podium-bar bar-1" />
+            <rect x="43" y="60" width="14" height="25" rx="2" fill="currentColor" className="podium-bar bar-2" />
+            <rect x="58" y="75" width="14" height="10" rx="2" fill="currentColor" className="podium-bar bar-3" />
 
-            <g className="bug">
-                <path d="M50 35 a 10 10 0 1 1 0.001 0 Z" fill="hsl(var(--primary))" />
-                <path d="M50 35 L 50 25 M 50 45 L 50 55 M 40 35 L 30 35 M 60 35 L 70 35 M 43 28 L 35 20 M 57 42 L 65 50 M 57 28 L 65 20 M 43 42 L 35 50" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round"/>
+            {/* Figure */}
+            <g className="figure-body">
+                <rect x="45" y="45" width="10" height="15" fill="currentColor" />
+                <path d="M40 50 L30 45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M60 50 L70 45" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M45 40 L40 30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                <path d="M55 40 L60 30" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
             </g>
+             <circle cx="50" cy="35" r="8" fill="currentColor" className="figure-head"/>
         </g>
     </svg>
 );
