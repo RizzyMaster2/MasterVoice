@@ -413,7 +413,7 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <div className="order-1 md:order-2 h-64 md:h-80 text-primary flex items-center justify-center">
+              <div className="order-1 md:order-2 h-48 md:h-64 text-primary flex items-center justify-center">
                 <AdminIllustration />
               </div>
             </div>

@@ -8,6 +8,8 @@ import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogTitle,
 } from '@/components/ui/dialog';
 import { Mic, MicOff, PhoneOff, Loader2, Signal, Timer } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -289,6 +291,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   return (
     <Dialog open={true} onOpenChange={() => handleClose(true)}>
       <DialogContent className="max-w-md h-[70vh] flex flex-col p-0 gap-0" onInteractOutside={(e) => e.preventDefault()}>
+        <DialogTitle className="sr-only">Voice Call</DialogTitle>
+        <DialogDescription className="sr-only">A voice call is in progress. You can mute your microphone or hang up.</DialogDescription>
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gradient-to-br from-background to-primary/5 relative overflow-hidden">
             <div className={cn("absolute inset-0 bg-primary/10 transition-opacity duration-700", status === 'connected' ? 'opacity-100' : 'opacity-0')} />
              <div className="absolute top-4 left-4 z-10 flex gap-2">
@@ -342,5 +346,3 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
-
-    
