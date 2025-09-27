@@ -1,6 +1,6 @@
 
 'use server';
-
+import '@/lib/env';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
@@ -25,7 +25,7 @@ async function checkAdminPermissions() {
     const supabase = createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
     const adminEmails = process.env.ADMIN_EMAIL?.split(',') || [];
-    if (!user || !adminEmails.includes(user.email!)) {
+    if (!user || !user.email || !adminEmails.includes(user.email)) {
         throw new Error('Permission denied.');
     }
     return createAdminClient();
