@@ -27,57 +27,60 @@ export function useUser() {
         }
     }, []);
 
+    // This single useEffect handles both the initial fetch and the auth state listener.
+    // It runs ONLY ONCE on component mount.
     useEffect(() => {
-        const fetchUser = async () => {
-            const { data, error } = await supabase.auth.getUser();
-            if (error) {
-                console.error("Error fetching user:", error);
-                setIsLoading(false);
-                return;
-            }
-            setUser(data.user);
-            checkRolesAndPlan(data.user);
-            setIsLoading(false);
-        };
-        
-        fetchUser();
-    }, [supabase, checkRolesAndPlan]);
-
-    useEffect(() => {
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            const currentUser = session?.user ?? null;
-            const previousPlan = user?.user_metadata?.plan || 'free';
-            const newPlan = currentUser?.user_metadata?.plan || 'free';
-
-            setUser(currentUser);
-            checkRolesAndPlan(currentUser);
+        const fetchUserAndSubscribe = async () => {
+            setIsLoading(true);
             
-            // Only set loading to false after the initial state is determined.
-            // subsequent changes shouldn't flash a loading screen.
-            if (isLoading) {
-              setIsLoading(false);
-            }
+            // 1. Fetch initial user
+            const { data: { user: initialUser } } = await supabase.auth.getUser();
+            
+            // 2. Set initial state
+            setUser(initialUser);
+            checkRolesAndPlan(initialUser);
+            setIsLoading(false);
 
-            if (event === "USER_UPDATED" && previousPlan !== newPlan) {
-                 toast({
-                    title: "Plan Updated!",
-                    description: `You are now on the ${newPlan} plan. Refresh the page to see your new features.`,
-                    variant: "success",
-                });
-                // We remove the automatic reload to prevent loops.
-                // The user is notified to refresh.
-            }
+            // 3. Set up the listener for future changes
+            const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+                const currentUser = session?.user ?? null;
+                const previousPlan = user?.user_metadata?.plan || 'free';
+                const newPlan = currentUser?.user_metadata?.plan || 'free';
 
-            // Reloading here is safe because this listener only runs ONCE.
-            if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
-                window.location.reload();
-            }
-        });
+                setUser(currentUser);
+                checkRolesAndPlan(currentUser);
 
-        return () => {
-            authListener.subscription.unsubscribe();
+                if (event === "USER_UPDATED" && previousPlan !== newPlan) {
+                    toast({
+                        title: "Plan Updated!",
+                        description: `You are now on the ${newPlan} plan.`,
+                        variant: "success",
+                    });
+                }
+
+                if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+                    // This reload is safe because this listener is set up only once.
+                    window.location.reload();
+                }
+            });
+
+            // 4. Return the cleanup function
+            return () => {
+                authListener.subscription.unsubscribe();
+            };
         };
-    // The empty dependency array is CRITICAL to prevent this from re-running and causing a loop.
+
+        const unsubscribePromise = fetchUserAndSubscribe();
+
+        // The top-level return for the useEffect hook handles async cleanup
+        return () => {
+            unsubscribePromise.then(cleanup => {
+                if (cleanup) {
+                    cleanup();
+                }
+            });
+        };
+    // The empty dependency array is critical. This hook runs ONLY ONCE.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
