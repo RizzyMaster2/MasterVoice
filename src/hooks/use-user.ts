@@ -3,7 +3,7 @@
 
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useToast } from "./use-toast";
 
 export function useUser() {
@@ -14,23 +14,23 @@ export function useUser() {
     const [isLoading, setIsLoading] = useState(true);
     const supabase = createClient();
 
-    useEffect(() => {
-        const checkRolesAndPlan = (user: User | null) => {
-            const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
-            const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
-            
-            if (user && user.email) {
-                setIsAdmin(adminEmails.length > 0 && adminEmails.includes(user.email));
-                setPlan(user.user_metadata?.plan || 'free');
-            } else {
-                setIsAdmin(false);
-                setPlan('free');
-            }
-        };
+    const checkRolesAndPlan = useCallback((user: User | null) => {
+        const adminEmailList = process.env.NEXT_PUBLIC_ADMIN_EMAILS || '';
+        const adminEmails = adminEmailList.split(',').filter(email => email.trim() !== '');
+        
+        if (user && user.email) {
+            setIsAdmin(adminEmails.length > 0 && adminEmails.includes(user.email));
+            setPlan(user.user_metadata?.plan || 'free');
+        } else {
+            setIsAdmin(false);
+            setPlan('free');
+        }
+    }, []);
 
+    useEffect(() => {
         const fetchUser = async () => {
-            setIsLoading(true);
             const { data, error } = await supabase.auth.getUser();
+            
             if (!error && data.user) {
                 setUser(data.user);
                 checkRolesAndPlan(data.user);
@@ -40,19 +40,21 @@ export function useUser() {
             }
             setIsLoading(false);
         };
+        
         fetchUser();
+    }, [supabase, checkRolesAndPlan]);
 
+    useEffect(() => {
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             const currentUser = session?.user ?? null;
+            
+            // Get the previous plan from the current state before updating
             const previousPlan = user?.user_metadata?.plan || 'free';
             const currentPlan = currentUser?.user_metadata?.plan || 'free';
 
             setUser(currentUser);
             checkRolesAndPlan(currentUser);
-
-            if (isLoading) {
-                 setIsLoading(false);
-            }
+            setIsLoading(false);
 
             if (event === "USER_UPDATED" && previousPlan !== currentPlan) {
                 toast({
@@ -60,9 +62,9 @@ export function useUser() {
                     description: `You are now on the ${currentPlan} plan.`,
                     variant: "success",
                 });
-                 // Force a full refresh to make sure all server components and layouts re-evaluate the new plan
                 window.location.reload();
             } else if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+                // This helps sync server components and client state after login/logout
                 window.location.reload();
             }
         });
@@ -70,8 +72,10 @@ export function useUser() {
         return () => {
             authListener.subscription.unsubscribe();
         };
+    // The dependencies for this effect need to be stable and not cause re-runs.
+    // user, checkRolesAndPlan are included so we can compare old vs new plan.
+    }, [supabase, toast, checkRolesAndPlan, user]);
 
-    }, [supabase, toast, isLoading]);
 
     const isVerified = !!user?.email_confirmed_at;
     const isProPlan = plan === 'pro' || plan === 'business';
