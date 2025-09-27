@@ -188,8 +188,58 @@ const HowItWorksIllustration = ({ step }: { step: number }) => {
 };
 
 const AdminIllustration = () => (
-    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.bg-shape{opacity:.1;animation:pulse 4s infinite ease-in-out}.shield{transform-origin:center;animation:shield-pop .6s .2s ease-out forwards;opacity:0}.gear{transform-origin:center;animation:spin 8s linear infinite}.chart-bar{transform-origin:bottom;animation:bar-grow .5s ease-out forwards;opacity:0;transform:scaleY(0)}.bar-1{animation-delay:.8s}.bar-2{animation-delay:1s}.bar-3{animation-delay:1.2s}@keyframes shield-pop{to{transform:scale(1);opacity:1}}@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{50%{opacity:.2}}@keyframes bar-grow{to{opacity:1;transform:scaleY(1)}}`}</style><path d="M0 50 Q 50 -20 100 50 L 100 100 L 0 100 Z" fill="hsl(var(--primary))" className="bg-shape"/><g className="shield"><path d="M50 15 L85 30 V 70 C 85 85 50 95 50 95 S 15 85 15 70 V 30 Z" fill="hsl(var(--card))" stroke="hsl(var(--primary))" strokeWidth="2"/><g className="gear"><path d="M50 42 L 50 58 M42 50 L 58 50 M44.4 44.4 L 55.6 55.6 M44.4 55.6 L 55.6 44.4" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/><circle cx="50" cy="50" r="14" fill="none" stroke="currentColor" strokeWidth="2"/><circle cx="50" cy="50" r="5" fill="currentColor"/></g></g><rect x="25" y="60" width="8" height="20" rx="2" fill="currentColor" className="chart-bar bar-1"/><rect x="46" y="50" width="8" height="30" rx="2" fill="currentColor" className="chart-bar bar-2"/><rect x="67" y="55" width="8" height="25" rx="2" fill="currentColor" className="chart-bar bar-3"/></svg>
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+        <style>{`
+            .shield-bg { opacity: 0; animation: shield-pop 0.6s 0.2s ease-out forwards; }
+            .shield-outline { stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw-shield 1s 0.4s ease-out forwards; }
+            .bar { transform-origin: bottom; opacity: 0; animation: bar-grow 0.5s ease-out forwards; }
+            .bar-1 { animation-delay: 1.2s; }
+            .bar-2 { animation-delay: 1.0s; }
+            .bar-3 { animation-delay: 1.4s; }
+            .cog { transform-origin: center; opacity: 0; animation: cog-pop 0.5s 1s ease-out forwards, spin 10s linear infinite; }
+
+            @keyframes shield-pop { to { opacity: 0.1; } }
+            @keyframes draw-shield { to { stroke-dashoffset: 0; } }
+            @keyframes bar-grow { to { transform: scaleY(1); opacity: 1; } }
+            @keyframes cog-pop { to { opacity: 1; } }
+            @keyframes spin { to { transform: rotate(360deg); } }
+        `}</style>
+        <defs>
+            <linearGradient id="shield-grad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="hsl(var(--primary) / 0.3)" />
+                <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
+            </linearGradient>
+            <filter id="glow-primary" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                <feMerge>
+                    <feMergeNode in="coloredBlur" />
+                    <feMergeNode in="SourceGraphic" />
+                </feMerge>
+            </filter>
+        </defs>
+
+        <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="url(#shield-grad)" className="shield-bg" />
+        <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1" className="shield-outline" />
+
+        <g filter="url(#glow-primary)" opacity="0.8">
+            <rect x="25" y="60" width="10" height="25" rx="2" fill="hsl(var(--primary))" className="bar bar-1" />
+            <rect x="45" y="70" width="10" height="15" rx="2" fill="hsl(var(--primary))" className="bar bar-2" transform="scale(1, 0)" />
+            <path d="M50 40 V 70" stroke="hsl(var(--primary))" strokeWidth="10" strokeLinecap="round" className="bar bar-2" transform="scale(1, 0)" />
+            <rect x="65" y="55" width="10" height="30" rx="2" fill="hsl(var(--primary))" className="bar bar-3" transform="scale(1, 0)" />
+            
+            <g className="cog">
+                <circle cx="50" cy="50" r="10" fill="hsl(var(--primary))" />
+                <path 
+                    d="M50,35 L50,65 M35,50 L65,50 M39.4,39.4 L60.6,60.6 M39.4,60.6 L60.6,39.4"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                />
+            </g>
+        </g>
+    </svg>
 );
+
 
 const AIConnectIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.brain{animation:brain-glow 3s infinite ease-in-out}.node{animation:node-pulse 2s infinite ease-in-out}.line{stroke-dasharray:100;stroke-dashoffset:100;animation:draw-line 2s .5s forwards infinite}.n1{animation-delay:-.5s}.n2{animation-delay:-1s}.n3{animation-delay:-1.5s}.l1{animation-delay:.5s}.l2{animation-delay:1s}.l3{animation-delay:1.5s}@keyframes brain-glow{50%{filter:drop-shadow(0 0 5px hsl(var(--primary)))}}@keyframes node-pulse{50%{r:4}}@keyframes draw-line{50%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}`}</style><path d="M50 20 C 30 20 30 40 50 40 C 70 40 70 20 50 20 M50 40 C 30 40 30 60 50 60 C 70 60 70 40 50 40 M50 60 C 30 60 30 80 50 80 C 70 80 70 60 50 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" className="brain" /><circle cx="20" cy="30" r="3" fill="currentColor" className="node n1"/><circle cx="80" cy="70" r="3" fill="currentColor" className="node n2"/><circle cx="30" cy="70" r="3" fill="currentColor" className="node n3"/><circle cx="70" cy="30" r="3" fill="currentColor" className="node"/><path d="M50 40 C 30 40 30 30 20 30" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l1" opacity=".5"/><path d="M50 60 C 70 60 70 70 80 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l2" opacity=".5"/><path d="M50 80 C 30 80 30 70 30 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l3" opacity=".5"/></svg>
@@ -408,7 +458,7 @@ export default function Home() {
                     <span><strong className="font-semibold">User Management:</strong> Easily view, manage, and moderate all users.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <ShieldCheck className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Check className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">Custom Roles:</strong> Define roles and permissions to fit your organization.</span>
                   </li>
                 </ul>
@@ -423,6 +473,9 @@ export default function Home() {
          <section id="ai-features" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid gap-12 md:grid-cols-2 md:items-center">
+              <div className="order-2 md:order-1 h-48 md:h-64 text-primary flex items-center justify-center">
+                <AIConnectIllustration />
+              </div>
               <div className="order-1 md:order-2">
                  <Badge variant="outline" className="mb-4">Coming Soon</Badge>
                 <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
@@ -441,9 +494,6 @@ export default function Home() {
                     <span><strong className="font-semibold">Interest Matching:</strong> Find groups and users that share your passions and hobbies.</span>
                   </li>
                 </ul>
-              </div>
-              <div className="order-2 md:order-1 h-48 md:h-64 text-primary flex items-center justify-center">
-                <AIConnectIllustration />
               </div>
             </div>
           </div>
