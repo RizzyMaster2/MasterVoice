@@ -445,60 +445,6 @@ export default function Home() {
           </div>
         </section>
 
-        <section id="testimonials" className="py-20 md:py-32 bg-secondary/30">
-          <div className="container mx-auto px-4 md:px-6">
-             <div className="text-center">
-              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
-                Loved by Teams and Friends
-              </h2>
-              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
-                Don't just take our word for it. Here's what people are saying about MasterVoice.
-              </p>
-            </div>
-            <div className="mt-16 grid gap-8 md:grid-cols-3">
-              <Card className="p-6 bg-card">
-                <div className="flex text-yellow">
-                  <Star /><Star /><Star /><Star /><Star />
-                </div>
-                <p className="mt-4">"The audio quality is insane. It feels like my teammates are right in the room with me. A total game-changer for our late-night sessions."</p>
-                <div className="mt-4 flex items-center gap-3">
-                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar1')?.imageUrl || ''} data-ai-hint="man portrait" alt="Avatar 1" width={40} height={40} className="rounded-full" />
-                  <div>
-                    <p className="font-semibold">Alex R.</p>
-                    <p className="text-sm text-muted-foreground">Pro Gamer</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-6 bg-card">
-                <div className="flex text-yellow">
-                  <Star /><Star /><Star /><Star /><Star />
-                </div>
-                <p className="mt-4">"As a remote team, communication is key. MasterVoice has become our virtual office. It's simple, reliable, and just works."</p>
-                <div className="mt-4 flex items-center gap-3">
-                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar2')?.imageUrl || ''} data-ai-hint="woman portrait" alt="Avatar 2" width={40} height={40} className="rounded-full" />
-                  <div>
-                    <p className="font-semibold">Jessica M.</p>
-                    <p className="text-sm text-muted-foreground">Project Manager</p>
-                  </div>
-                </div>
-              </Card>
-              <Card className="p-6 bg-card">
-                <div className="flex text-yellow">
-                  <Star /><Star /><Star /><Star /><Star />
-                </div>
-                <p className="mt-4">"My friends and I use this every day to stay in touch. It's so much better than just texting. We love the group call feature!"</p>
-                <div className="mt-4 flex items-center gap-3">
-                  <Image src={PlaceHolderImages.find(p => p.id === 'avatar3')?.imageUrl || ''} data-ai-hint="person portrait" alt="Avatar 3" width={40} height={40} className="rounded-full" />
-                  <div>
-                    <p className="font-semibold">Sam K.</p>
-                    <p className="text-sm text-muted-foreground">Student</p>
-                  </div>
-                </div>
-              </Card>
-            </div>
-          </div>
-        </section>
-
         <section className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6 text-center">
              <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground md:text-5xl">
