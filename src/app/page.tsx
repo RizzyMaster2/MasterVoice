@@ -16,6 +16,8 @@ import {
   Gamepad2,
   Briefcase,
   Heart,
+  Cog,
+  DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -411,7 +413,7 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <div className="order-1 md:order-2 h-64 md:h-80 text-primary">
+              <div className="order-1 md:order-2 h-64 md:h-80 text-primary flex items-center justify-center">
                 <AdminIllustration />
               </div>
             </div>
@@ -440,14 +442,14 @@ export default function Home() {
                   </li>
                 </ul>
               </div>
-              <div className="order-2 md:order-1 h-64 md:h-80 text-primary">
+              <div className="order-2 md:order-1 h-64 md:h-80 text-primary flex items-center justify-center">
                 <AIConnectIllustration />
               </div>
             </div>
           </div>
         </section>
 
-        <section className="py-20 md:py-32">
+        <section id="call-to-action" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6 text-center">
              <h2 className="font-headline text-3xl font-bold tracking-tight text-foreground md:text-5xl">
               Ready to Find Your Harmony?
