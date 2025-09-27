@@ -5,57 +5,56 @@ import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
+import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
 
 async function getInitialHomeData(userId: string) {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const { data, error } = await supabase.rpc('get_initial_home_data');
+    try {
+        const [usersData, chatsData, friendRequestsData] = await Promise.all([
+            getUsers(),
+            getChats(),
+            getFriendRequests()
+        ]);
+        
+        const allUsers = usersData;
+        const userMap = new Map(allUsers.map(u => [u.id, u]));
+        
+        const processedChats = chatsData.map((chat: Chat) => {
+            const participantIds = chat.participants;
+            if (chat.is_group) {
+                chat.participantProfiles = participantIds
+                    .map((id: string) => userMap.get(id))
+                    .filter((p: any): p is UserProfile => !!p);
+            } else {
+                const otherParticipantId = participantIds.find((id: string) => id !== userId);
+                if (otherParticipantId) {
+                    chat.otherParticipant = userMap.get(otherParticipantId);
+                }
+            }
+            return chat;
+        }).filter(chat => {
+            if (!chat.is_group) return !!chat.otherParticipant;
+            return true;
+        });
 
-    if (error) {
+        const processedIncoming = friendRequestsData.incoming.map(req => ({
+            ...req,
+            profiles: userMap.get(req.from_user_id)
+        })) as FriendRequest[];
+        
+        const processedOutgoing = friendRequestsData.outgoing.map(req => ({
+            ...req,
+            profiles: userMap.get(req.to_user_id)
+        })) as FriendRequest[];
+
+        return {
+            usersData: allUsers.filter(u => u.id !== userId),
+            chatsData: processedChats,
+            friendRequestsData: { incoming: processedIncoming, outgoing: processedOutgoing }
+        };
+    } catch(error) {
         console.error('Error fetching initial home data:', error);
         throw new Error('Could not load initial data for the application.');
     }
-    
-    const allUsers: UserProfile[] = data.all_users || [];
-    const chats: Chat[] = data.chats || [];
-    const incoming: FriendRequest[] = data.incoming_friend_requests || [];
-    const outgoing: FriendRequest[] = data.outgoing_friend_requests || [];
-
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
-    const processedChats = chats.map((chat: Chat) => {
-        const participantIds = chat.participants;
-        if (chat.is_group) {
-            chat.participantProfiles = participantIds
-                .map((id: string) => userMap.get(id))
-                .filter((p: any): p is UserProfile => !!p);
-        } else {
-            const otherParticipantId = participantIds.find((id: string) => id !== userId);
-            if (otherParticipantId) {
-                chat.otherParticipant = userMap.get(otherParticipantId);
-            }
-        }
-        return chat;
-    }).filter(chat => {
-        if (!chat.is_group) return !!chat.otherParticipant;
-        return true;
-    });
-
-    const processedIncoming = incoming.map(req => ({
-        ...req,
-        profiles: userMap.get(req.from_user_id)
-    })) as FriendRequest[];
-    
-    const processedOutgoing = outgoing.map(req => ({
-        ...req,
-        profiles: userMap.get(req.to_user_id)
-    })) as FriendRequest[];
-
-    return {
-        usersData: allUsers.filter(u => u.id !== userId),
-        chatsData: processedChats,
-        friendRequestsData: { incoming: processedIncoming, outgoing: processedOutgoing }
-    };
 }
 
 
