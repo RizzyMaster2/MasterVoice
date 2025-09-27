@@ -39,9 +39,15 @@ const adminMenuItem = {
   icon: Shield,
 };
 
+const businessAdminMenuItem = {
+  href: '/home/admin/business',
+  label: 'Admin',
+  icon: Shield,
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isAdmin } = useUser();
+  const { isAdmin, isBusinessPlan } = useUser();
 
   const isMenuItemActive = (href: string) => {
     if (href === '/home') {
@@ -50,6 +56,9 @@ export function AppSidebar() {
     }
     return pathname.startsWith(href);
   }
+  
+  const finalAdminMenuItem = isBusinessPlan ? businessAdminMenuItem : adminMenuItem;
+  const showAdminLink = isAdmin || isBusinessPlan;
 
   return (
     <>
@@ -74,17 +83,17 @@ export function AppSidebar() {
               {item.label}
             </Link>
           ))}
-          {isAdmin && (
+          {showAdminLink && (
              <Link
-              key={adminMenuItem.href}
-              href={adminMenuItem.href}
+              key={finalAdminMenuItem.href}
+              href={finalAdminMenuItem.href}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
-                pathname.startsWith(adminMenuItem.href) && 'bg-muted text-primary'
+                pathname.startsWith(finalAdminMenuItem.href) && 'bg-muted text-primary'
               )}
             >
-              <adminMenuItem.icon className="h-4 w-4" />
-              {adminMenuItem.label}
+              <finalAdminMenuItem.icon className="h-4 w-4" />
+              {finalAdminMenuItem.label}
             </Link>
           )}
         </nav>
