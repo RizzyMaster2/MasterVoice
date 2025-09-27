@@ -1,6 +1,7 @@
 
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,20 +16,26 @@ export default function BusinessAdminPage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  if (isLoading) {
+  useEffect(() => {
+    // We only want to redirect if loading is finished and the user is not a business plan user.
+    if (!isLoading && !isBusinessPlan) {
+      router.replace('/home');
+    }
+  }, [isLoading, isBusinessPlan, router]);
+
+
+  if (isLoading || !isBusinessPlan) {
     return (
-        <div className="space-y-6">
-            <Skeleton className="h-24 w-full" />
-            <Skeleton className="h-32 w-full" />
-            <Skeleton className="h-48 w-full" />
-        </div>
+        <div className="flex flex-col items-center justify-center h-full">
+         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+         <p className="text-muted-foreground">Verifying permissions...</p>
+       </div>
     );
   }
-
-  if (!user || !isBusinessPlan) {
-    // Redirect to home if not a business user. Using router.replace to avoid adding to history.
-    router.replace('/home');
-    return (
+  
+  if (!user) {
+    // This case should be handled by the layout and middleware, but as a fallback:
+     return (
        <div className="flex flex-col items-center justify-center h-full">
          <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
          <p className="text-muted-foreground">Redirecting...</p>
@@ -43,6 +50,7 @@ export default function BusinessAdminPage() {
     toast({
         title: 'Invite Link Copied',
         description: 'You can now share the link with your team.',
+        variant: 'success'
     });
   }
 
