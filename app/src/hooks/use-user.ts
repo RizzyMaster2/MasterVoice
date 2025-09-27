@@ -27,55 +27,55 @@ export function useUser() {
         }
     }, []);
 
-    // Effect for fetching the initial user state
+    // This single useEffect handles both the initial fetch and the auth state listener.
     useEffect(() => {
-        const fetchUser = async () => {
+        const fetchUserAndSubscribe = async () => {
             setIsLoading(true);
-            const { data, error } = await supabase.auth.getUser();
-            if (error) {
-                console.error("Error fetching user:", error);
-            } else {
-                setUser(data.user);
-                checkRolesAndPlan(data.user);
-            }
+            const { data: { user } } = await supabase.auth.getUser();
+            
+            setUser(user);
+            checkRolesAndPlan(user);
             setIsLoading(false);
+
+            const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
+                const currentUser = session?.user ?? null;
+                const previousPlan = user?.user_metadata?.plan || 'free';
+                const newPlan = currentUser?.user_metadata?.plan || 'free';
+
+                setUser(currentUser);
+                checkRolesAndPlan(currentUser);
+
+                if (event === "USER_UPDATED" && previousPlan !== newPlan) {
+                    toast({
+                        title: "Plan Updated!",
+                        description: `You are now on the ${newPlan} plan.`,
+                        variant: "success",
+                    });
+                }
+
+                if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+                    window.location.reload();
+                }
+            });
+
+            return () => {
+                authListener.subscription.unsubscribe();
+            };
         };
-        
-        fetchUser();
-    }, [supabase, checkRolesAndPlan]);
 
-    // Effect for listening to auth state changes
-    useEffect(() => {
-        const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
-            const currentUser = session?.user ?? null;
-            const previousPlan = user?.user_metadata?.plan || 'free';
-            const newPlan = currentUser?.user_metadata?.plan || 'free';
+        const unsubscribePromise = fetchUserAndSubscribe();
 
-            setUser(currentUser);
-            checkRolesAndPlan(currentUser);
-
-            if (event === "USER_UPDATED" && previousPlan !== newPlan) {
-                 toast({
-                    title: "Plan Updated!",
-                    description: `You are now on the ${newPlan} plan.`,
-                    variant: "success",
-                });
-            }
-
-            if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
-                // This will trigger a server-side render and is the safest way to
-                // refresh the app state after auth events.
-                window.location.reload();
-            }
-        });
-
+        // Cleanup function for the useEffect hook
         return () => {
-            authListener.subscription.unsubscribe();
+            unsubscribePromise.then(unsubscribe => {
+                if (unsubscribe) {
+                    unsubscribe();
+                }
+            });
         };
-    // The dependency array is crucial here. user and checkRolesAndPlan ensure the listener has fresh data.
-    // The check for signed in/out events prevents loops.
+    // The empty dependency array is critical here. This hook runs ONLY ONCE.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [user, supabase, checkRolesAndPlan]);
+    }, []);
 
 
     const isVerified = !!user?.email_confirmed_at;
