@@ -41,3 +41,39 @@ export async function deleteUser(userId: string) {
     revalidatePath('/home/admin');
   }
 }
+
+
+export async function updateUserPlan(planId: 'pro' | 'business', purchaseType: 'monthly' | 'lifetime') {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("User not found.");
+    }
+    
+    let inviteLink = null;
+    if (planId === 'business') {
+        // Generate a fake but unique invite link
+        const organizationId = `org_${new Date().getTime()}`;
+        inviteLink = `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:9002'}/join?org=${organizationId}`;
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+        data: {
+            ...user.user_metadata,
+            plan: planId,
+            purchase_type: purchaseType,
+            ...(inviteLink && { business_invite_link: inviteLink })
+        }
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+    
+    revalidatePath('/profile');
+    revalidatePath('/home');
+
+    return { updatedUser: data.user, inviteLink };
+}

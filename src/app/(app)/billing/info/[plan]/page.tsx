@@ -1,13 +1,15 @@
 
 'use client';
 
+import { useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Check, Info } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Check, Info, ArrowLeft } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import { Skeleton } from '@/components/ui/skeleton';
+import { FakeCheckoutForm } from '@/components/app/fake-checkout-form';
+import { Button } from '@/components/ui/button';
 
 const planDetails = {
   free: {
@@ -20,7 +22,7 @@ const planDetails = {
       'Basic Voice Calls',
       'Community Support',
     ],
-    description: 'You are currently on the Free plan. Upgrade for more features!',
+    description: 'You are currently on the Free plan. This page is for viewing plan details.',
     cta: 'Current Plan',
     disabled: true,
   },
@@ -66,6 +68,8 @@ export default function BillingInfoPage() {
   const plan = planDetails[planKey] || null;
 
   const { user, isVerified, isLoading } = useUser();
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedPrice, setSelectedPrice] = useState<'monthly' | 'lifetime' | null>(null);
 
   if (isLoading) {
     return (
@@ -93,6 +97,34 @@ export default function BillingInfoPage() {
         </Card>
       </div>
     );
+  }
+  
+  const handleUpgradeClick = (priceType: 'monthly' | 'lifetime') => {
+      setSelectedPrice(priceType);
+      setShowCheckout(true);
+  }
+  
+  const getPrice = () => {
+    if (!selectedPrice) return '$0';
+    if (selectedPrice === 'monthly') return plan.monthlyPrice.split('/')[0];
+    return plan.lifetimePrice;
+  }
+
+  if (showCheckout) {
+    return (
+        <div className="max-w-2xl mx-auto space-y-6">
+            <Button variant="ghost" onClick={() => setShowCheckout(false)} className="mb-4">
+                <ArrowLeft className="mr-2 h-4 w-4" />
+                Back to Plan Details
+            </Button>
+            <FakeCheckoutForm 
+                planName={plan.name}
+                price={getPrice()}
+                priceType={selectedPrice!}
+                planId={planKey}
+            />
+        </div>
+    )
   }
 
   return (
@@ -127,25 +159,25 @@ export default function BillingInfoPage() {
           </div>
           <div className="p-4 bg-accent/50 rounded-lg flex items-start gap-3 text-accent-foreground">
              <Info className="h-5 w-5 mt-1 shrink-0 text-primary" />
-             <p className="text-sm">Billing functionality is coming soon. This page is a placeholder for the checkout process.</p>
+             <p className="text-sm">Billing functionality is simulated. No real payment will be processed.</p>
           </div>
         </CardContent>
-        <CardFooter className='flex-col sm:flex-row gap-4'>
+        <CardContent className='flex-col sm:flex-row gap-4 flex'>
             {plan.cta ? (
                  <Button className="w-full" size="lg" disabled={plan.disabled}>
                     {plan.cta}
                 </Button>
             ) : (
                 <>
-                    <Button className="w-full" size="lg" disabled={plan.disabled}>
+                    <Button className="w-full" size="lg" disabled={plan.disabled} onClick={() => handleUpgradeClick('monthly')}>
                         {plan.ctaMonthly}
                     </Button>
-                    <Button className="w-full" size="lg" variant="outline" disabled={plan.disabled}>
+                    <Button className="w-full" size="lg" variant="outline" disabled={plan.disabled} onClick={() => handleUpgradeClick('lifetime')}>
                         {plan.ctaLifetime}
                     </Button>
                 </>
             )}
-        </CardFooter>
+        </CardContent>
       </Card>
     </div>
   );

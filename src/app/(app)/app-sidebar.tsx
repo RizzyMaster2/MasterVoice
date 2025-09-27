@@ -10,15 +10,10 @@ import {
   UserPlus,
 } from 'lucide-react';
 
-import {
-  SidebarHeader,
-  SidebarContent,
-  SidebarMenu,
-  SidebarMenuItem,
-  SidebarMenuButton,
-} from '@/components/ui/sidebar';
 import { Logo } from '@/components/logo';
 import { useUser } from '@/hooks/use-user';
+import { cn } from '@/lib/utils';
+import { Button } from '../ui/button';
 
 const menuItems = [
   {
@@ -44,54 +39,65 @@ const adminMenuItem = {
   icon: Shield,
 };
 
+const businessAdminMenuItem = {
+  href: '/home/admin/business',
+  label: 'Admin',
+  icon: Shield,
+};
+
 export function AppSidebar() {
   const pathname = usePathname();
-  const { isAdmin } = useUser();
+  const { isAdmin, isBusinessPlan } = useUser();
+
+  const isMenuItemActive = (href: string) => {
+    if (href === '/home') {
+        // Special case for home to avoid matching /home/friends etc.
+        return pathname === href;
+    }
+    return pathname.startsWith(href);
+  }
+  
+  const finalAdminMenuItem = isBusinessPlan ? businessAdminMenuItem : adminMenuItem;
+  const showAdminLink = isAdmin || isBusinessPlan;
 
   return (
     <>
-      <SidebarHeader>
-        <div className="flex items-center gap-2 group-data-[collapsible=icon]:justify-center">
-          <Logo className="w-7 h-7 text-primary" />
-          <span className="font-headline text-2xl font-bold text-primary group-data-[collapsible=icon]:hidden">
-            Sonorus
-          </span>
-        </div>
-      </SidebarHeader>
-      <SidebarContent>
-        <SidebarMenu>
-          <>
-            {menuItems.map((item) => (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname === item.href}
-                  tooltip={{ children: item.label }}
-                >
-                  <Link href={item.href}>
-                    <item.icon />
-                    <span>{item.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-            {isAdmin && (
-              <SidebarMenuItem key={adminMenuItem.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={pathname.startsWith(adminMenuItem.href)}
-                  tooltip={{ children: adminMenuItem.label }}
-                >
-                <Link href={adminMenuItem.href}>
-                  <adminMenuItem.icon />
-                  <span>{adminMenuItem.label}</span>
-                  </Link>
-                </SidebarMenuButton>
-            </SidebarMenuItem>
-            )}
-          </>
-        </SidebarMenu>
-      </SidebarContent>
+      <div className="flex h-14 items-center border-b px-4 lg:h-[60px] lg:px-6">
+        <Link href="/" className="flex items-center gap-2 font-semibold">
+          <Logo className="h-6 w-6 text-primary" />
+          <span className="font-headline text-xl text-primary">MasterVoice</span>
+        </Link>
+      </div>
+      <div className="flex-1">
+        <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          {menuItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                isMenuItemActive(item.href) && 'bg-muted text-primary'
+              )}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Link>
+          ))}
+          {showAdminLink && (
+             <Link
+              key={finalAdminMenuItem.href}
+              href={finalAdminMenuItem.href}
+              className={cn(
+                'flex items-center gap-3 rounded-lg px-3 py-2 text-muted-foreground transition-all hover:text-primary',
+                pathname.startsWith(finalAdminMenuItem.href) && 'bg-muted text-primary'
+              )}
+            >
+              <finalAdminMenuItem.icon className="h-4 w-4" />
+              {finalAdminMenuItem.label}
+            </Link>
+          )}
+        </nav>
+      </div>
     </>
   );
 }
