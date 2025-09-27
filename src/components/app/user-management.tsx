@@ -33,7 +33,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { getFriendsForUser } from '@/app/(auth)/actions/admin';
+import { getFriendsForUser } from '@/app/(auth)/actions/chat';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 
