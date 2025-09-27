@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Copy, Users, Link as LinkIcon, Building, Loader2 } from 'lucide-react';
 import { useUser } from '@/hooks/use-user';
-import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 
 export default function BusinessAdminPage() {
@@ -17,42 +16,36 @@ export default function BusinessAdminPage() {
   const { toast } = useToast();
 
   useEffect(() => {
-    // We only want to redirect if loading is finished and the user is not a business plan user.
+    // We only want to redirect if loading is finished and the user is NOT a business plan user.
     if (!isLoading && !isBusinessPlan) {
       router.replace('/home');
     }
   }, [isLoading, isBusinessPlan, router]);
 
-
-  if (isLoading || !isBusinessPlan) {
-    return (
-        <div className="flex flex-col items-center justify-center h-full">
-         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-         <p className="text-muted-foreground">Verifying permissions...</p>
-       </div>
-    );
-  }
-  
-  if (!user) {
-    // This case should be handled by the layout and middleware, but as a fallback:
-     return (
-       <div className="flex flex-col items-center justify-center h-full">
-         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
-         <p className="text-muted-foreground">Redirecting...</p>
-       </div>
-    );
-  }
-
-  const inviteLink = user.user_metadata?.business_invite_link || 'No invite link found. Please contact support.';
-  
   const handleCopy = () => {
-    navigator.clipboard.writeText(inviteLink);
-    toast({
+    if (user?.user_metadata?.business_invite_link) {
+      navigator.clipboard.writeText(user.user_metadata.business_invite_link);
+      toast({
         title: 'Invite Link Copied',
         description: 'You can now share the link with your team.',
         variant: 'success'
-    });
+      });
+    }
+  };
+  
+  // Show a loading/verification screen until we know for sure the user is a business user.
+  if (isLoading || !isBusinessPlan) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground mb-4" />
+        <p className="text-muted-foreground">Verifying business credentials...</p>
+      </div>
+    );
   }
+
+  // At this point, we know isLoading is false and isBusinessPlan is true.
+  // The `user` object should also be available, but we can safely access its metadata.
+  const inviteLink = user?.user_metadata?.business_invite_link || 'No invite link found. Please contact support.';
 
   return (
     <div className="space-y-6">
