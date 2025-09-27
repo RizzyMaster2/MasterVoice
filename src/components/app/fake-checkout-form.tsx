@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useState, useTransition } from 'react';
+import { useState, useTransition, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -11,7 +11,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter }
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { CreditCard, Lock, Loader2, PartyPopper } from 'lucide-react';
+import { CreditCard, Lock, Loader2, PartyPopper, Copy } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { getErrorMessage } from '@/lib/utils';
 import { updateUserPlan } from '@/app/(auth)/actions/user';
@@ -46,10 +46,10 @@ export function FakeCheckoutForm({ planName, price, priceType, planId }: FakeChe
   const form = useForm<CheckoutFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      cardName: '',
-      cardNumber: '',
-      expiryDate: '',
-      cvc: '',
+      cardName: 'John M. Doe',
+      cardNumber: '4242 4242 4242 4242',
+      expiryDate: '12/29',
+      cvc: '123',
     },
   });
 
@@ -70,18 +70,12 @@ export function FakeCheckoutForm({ planName, price, priceType, planId }: FakeChe
       try {
         const result = await updateUserPlan(planId, priceType);
         
-        toast({
-          title: 'Upgrade Successful!',
-          description: `You are now on the ${planName} plan.`,
-          variant: 'success',
-        });
-        
         if (result.inviteLink) {
             setInviteLink(result.inviteLink);
         }
 
         setIsSuccess(true);
-
+        // Toast is now handled by the page reload and useUser hook
       } catch (error) {
         toast({
           title: 'Upgrade Failed',
@@ -94,7 +88,14 @@ export function FakeCheckoutForm({ planName, price, priceType, planId }: FakeChe
   
   const handleGoToDashboard = () => {
       router.push('/home');
-      router.refresh();
+      // A reload will be triggered by the auth state change, so no need to force it here.
+  }
+  
+  const copyInviteLink = () => {
+    if(inviteLink) {
+      navigator.clipboard.writeText(inviteLink);
+      toast({ title: 'Invite link copied to clipboard!'})
+    }
   }
 
   if (isSuccess) {
@@ -114,11 +115,12 @@ export function FakeCheckoutForm({ planName, price, priceType, planId }: FakeChe
                     <div className="space-y-3 p-4 rounded-lg bg-accent/50 text-center">
                         <h4 className="font-semibold">Your Business Invite Link</h4>
                         <p className="text-sm text-muted-foreground">Share this link with your team to have them join your organization.</p>
-                        <Input readOnly value={inviteLink} className="font-mono text-center"/>
-                        <Button variant="outline" onClick={() => {
-                            navigator.clipboard.writeText(inviteLink);
-                            toast({ title: 'Copied to clipboard!'})
-                        }}>Copy Link</Button>
+                        <div className="flex items-center gap-2">
+                          <Input readOnly value={inviteLink} className="font-mono text-center"/>
+                          <Button variant="outline" size="icon" onClick={copyInviteLink}>
+                              <Copy className="h-4 w-4" />
+                          </Button>
+                        </div>
                     </div>
                 )}
             </CardContent>

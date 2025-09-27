@@ -4,12 +4,14 @@
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { useEffect, useState } from "react";
+import { useToast } from "./use-toast";
 
 export function useUser() {
+    const { toast } = useToast();
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [plan, setPlan] = useState<'free' | 'pro' | 'business'>('free');
-    const [isLoading, setIsLoading] = useState(true); // Add loading state
+    const [isLoading, setIsLoading] = useState(true);
     const supabase = createClient();
 
     useEffect(() => {
@@ -42,14 +44,25 @@ export function useUser() {
 
         const { data: authListener } = supabase.auth.onAuthStateChange((event, session) => {
             const currentUser = session?.user ?? null;
+            const previousPlan = user?.user_metadata?.plan || 'free';
+            const currentPlan = currentUser?.user_metadata?.plan || 'free';
+
             setUser(currentUser);
             checkRolesAndPlan(currentUser);
-            // Only set loading to false after the first check is done.
+
             if (isLoading) {
                  setIsLoading(false);
             }
-             // On signed in or signed out, force a refresh of server components
-            if (event === "SIGNED_IN" || event === "SIGNED_OUT" || event === "USER_UPDATED") {
+
+            if (event === "USER_UPDATED" && previousPlan !== currentPlan) {
+                toast({
+                    title: "Plan Updated!",
+                    description: `You are now on the ${currentPlan} plan.`,
+                    variant: "success",
+                });
+                 // Force a full refresh to make sure all server components and layouts re-evaluate the new plan
+                window.location.reload();
+            } else if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
                 window.location.reload();
             }
         });
@@ -58,7 +71,7 @@ export function useUser() {
             authListener.subscription.unsubscribe();
         };
 
-    }, [supabase, isLoading]);
+    }, [supabase, isLoading, toast, user]);
 
     const isVerified = !!user?.email_confirmed_at;
     const isProPlan = plan === 'pro' || plan === 'business';
