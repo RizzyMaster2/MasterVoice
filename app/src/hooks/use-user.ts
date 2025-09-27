@@ -30,6 +30,7 @@ export function useUser() {
     // Effect for fetching the initial user state
     useEffect(() => {
         const fetchUser = async () => {
+            setIsLoading(true);
             const { data, error } = await supabase.auth.getUser();
             if (error) {
                 console.error("Error fetching user:", error);
@@ -41,9 +42,7 @@ export function useUser() {
         };
         
         fetchUser();
-    // We only want this to run once on mount.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [supabase, checkRolesAndPlan]);
 
     // Effect for listening to auth state changes
     useEffect(() => {
@@ -73,10 +72,10 @@ export function useUser() {
         return () => {
             authListener.subscription.unsubscribe();
         };
-    // This empty dependency array is critical. It ensures the listener is only
-    // set up once, preventing any possibility of a refresh loop.
+    // The dependency array is crucial here. user and checkRolesAndPlan ensure the listener has fresh data.
+    // The check for signed in/out events prevents loops.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [user, supabase, checkRolesAndPlan]);
 
 
     const isVerified = !!user?.email_confirmed_at;
