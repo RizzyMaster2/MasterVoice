@@ -64,95 +64,6 @@ export async function getUsers(): Promise<UserProfile[]> {
   }
 }
 
-// Fetch all chats for the current user
-export async function getChats(): Promise<Chat[]> {
-  try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
-      return [];
-    }
-    
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-    userMap.set(authUser.id, {
-      id: authUser.id,
-      display_name: authUser.user_metadata?.display_name || authUser.email,
-      photo_url: authUser.user_metadata?.photo_url || '',
-      created_at: authUser.created_at,
-      email: authUser.email || null,
-      status: 'online',
-      bio: authUser.user_metadata?.bio || null,
-    });
-
-
-    // 1. Get all chat_ids the user is a part of
-    const { data: userChatLinks, error: chatLinksError } = await supabase
-      .from('chat_participants')
-      .select('chat_id')
-      .eq('user_id', authUser.id);
-    
-    if (chatLinksError) {
-      console.error("Error fetching user's chat links:", chatLinksError);
-      return [];
-    }
-
-    const chatIds = userChatLinks.map(link => link.chat_id);
-    if (chatIds.length === 0) {
-        return [];
-    }
-
-    // 2. Fetch all data for those chats and all their participants
-    const { data: chatsData, error: chatsError } = await supabase
-      .from('chats')
-      .select('*, chat_participants(user_id)')
-      .in('id', chatIds);
-
-    if (chatsError) {
-        console.error('Error fetching chats:', chatsError);
-        return [];
-    }
-
-    // 3. Process the chats to add participant profiles
-    const processedChats = chatsData.map((chat) => {
-      const participantIds = chat.chat_participants.map(p => p.user_id);
-      
-      const fullChat: Chat = {
-          id: chat.id,
-          created_at: chat.created_at,
-          name: chat.name,
-          is_group: chat.is_group,
-          admin_id: chat.admin_id,
-          participants: participantIds,
-      };
-
-      if (chat.is_group) {
-        fullChat.participantProfiles = participantIds
-            .map((id: string) => userMap.get(id))
-            .filter((p: any): p is UserProfile => !!p);
-      } else {
-        const otherParticipantId = participantIds.find((id: string) => id !== authUser.id);
-        if (otherParticipantId) {
-          fullChat.otherParticipant = userMap.get(otherParticipantId);
-        }
-      }
-      return fullChat;
-    }).filter(chat => {
-        // Critical fix: Ensure we only return 1-on-1 chats where we could find the other participant.
-        if (!chat.is_group) {
-            return !!chat.otherParticipant;
-        }
-        return true;
-    });
-
-    return processedChats;
-  } catch (error) {
-    console.error('getChats failed:', error);
-    return [];
-  }
-}
-
 export async function getInitialHomeData(userId: string) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
@@ -487,38 +398,31 @@ export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], 
     const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
     const userId = user.id;
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
-    // Fetch incoming requests
-    const { data: incoming, error: incomingError } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('to_user_id', userId)
-      .eq('status', 'pending');
+    // The data is now fetched via getInitialHomeData, but we keep this function
+    // for targeted refreshes if needed in the future.
+    const { data, error } = await supabase.rpc('get_initial_home_data', { p_user_id: userId });
 
-    if (incomingError) throw incomingError;
+    if (error) {
+        console.error("Error fetching friend requests via RPC:", error);
+        return { incoming: [], outgoing: [] };
+    }
 
-    // Fetch outgoing requests
-    const { data: outgoing, error: outgoingError } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('from_user_id', userId)
-      .eq('status', 'pending');
-      
-    if (outgoingError) throw outgoingError;
-    
-    const processedIncoming = incoming.map(req => ({
+    const { incoming_requests, outgoing_requests, all_users } = data;
+    const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
+
+    const processedIncoming = incoming_requests.map((req: any) => ({
         ...req,
         profiles: userMap.get(req.from_user_id)
     })) as FriendRequest[];
     
-    const processedOutgoing = outgoing.map(req => ({
+    const processedOutgoing = outgoing_requests.map((req: any) => ({
         ...req,
         profiles: userMap.get(req.to_user_id)
     })) as FriendRequest[];
-
+    
     return { incoming: processedIncoming, outgoing: processedOutgoing };
+
   } catch (error) {
     console.error("Error fetching friend requests:", error);
     return { incoming: [], outgoing: [] };
