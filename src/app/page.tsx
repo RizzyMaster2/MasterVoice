@@ -190,51 +190,51 @@ const HowItWorksIllustration = ({ step }: { step: number }) => {
 const AdminIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
         <style>{`
-            .shield-bg { opacity: 0; animation: shield-pop 0.6s 0.2s ease-out forwards; }
-            .shield-outline { stroke-dasharray: 200; stroke-dashoffset: 200; animation: draw-shield 1s 0.4s ease-out forwards; }
-            .bar { transform-origin: bottom; opacity: 0; animation: bar-grow 0.5s ease-out forwards; }
-            .bar-1 { animation-delay: 1.2s; }
-            .bar-2 { animation-delay: 1.0s; }
-            .bar-3 { animation-delay: 1.4s; }
-            .cog { transform-origin: center; opacity: 0; animation: cog-pop 0.5s 1s ease-out forwards, spin 10s linear infinite; }
+            .shield-outline { 
+                stroke-dasharray: 200; 
+                stroke-dashoffset: 200; 
+                animation: draw-shield 1s 0.2s ease-out forwards; 
+            }
+            .bar { 
+                transform-origin: bottom; 
+                opacity: 0; 
+                animation: bar-grow 0.5s ease-out forwards; 
+            }
+            .bar-1 { animation-delay: 1.0s; }
+            .bar-2 { animation-delay: 0.8s; }
+            .bar-3 { animation-delay: 1.2s; }
+            .bug { 
+                opacity: 0; 
+                animation: bug-pop 0.5s 1.4s ease-out forwards; 
+                transform-origin: center;
+            }
+            .glow-filter { 
+                animation: glow-pulse 3s infinite ease-in-out;
+            }
 
-            @keyframes shield-pop { to { opacity: 0.1; } }
             @keyframes draw-shield { to { stroke-dashoffset: 0; } }
-            @keyframes bar-grow { to { transform: scaleY(1); opacity: 1; } }
-            @keyframes cog-pop { to { opacity: 1; } }
-            @keyframes spin { to { transform: rotate(360deg); } }
+            @keyframes bar-grow { 
+                to { transform: scaleY(1); opacity: 1; } 
+            }
+            @keyframes bug-pop { 
+                0% { transform: scale(0.5); opacity: 0; }
+                100% { transform: scale(1); opacity: 1; }
+            }
+            @keyframes glow-pulse {
+                50% { filter: drop-shadow(0 0 8px hsl(var(--primary) / 0.7)); }
+            }
         `}</style>
-        <defs>
-            <linearGradient id="shield-grad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stopColor="hsl(var(--primary) / 0.3)" />
-                <stop offset="100%" stopColor="hsl(var(--primary) / 0.05)" />
-            </linearGradient>
-            <filter id="glow-primary" x="-50%" y="-50%" width="200%" height="200%">
-                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                <feMerge>
-                    <feMergeNode in="coloredBlur" />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
-        </defs>
+        
+        <g className="glow-filter">
+            <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1" className="shield-outline" />
 
-        <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="url(#shield-grad)" className="shield-bg" />
-        <path d="M50 10 L90 30 V 70 C 90 85, 50 95, 50 95 S 10 85, 10 70 V 30 Z" fill="none" stroke="hsl(var(--primary) / 0.5)" strokeWidth="1" className="shield-outline" />
+            <rect x="28" y="55" width="12" height="30" rx="2" fill="hsl(var(--primary))" className="bar bar-1" transform="scale(1, 0)" />
+            <rect x="44" y="40" width="12" height="45" rx="2" fill="hsl(var(--primary))" className="bar bar-2" transform="scale(1, 0)" />
+            <rect x="60" y="60" width="12" height="25" rx="2" fill="hsl(var(--primary))" className="bar bar-3" transform="scale(1, 0)" />
 
-        <g filter="url(#glow-primary)" opacity="0.8">
-            <rect x="25" y="60" width="10" height="25" rx="2" fill="hsl(var(--primary))" className="bar bar-1" />
-            <rect x="45" y="70" width="10" height="15" rx="2" fill="hsl(var(--primary))" className="bar bar-2" transform="scale(1, 0)" />
-            <path d="M50 40 V 70" stroke="hsl(var(--primary))" strokeWidth="10" strokeLinecap="round" className="bar bar-2" transform="scale(1, 0)" />
-            <rect x="65" y="55" width="10" height="30" rx="2" fill="hsl(var(--primary))" className="bar bar-3" transform="scale(1, 0)" />
-            
-            <g className="cog">
-                <circle cx="50" cy="50" r="10" fill="hsl(var(--primary))" />
-                <path 
-                    d="M50,35 L50,65 M35,50 L65,50 M39.4,39.4 L60.6,60.6 M39.4,60.6 L60.6,39.4"
-                    stroke="hsl(var(--primary))"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                />
+            <g className="bug">
+                <path d="M50 35 a 10 10 0 1 1 0.001 0 Z" fill="hsl(var(--primary))" />
+                <path d="M50 35 L 50 25 M 50 45 L 50 55 M 40 35 L 30 35 M 60 35 L 70 35 M 43 28 L 35 20 M 57 42 L 65 50 M 57 28 L 65 20 M 43 42 L 35 50" stroke="hsl(var(--primary))" strokeWidth="2.5" strokeLinecap="round"/>
             </g>
         </g>
     </svg>
@@ -473,10 +473,10 @@ export default function Home() {
          <section id="ai-features" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6">
             <div className="grid gap-12 md:grid-cols-2 md:items-center">
-              <div className="order-2 md:order-1 h-48 md:h-64 text-primary flex items-center justify-center">
+              <div className="order-1 md:order-2 h-48 md:h-64 text-primary flex items-center justify-center">
                 <AIConnectIllustration />
               </div>
-              <div className="order-1 md:order-2">
+              <div className="order-2 md:order-1">
                  <Badge variant="outline" className="mb-4">Coming Soon</Badge>
                 <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
                   AI-Powered Connections
