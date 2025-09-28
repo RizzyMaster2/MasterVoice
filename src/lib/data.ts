@@ -23,6 +23,7 @@ export type Chat = {
   participantProfiles?: UserProfile[]; // Used on the client for group chats
   last_message?: string | null;
   last_message_timestamp?: string | null;
+  chat_participants?: { user_id: string }[];
 };
 
 export type Message = {
