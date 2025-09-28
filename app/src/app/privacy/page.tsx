@@ -24,10 +24,18 @@ const PrivacyIcon = () => (
 );
 
 function LastUpdated() {
-    const [date, setDate] = useState('');
+    const [date, setDate] = useState<string | null>(null);
+
     useEffect(() => {
+        // This code runs only on the client, after hydration
         setDate(new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }));
-    }, []);
+    }, []); // Empty dependency array ensures it runs only once on mount
+
+    // Render a placeholder or nothing on the server and initial client render
+    if (!date) {
+        return null;
+    }
+
     return <span className="font-medium">{date}</span>;
 }
 
