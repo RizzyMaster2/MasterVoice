@@ -13,7 +13,7 @@ export async function deleteUser(userId: string) {
   const supabase = createClient(cookieStore);
   const { data: { user: currentUser } } = await supabase.auth.getUser();
 
-  const adminEmails = process.env.ADMIN_EMAILS?.split(',') || [];
+  const adminEmails = process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(',') || [];
   const isAdmin = currentUser && adminEmails.includes(currentUser.email!);
 
   if (!isAdmin && currentUser?.id !== userId) {
