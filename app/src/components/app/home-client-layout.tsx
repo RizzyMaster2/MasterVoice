@@ -14,7 +14,7 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
-import { getInitialHomeData } from '@/app/(auth)/actions/chat';
+import { getChats, getFriendRequests, getUsers } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
 
@@ -61,7 +61,7 @@ export function HomeClientLayout({
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
   const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [isLoading, setIsLoading] = useState(false); // No longer loading by default
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useUser();
   const supabase = createClient();
@@ -75,17 +75,16 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
-    setIsLoading(true);
+    // Don't set loading state here to avoid flashing the loading screen on every refresh
     try {
-        const { data, error } = await getInitialHomeData(user.id);
-        if (error) throw new Error(error);
-
-        setChats(data.chats);
-        setAllUsers(data.all_users.filter((u: UserProfile) => u.id !== user.id));
-        setFriendRequests({
-            incoming: data.incoming_requests,
-            outgoing: data.outgoing_requests,
-        });
+        const [chatsData, usersData, requestsData] = await Promise.all([
+          getChats(),
+          getUsers(),
+          getFriendRequests(),
+        ]);
+        setChats(chatsData);
+        setAllUsers(usersData.filter(u => u.id !== user.id));
+        setFriendRequests(requestsData);
 
     } catch (error) {
         console.error("HomeClientLayout: Failed to refresh data", error);
@@ -94,10 +93,15 @@ export function HomeClientLayout({
             description: 'Could not load your chats and contacts. Please try again later.',
             variant: 'destructive'
         });
-    } finally {
-        setIsLoading(false);
     }
   }, [user, toast]);
+
+  useEffect(() => {
+    setIsLoading(true);
+    refreshAllData().finally(() => {
+        setIsLoading(false)
+    });
+  }, [refreshAllData]);
 
   useEffect(() => {
     const chatIdFromUrl = searchParams.get('chat');
@@ -121,14 +125,36 @@ export function HomeClientLayout({
       .channel('home-layout-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public' },
+        { event: '*', schema: 'public', table: 'chats' },
         (payload) => {
-            // A simple but effective way to ensure data consistency
             refreshAllData();
             if (payload.eventType === 'DELETE' && selectedChat && (payload.old as any).id === selectedChat.id) {
                 setSelectedChat(null);
                 router.replace(pathname, {scroll: false});
             }
+        }
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'chat_participants' }, () => {
+          refreshAllData()
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'friend_requests' }, () => {
+          refreshAllData()
+      })
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => {
+           // A new message arrived, refresh all data to get it.
+           // This is a simple approach. A more optimized one would be to fetch just the new message if it matches the current chat.
+           refreshAllData();
+        }
+      )
+       .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'messages' },
+        () => {
+           // A message was deleted, refresh.
+           refreshAllData();
         }
       )
       .subscribe((status, err) => {
@@ -166,6 +192,10 @@ export function HomeClientLayout({
       handleChatDeleted,
       isLoading
   };
+  
+  if (isLoading && !currentUser) {
+    return <LoadingScreen />;
+  }
 
   return (
     <HomeClientContext.Provider value={value}>

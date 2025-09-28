@@ -1,47 +1,10 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { getInitialHomeData as getInitialHomeDataAction } from '@/app/(auth)/actions/chat';
-
-async function getInitialHomeData(userId: string) {
-    try {
-        const { data: rawData, error } = await getInitialHomeDataAction(userId);
-
-        if (error) {
-            console.error('Error fetching initial home data:', error);
-            // Return empty arrays on error to prevent server crash
-            return {
-                usersData: [],
-                chatsData: [],
-                friendRequestsData: { incoming: [], outgoing: [] },
-            };
-        }
-
-        const { all_users, chats, incoming_requests, outgoing_requests } = rawData;
-
-        return { 
-            usersData: all_users.filter((u: UserProfile) => u.id !== userId), 
-            chatsData: chats, 
-            friendRequestsData: {
-                incoming: incoming_requests,
-                outgoing: outgoing_requests,
-            }
-        };
-    } catch(error) {
-        console.error('Error in getInitialHomeData wrapper:', error);
-        // Return empty arrays on error to prevent server crash
-        return {
-            usersData: [],
-            chatsData: [],
-            friendRequestsData: { incoming: [], outgoing: [] },
-        };
-    }
-}
-
 
 export default async function HomeLayout({
     children,
@@ -60,7 +23,9 @@ export default async function HomeLayout({
 
     const isVerified = !!authUser.email_confirmed_at;
 
-    const { usersData, chatsData, friendRequestsData } = await getInitialHomeData(authUser.id);
+    // The data fetching is now primarily handled on the client in HomeClientLayout
+    // to ensure stability and avoid server-side rendering issues.
+    // We only pass the essential current user profile from the server.
 
     const currentUserProfile: UserProfile = {
         id: authUser.id,
@@ -77,14 +42,12 @@ export default async function HomeLayout({
             {!isVerified && <UnverifiedAccountWarning />}
             <HomeClientLayout
                 currentUser={currentUserProfile}
-                initialChats={chatsData}
-                initialFriendRequests={friendRequestsData}
-                initialUsers={usersData}
+                initialChats={[]}
+                initialFriendRequests={{ incoming: [], outgoing: [] }}
+                initialUsers={[]}
             >
                 {children}
             </HomeClientLayout>
         </div>
     );
 }
-
-    
