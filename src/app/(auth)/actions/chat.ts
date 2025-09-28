@@ -634,3 +634,5 @@ export async function getFriendsForUser(userId: string): Promise<UserProfile[]> 
     throw new Error(message);
   }
 }
+
+    

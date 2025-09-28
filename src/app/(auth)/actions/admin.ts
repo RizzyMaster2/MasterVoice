@@ -138,3 +138,5 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
         return { data: [], error: message };
     }
 }
+
+    
