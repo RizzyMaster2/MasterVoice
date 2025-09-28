@@ -169,7 +169,7 @@ export function HomeClientLayout({
 
   return (
     <HomeClientContext.Provider value={value}>
-        {isLoading ? <LoadingScreen /> : children}
+        {children}
     </HomeClientContext.Provider>
   );
 }
