@@ -23,7 +23,10 @@ async function getInitialData(userId: string) {
         const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
 
         const processedChats = chatsData.map((chat: any) => {
-            const participantIds = chat.participants;
+            // This is the critical fix: chat.chat_participants is the correct property, not chat.participants
+            const participantIds = chat.chat_participants.map((p: { user_id: string }) => p.user_id);
+            chat.participants = participantIds; // Add the participants array for client-side use
+
             if (chat.is_group) {
                 chat.participantProfiles = participantIds
                     .map((id: string) => userMap.get(id))
