@@ -125,7 +125,6 @@ export async function getChats(): Promise<Chat[]> {
           is_group: chat.is_group,
           admin_id: chat.admin_id,
           participants: participantIds,
-          chat_participants: chat.chat_participants, // Ensure this is passed through
       };
 
       if (chat.is_group) {

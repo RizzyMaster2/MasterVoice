@@ -44,22 +44,16 @@ export function useHomeClient() {
 
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
-  initialChats: Chat[];
-  initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
-  initialUsers: UserProfile[];
   children: ReactNode;
 }
 
 export function HomeClientLayout({ 
     currentUser, 
-    initialChats, 
-    initialFriendRequests,
-    initialUsers,
     children
 }: HomeClientLayoutProps) {
-  const [chats, setChats] = useState<Chat[]>(initialChats);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
-  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
+  const [chats, setChats] = useState<Chat[]>([]);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
+  const [friendRequests, setFriendRequests] = useState<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>({ incoming: [], outgoing: [] });
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
