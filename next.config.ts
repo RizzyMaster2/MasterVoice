@@ -32,9 +32,6 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  env: {
-    NEXT_PUBLIC_ADMIN_EMAILS: process.env.ADMIN_EMAILS,
-  }
 };
 
 export default nextConfig;
