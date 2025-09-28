@@ -5,22 +5,24 @@ import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
-import { getInitialHomeData as getInitialHomeDataAction } from '@/app/(auth)/actions/chat';
+import { getUsers, getChats, getFriendRequests } from '@/app/(auth)/actions/chat';
 
-async function getInitialHomeData(userId: string) {
+
+async function getInitialData(userId: string) {
     try {
-        const { data: rawData, error } = await getInitialHomeDataAction(userId);
-
-        if (error) {
-            console.error('Error fetching initial home data:', error);
-            throw new Error('Could not load initial data for the application.');
-        }
-
-        const { all_users, chats, incoming_requests, outgoing_requests } = rawData;
+        const [users, chats, requests] = await Promise.all([
+            getUsers(),
+            getChats(),
+            getFriendRequests(),
+        ]);
+        
+        const all_users = users;
+        const chatsData = chats;
+        const { incoming: incoming_requests, outgoing: outgoing_requests } = requests;
 
         const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
 
-        const processedChats = chats.map((chat: any) => {
+        const processedChats = chatsData.map((chat: any) => {
             const participantIds = chat.participants;
             if (chat.is_group) {
                 chat.participantProfiles = participantIds
@@ -57,7 +59,7 @@ async function getInitialHomeData(userId: string) {
             }
         };
     } catch(error) {
-        console.error('Error in getInitialHomeData wrapper:', error);
+        console.error('Error in getInitialData:', error);
         throw new Error('Could not load initial data for the application.');
     }
 }
@@ -80,7 +82,7 @@ export default async function HomeLayout({
 
     const isVerified = !!authUser.email_confirmed_at;
 
-    const { usersData, chatsData, friendRequestsData } = await getInitialHomeData(authUser.id);
+    const { usersData, chatsData, friendRequestsData } = await getInitialData(authUser.id);
 
     const currentUserProfile: UserProfile = {
         id: authUser.id,
