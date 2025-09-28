@@ -87,6 +87,7 @@ export async function getInitialHomeData(userId: string) {
         };
     }
 
+    // The RPC returns arrays of objects. We need to process them.
     const { all_users, chats, incoming_requests, outgoing_requests } = data;
 
     const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
@@ -105,6 +106,7 @@ export async function getInitialHomeData(userId: string) {
         }
         return chat;
     }).filter((chat: Chat) => {
+        // Ensure 1-on-1 chats have a valid other participant
         if (!chat.is_group) return !!chat.otherParticipant;
         return true;
     });
@@ -568,3 +570,5 @@ export async function getFriendsForUser(userId: string): Promise<UserProfile[]> 
     throw new Error(message);
   }
 }
+
+    

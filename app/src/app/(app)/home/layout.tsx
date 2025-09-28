@@ -1,7 +1,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import type { UserProfile } from '@/lib/data';
+import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
@@ -9,24 +9,36 @@ import { getInitialHomeData as getInitialHomeDataAction } from '@/app/(auth)/act
 
 async function getInitialHomeData(userId: string) {
     try {
-        const { data, error } = await getInitialHomeDataAction(userId);
+        const { data: rawData, error } = await getInitialHomeDataAction(userId);
 
         if (error) {
             console.error('Error fetching initial home data:', error);
-            throw new Error('Could not load initial data for the application.');
+            // Return empty arrays on error to prevent server crash
+            return {
+                usersData: [],
+                chatsData: [],
+                friendRequestsData: { incoming: [], outgoing: [] },
+            };
         }
-        
+
+        const { all_users, chats, incoming_requests, outgoing_requests } = rawData;
+
         return { 
-            usersData: data.all_users.filter((u: UserProfile) => u.id !== userId), 
-            chatsData: data.chats, 
+            usersData: all_users.filter((u: UserProfile) => u.id !== userId), 
+            chatsData: chats, 
             friendRequestsData: {
-                incoming: data.incoming_requests,
-                outgoing: data.outgoing_requests,
+                incoming: incoming_requests,
+                outgoing: outgoing_requests,
             }
         };
     } catch(error) {
         console.error('Error in getInitialHomeData wrapper:', error);
-        throw new Error('Could not load initial data for the application.');
+        // Return empty arrays on error to prevent server crash
+        return {
+            usersData: [],
+            chatsData: [],
+            friendRequestsData: { incoming: [], outgoing: [] },
+        };
     }
 }
 
@@ -74,3 +86,5 @@ export default async function HomeLayout({
         </div>
     );
 }
+
+    
