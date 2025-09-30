@@ -9,9 +9,20 @@ import {
 import { SignupForm } from '@/components/auth/signup-form';
 import Link from 'next/link';
 import { Suspense } from 'react';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { AlreadyLoggedIn } from '@/components/auth/already-logged-in';
 
 
-function SignupPageContent() {
+async function SignupPageContent() {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (user) {
+        return <AlreadyLoggedIn />;
+    }
+
     return (
         <Card className="w-full max-w-sm shadow-xl relative">
             <CardHeader>
@@ -36,7 +47,7 @@ function SignupPageContent() {
 
 export default function SignupPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<Card className="w-full max-w-sm h-[520px] animate-pulse bg-muted/50" />}>
         <SignupPageContent />
     </Suspense>
   );

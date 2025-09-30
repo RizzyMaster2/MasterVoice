@@ -116,14 +116,6 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // if user is logged in and is trying to access an auth page (login, signup), redirect to home
-  if (user) {
-    const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
-    if (isAuthPath) {
-       return NextResponse.redirect(new URL('/home', request.url))
-    }
-  }
-
   return response;
 }
 

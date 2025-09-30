@@ -11,12 +11,23 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { AlreadyLoggedIn } from '@/components/auth/already-logged-in';
 
-interface LoginPageContentProps {
+interface LoginPageProps {
   searchParams: { [key: string]: string | string[] | undefined };
 }
 
-function LoginPageContent({ searchParams }: LoginPageContentProps) {
+async function LoginPageContent({ searchParams }: LoginPageProps) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const { data: { user } } = await supabase.auth.getUser();
+
+  if (user) {
+    return <AlreadyLoggedIn />;
+  }
+
   const message = searchParams.message as string | undefined;
   const error = searchParams.error as string | undefined;
   const confirmation = searchParams.confirmation as string | undefined;
@@ -66,9 +77,9 @@ function LoginPageContent({ searchParams }: LoginPageContentProps) {
   );
 }
 
-export default function LoginPage({ searchParams }: LoginPageContentProps) {
+export default function LoginPage({ searchParams }: LoginPageProps) {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<Card className="w-full max-w-sm h-[480px] animate-pulse bg-muted/50" />}>
       <LoginPageContent searchParams={searchParams} />
     </Suspense>
   );
