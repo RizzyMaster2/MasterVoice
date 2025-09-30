@@ -79,7 +79,7 @@ const formSchema = z.object({
               <div className="flex items-center justify-between">
                 <FormLabel>Password</FormLabel>
                 <Link
-                  href="/login"
+                  href="/forgot-password"
                   className="text-sm font-medium text-primary hover:underline"
                 >
                   Forgot Password?
