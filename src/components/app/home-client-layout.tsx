@@ -44,18 +44,24 @@ export function useHomeClient() {
 
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
+  initialChats: Chat[];
+  initialUsers: UserProfile[];
+  initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
   children: ReactNode;
 }
 
 export function HomeClientLayout({ 
-    currentUser, 
+    currentUser,
+    initialChats,
+    initialUsers,
+    initialFriendRequests,
     children
 }: HomeClientLayoutProps) {
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
-  const [friendRequests, setFriendRequests] = useState<{ incoming: FriendRequest[]; outgoing: FriendRequest[] }>({ incoming: [], outgoing: [] });
+  const [chats, setChats] = useState<Chat[]>(initialChats);
+  const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
+  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   const { user } = useUser();
   const supabase = createClient();
@@ -69,7 +75,6 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
-    // Don't set loading state here to avoid flashing the loading screen on every refresh
     try {
         const [chatsData, usersData, requestsData] = await Promise.all([
           getChats(),
@@ -90,12 +95,6 @@ export function HomeClientLayout({
     }
   }, [user, toast]);
 
-  useEffect(() => {
-    setIsLoading(true);
-    refreshAllData().finally(() => {
-        setIsLoading(false)
-    });
-  }, [refreshAllData]);
 
   useEffect(() => {
     const chatIdFromUrl = searchParams.get('chat');
@@ -196,5 +195,3 @@ export function HomeClientLayout({
     </HomeClientContext.Provider>
   );
 }
-
-    

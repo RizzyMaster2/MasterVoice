@@ -23,7 +23,6 @@ export type Chat = {
   participantProfiles?: UserProfile[]; // Used on the client for group chats
   last_message?: string | null;
   last_message_timestamp?: string | null;
-  chat_participants?: { user_id: string }[];
 };
 
 export type Message = {
@@ -48,9 +47,9 @@ export type FriendRequest = {
 
 export interface HomeClientLayoutProps {
     currentUser: UserProfile;
-    initialChats?: Chat[]; // Made optional as it will be fetched on client
-    allUsers?: UserProfile[]; // Made optional
-    initialFriendRequests?: { // Made optional
+    initialChats: Chat[];
+    initialUsers: UserProfile[];
+    initialFriendRequests: {
         incoming: FriendRequest[];
         outgoing: FriendRequest[];
     }
