@@ -84,7 +84,7 @@ export async function middleware(request: NextRequest) {
       await supabase.auth.signOut();
       const url = request.nextUrl.clone()
       url.pathname = '/login'
-      url.searchParams.set('message', 'Your user profile could not be found. Please sign in again.');
+      url.searchParams.set('error', 'user_not_found');
       return NextResponse.redirect(url);
     }
   }

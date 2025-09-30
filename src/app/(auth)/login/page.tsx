@@ -18,6 +18,9 @@ interface LoginPageContentProps {
 
 function LoginPageContent({ searchParams }: LoginPageContentProps) {
   const message = searchParams.message as string | undefined;
+  const error = searchParams.error as string | undefined;
+
+  const userNotFoundError = "Your user profile could not be found. This can happen if the account was deleted. Please sign in again or create a new account.";
 
   return (
     <Card className="w-full max-w-sm shadow-xl relative">
@@ -29,10 +32,17 @@ function LoginPageContent({ searchParams }: LoginPageContentProps) {
       </CardHeader>
       <CardContent>
         {message && (
-          <Alert variant="destructive" className="mb-4">
+          <Alert variant="destructive" className="mb-4 animate-in fade-in-50 slide-in-from-top-5">
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Login Error</AlertTitle>
             <AlertDescription>{message}</AlertDescription>
+          </Alert>
+        )}
+        {error === 'user_not_found' && (
+           <Alert variant="destructive" className="mb-4 animate-in fade-in-50 slide-in-from-top-5">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Login Required</AlertTitle>
+            <AlertDescription>{userNotFoundError}</AlertDescription>
           </Alert>
         )}
         <LoginForm />
