@@ -46,9 +46,9 @@ const formSchema = z.object({
       }
  
       toast({ title: 'Login successful', description: 'Redirecting…' });
-      // If your dashboard is protected with auth on the server, refresh first:
+      // This refresh will trigger the middleware to run, which will handle
+      // redirecting to /home if the profile exists, or back to /login if it doesn't.
       router.refresh();
-      router.push('/home');
     } catch (error) {
        toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
        setLoading(false);
