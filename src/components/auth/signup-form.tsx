@@ -45,9 +45,9 @@ export function SignupForm() {
 
   async function onSubmit(values: SignupFormValues) {
     setIsLoading(true);
+    const supabase = createClient();
     try {
-        const supabase = createClient();
-        const { error } = await supabase.auth.signUp({
+        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
             email: values.email,
             password: values.password,
             options: {
@@ -57,19 +57,38 @@ export function SignupForm() {
             }
         });
 
-        if (error) {
-            toast({ title: 'Signup failed', description: error.message, variant: 'destructive' });
-            setIsLoading(false);
-            return;
+        if (signUpError) {
+            throw signUpError;
         }
 
+        if (!user) {
+            throw new Error("Signup succeeded but no user object was returned.");
+        }
+        
+        // Explicitly create the profile entry
+        const { error: profileError } = await supabase
+            .from('profiles')
+            .insert({
+                id: user.id,
+                display_name: values.name,
+                email: values.email,
+            });
+        
+        if (profileError) {
+            // If profile creation fails, we should ideally delete the auth user
+            // to avoid orphaned accounts. This is an advanced step.
+            // For now, we'll just log the error and inform the user.
+            console.error("Error creating profile:", profileError);
+            throw new Error(`Failed to create user profile: ${profileError.message}`);
+        }
+
+
         toast({ title: 'Signup successful!', description: 'Please check your email to verify your account.'});
-        // Do not refresh here, as it can cause a race condition with the middleware
-        // before the user profile is created by the database trigger.
         router.push('/confirm');
 
     } catch (error) {
         toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
+    } finally {
         setIsLoading(false);
     }
   }
