@@ -46,8 +46,9 @@ const formSchema = z.object({
       }
  
       toast({ title: 'Login successful', description: 'Redirecting…' });
-      // Explicitly redirect to the home page to avoid middleware race conditions.
-      router.push('/home');
+      // Refresh the page. This will trigger the middleware to re-run and
+      // handle the correct redirect based on the user's auth state.
+      router.refresh();
     } catch (error) {
        toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
        setLoading(false);

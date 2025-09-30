@@ -96,14 +96,9 @@ export async function middleware(request: NextRequest) {
         // Handle case where user is logged in but not verified
         const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
         if (!isAuthPath && request.nextUrl.pathname !== '/confirm') {
-             const { data: { user } } = await supabase.auth.getUser();
-             if (user && !user.email_confirmed_at) {
-                 const { error } = await supabase.auth.signOut();
-                 const url = request.nextUrl.clone()
-                 url.pathname = '/login'
-                 url.searchParams.set('confirmation', 'unverified');
-                 return NextResponse.redirect(url);
-             }
+            // This is a new, unverified user trying to access a protected page.
+            // Let them proceed to the /confirm page.
+            // The check will happen on their next verified login.
         }
     }
   }
@@ -123,8 +118,8 @@ export async function middleware(request: NextRequest) {
 
   // if user is logged in and is trying to access an auth page (login, signup), redirect to home
   if (user) {
-    const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup') || request.nextUrl.pathname.startsWith('/confirm');
-    if (isAuthPath && user.email_confirmed_at) {
+    const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
+    if (isAuthPath) {
        return NextResponse.redirect(new URL('/home', request.url))
     }
   }
