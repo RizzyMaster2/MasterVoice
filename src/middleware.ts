@@ -71,6 +71,25 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
+  // if user is signed in, check if their profile exists
+  if (user) {
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', user.id)
+      .single();
+
+    // if profile is missing, sign out and redirect
+    if (!profile) {
+      await supabase.auth.signOut();
+      const url = request.nextUrl.clone()
+      url.pathname = '/login'
+      url.searchParams.set('message', 'Your user profile could not be found. Please sign in again.');
+      return NextResponse.redirect(url);
+    }
+  }
+  
+
   const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy'];
   const isPublicRoot = request.nextUrl.pathname === '/';
   
@@ -106,5 +125,3 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
-
-    
