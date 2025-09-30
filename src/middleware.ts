@@ -109,7 +109,7 @@ export async function middleware(request: NextRequest) {
   }
   
 
-  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy'];
+  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy', '/forgot-password'];
   const isPublicRoot = request.nextUrl.pathname === '/';
   
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path)) || isPublicRoot;
