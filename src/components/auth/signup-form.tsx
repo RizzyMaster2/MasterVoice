@@ -47,7 +47,7 @@ export function SignupForm() {
     setIsLoading(true);
     const supabase = createClient();
     try {
-        const { data: { user }, error: signUpError } = await supabase.auth.signUp({
+        const { data, error: signUpError } = await supabase.auth.signUp({
             email: values.email,
             password: values.password,
             options: {
@@ -61,28 +61,10 @@ export function SignupForm() {
             throw signUpError;
         }
 
-        if (!user) {
+        if (!data.user) {
             throw new Error("Signup succeeded but no user object was returned.");
         }
         
-        // Explicitly create the profile entry
-        const { error: profileError } = await supabase
-            .from('profiles')
-            .insert({
-                id: user.id,
-                display_name: values.name,
-                email: values.email,
-            });
-        
-        if (profileError) {
-            // If profile creation fails, we should ideally delete the auth user
-            // to avoid orphaned accounts. This is an advanced step.
-            // For now, we'll just log the error and inform the user.
-            console.error("Error creating profile:", profileError);
-            throw new Error(`Failed to create user profile: ${profileError.message}`);
-        }
-
-
         toast({ title: 'Signup successful!', description: 'Please check your email to verify your account.'});
         router.push('/confirm');
 
