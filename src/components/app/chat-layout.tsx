@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import {
@@ -24,12 +23,10 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { useUser } from '@/hooks/use-user';
-import { createClient } from '@/lib/supabase/client';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
-import { format, isToday, isYesterday, parseISO, formatDistanceToNow } from 'date-fns';
-import { getMessages, sendMessage, deleteChat, deleteMessage } from '@/app/(auth)/actions/chat';
+import { useRouter, usePathname } from 'next/navigation';
+import { format, isToday, isYesterday, parseISO } from 'date-fns';
+import { getMessages, sendMessage, removeFriend, deleteMessage } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
 import {
   DropdownMenu,
@@ -49,18 +46,16 @@ import {
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
-import type { Chat, Message, UserProfile } from '@/lib/data';
+import type { Message, UserProfile, Friend } from '@/lib/data';
 import { useCall } from './call-provider';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
-  chats: Chat[];
+  friends: Friend[];
   allUsers: UserProfile[];
-  selectedChat: Chat | null;
-  setSelectedChat: (chat: Chat | null) => void;
-  listType: 'friend' | 'group';
-  onChatUpdate: () => void;
-  onChatDeleted: () => void;
+  selectedFriend: UserProfile | null;
+  setSelectedFriend: (friend: UserProfile | null) => void;
+  onFriendRemoved: () => void;
 }
 
 const parseMessageContent = (content: string): ReactNode[] => {
@@ -89,7 +84,7 @@ const parseMessageContent = (content: string): ReactNode[] => {
   return parts;
 };
 
-const SelectChatIllustration = ({ type }: { type: 'friend' | 'group' }) => (
+const SelectChatIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 mx-auto mb-4 text-muted-foreground/50">
       <style>{`
         .main-icon { animation: float 3s ease-in-out infinite; }
@@ -103,14 +98,7 @@ const SelectChatIllustration = ({ type }: { type: 'friend' | 'group' }) => (
         @keyframes draw { to { stroke-dashoffset: 0; } }
       `}</style>
       <g className="main-icon">
-        {type === 'friend' ? (
           <path fill="currentColor" d="M50 30 C 40 30, 35 40, 35 50 C 35 65, 45 70, 50 70 C 55 70, 65 65, 65 50 C 65 40, 60 30, 50 30 Z M 50 25 C 55 25, 55 20, 50 20 C 45 20, 45 25, 50 25 Z" />
-        ) : (
-          <>
-            <path fill="currentColor" opacity="0.7" d="M40 35 C 30 35, 25 45, 25 55 C 25 70, 35 75, 40 75 C 45 75, 55 70, 55 55 C 55 45, 50 35, 40 35 Z M 40 30 C 45 30, 45 25, 40 25 C 35 25, 35 30, 40 30 Z" />
-            <path fill="currentColor" d="M60 35 C 50 35, 45 45, 45 55 C 45 70, 55 75, 60 75 C 65 75, 75 70, 75 55 C 75 45, 70 35, 60 35 Z M 60 30 C 65 30, 65 25, 60 25 C 55 25, 55 30, 60 30 Z" />
-          </>
-        )}
       </g>
       <circle cx="20" cy="50" r="4" fill="currentColor" className="bubble bubble-1" />
       <circle cx="15" cy="65" r="3" fill="currentColor" className="bubble bubble-2" />
@@ -122,13 +110,11 @@ const SelectChatIllustration = ({ type }: { type: 'friend' | 'group' }) => (
 
 export function ChatLayout({
   currentUser,
-  chats: parentChats,
+  friends,
   allUsers,
-  selectedChat,
-  setSelectedChat,
-  listType,
-  onChatUpdate,
-  onChatDeleted,
+  selectedFriend,
+  setSelectedFriend,
+  onFriendRemoved,
 }: ChatLayoutProps) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -138,7 +124,6 @@ export function ChatLayout({
   const [isDeleting, startDeletingTransition] = useTransition();
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { user: authUser } = useUser();
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
@@ -160,13 +145,13 @@ export function ChatLayout({
     }
   }, []);
 
-  const fetchMessages = useCallback(async (chatId: string) => {
+  const fetchMessages = useCallback(async (friendId: string) => {
     setIsLoadingMessages(true);
     try {
-      const serverMessages = await getMessages(chatId);
+      const serverMessages = await getMessages(friendId);
       const messagesWithProfiles = serverMessages.map(msg => ({
           ...msg,
-          profiles: userMap.get(msg.sender_id)
+          sender_profile: userMap.get(msg.sender_id)
       }));
       setMessages(messagesWithProfiles);
     } catch (error) {
@@ -177,12 +162,12 @@ export function ChatLayout({
   }, [toast, userMap]);
 
   useEffect(() => {
-    if (selectedChat?.id) {
-      fetchMessages(selectedChat.id);
+    if (selectedFriend?.id) {
+      fetchMessages(selectedFriend.id);
     } else {
       setMessages([]);
     }
-  }, [selectedChat, fetchMessages]);
+  }, [selectedFriend, fetchMessages]);
 
   useEffect(() => {
     setTimeout(scrollToBottom, 100);
@@ -191,15 +176,15 @@ export function ChatLayout({
 
   const handleSendMessage = async (e: FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedChat) return;
+    if (!newMessage.trim() || !selectedFriend) return;
 
     const content = newMessage;
     setNewMessage('');
     
     startSendingTransition(async () => {
         try {
-            await sendMessage(selectedChat.id, content);
-            // onChatUpdate(); // This will trigger a refresh from the parent
+            await sendMessage(selectedFriend.id, content);
+            // Realtime will handle the update
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
         }
@@ -211,8 +196,8 @@ export function ChatLayout({
   };
   
   const handleStartCall = () => {
-    if (selectedChat?.otherParticipant) {
-      startCall(selectedChat.otherParticipant);
+    if (selectedFriend) {
+      startCall(selectedFriend);
     }
   };
 
@@ -221,17 +206,16 @@ export function ChatLayout({
     toast({ title: 'Message copied to clipboard' });
   };
   
-  const handleDeleteMessage = (messageId: string) => {
+  const handleDeleteMessage = (messageId: number) => {
     // Optimistic update
     setMessages(prev => prev.filter(m => m.id !== messageId));
     startDeletingTransition(async () => {
       try {
         await deleteMessage(messageId);
-        // onChatUpdate(); // Refresh from parent
       } catch (error) {
         toast({ title: 'Error deleting message', description: getErrorMessage(error), variant: 'destructive' });
-        if (selectedChat) {
-            fetchMessages(selectedChat.id); // Refetch messages on error
+        if (selectedFriend) {
+            fetchMessages(selectedFriend.id); // Refetch messages on error
         }
       }
     });
@@ -242,28 +226,24 @@ export function ChatLayout({
     setNewMessage(e.target.value);
   };
 
-  const handleSelectChat = (chat: Chat) => {
-    setSelectedChat(chat);
-    router.push(`${pathname}?chat=${chat.id}`, { scroll: false });
+  const handleSelectFriend = (friend: UserProfile) => {
+    setSelectedFriend(friend);
+    router.push(`${pathname}?friend=${friend.id}`, { scroll: false });
   };
 
-  const handleDeleteChat = () => {
-    if (!selectedChat || selectedChat.is_group || !selectedChat.otherParticipant) return;
-    const chatId = selectedChat.id;
-    const friendName = selectedChat.otherParticipant.display_name;
+  const handleRemoveFriend = () => {
+    if (!selectedFriend) return;
+    const friendName = selectedFriend.display_name;
 
     startDeletingTransition(async () => {
       try {
-        if (!selectedChat.otherParticipant) {
-             throw new Error("Cannot delete chat without participant information.");
-        }
-        await deleteChat(chatId, selectedChat.otherParticipant.id);
+        await removeFriend(selectedFriend.id);
         toast({
           title: 'Friend Removed',
           description: `You are no longer friends with ${friendName}.`,
           variant: 'success',
         });
-        onChatDeleted();
+        onFriendRemoved();
       } catch (error) {
         toast({
           title: 'Error Removing Friend',
@@ -281,19 +261,13 @@ export function ChatLayout({
     return format(date, 'MMM d');
   };
   
-   const formatLastMessageTime = (timestamp: string | null | undefined) => {
-    if (!timestamp) return '';
-    return formatDistanceToNow(parseISO(timestamp), { addSuffix: true });
-  };
-
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
-  const filteredChats = parentChats.filter(chat =>
-    (chat.is_group ? chat.name : chat.otherParticipant?.display_name)?.toLowerCase().includes(searchQuery.toLowerCase())
+  const filteredFriends = friends.filter(friend =>
+    friend.friend_profile.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-
   return (
     <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
@@ -301,7 +275,7 @@ export function ChatLayout({
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder={listType === 'friend' ? "Search friends..." : "Search groups..."}
+              placeholder="Search friends..."
               className="pl-9"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
@@ -309,88 +283,60 @@ export function ChatLayout({
           </div>
         </div>
         <ScrollArea className="flex-1">
-          {filteredChats.length > 0 ? (
-            filteredChats.map((chat) => (
+          {filteredFriends.length > 0 ? (
+            filteredFriends.map((friend) => (
               <div
-                key={chat.id}
-                onClick={() => handleSelectChat(chat)}
+                key={friend.friend_id}
+                onClick={() => handleSelectFriend(friend.friend_profile)}
                 className={cn(
                   'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
-                  selectedChat?.id === chat.id && 'bg-accent'
+                  selectedFriend?.id === friend.friend_id && 'bg-accent'
                 )}
               >
                 <Avatar className="h-10 w-10 relative">
-                   {chat.is_group ? (
-                     <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
-                        <Users className="h-5 w-5 text-muted-foreground" />
-                     </div>
-                   ) : (
-                    <>
-                      <AvatarImage src={chat.otherParticipant?.photo_url || undefined} alt={chat.name || chat.otherParticipant?.display_name || ''} />
-                      <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
-                    </>
-                   )}
+                   <AvatarImage src={friend.friend_profile?.photo_url || undefined} alt={friend.friend_profile?.display_name || ''} />
+                   <AvatarFallback>{getInitials(friend.friend_profile?.display_name)}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1 overflow-hidden">
                    <div className="flex items-center justify-between">
                         <p className="font-semibold truncate">
-                            {chat.is_group ? chat.name : chat.otherParticipant?.display_name}
+                            {friend.friend_profile?.display_name}
                         </p>
                    </div>
                   <p className="text-sm text-muted-foreground truncate">
-                    {chat.is_group 
-                      ? `${chat.participants.length} members` 
-                      : chat.otherParticipant?.bio || `No bio set for: ${chat.otherParticipant?.display_name}`
-                    }
+                    {friend.friend_profile?.bio || 'No bio set'}
                   </p>
                 </div>
               </div>
             ))
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              <p>{listType === 'friend' ? 'No friends found.' : 'No groups found.'}</p>
+              <p>No friends found.</p>
             </div>
           )}
         </ScrollArea>
       </div>
       <div className="w-2/3 flex flex-col h-full">
-        {selectedChat ? (
+        {selectedFriend ? (
           <>
             <CardHeader className="flex flex-col gap-3 border-b">
               <div className='flex flex-row items-center gap-3'>
                  <Avatar className="h-10 w-10">
-                    {selectedChat.is_group ? (
-                        <div className="flex items-center justify-center h-full w-full bg-muted rounded-full">
-                            <Users className="h-5 w-5 text-muted-foreground" />
-                        </div>
-                    ) : (
-                        <>
-                        <AvatarImage
-                          src={selectedChat.otherParticipant?.photo_url || undefined}
-                          alt={selectedChat.name || ''}
-                        />
-                        <AvatarFallback>
-                          {getInitials(selectedChat.otherParticipant?.display_name)}
-                        </AvatarFallback>
-                        </>
-                    )}
+                    <AvatarImage src={selectedFriend.photo_url || undefined} />
+                    <AvatarFallback>{getInitials(selectedFriend.display_name)}</AvatarFallback>
                   </Avatar>
                   <div className="flex-1">
                     <h2 className="font-headline text-lg font-semibold flex items-center gap-2">
-                      {selectedChat.is_group ? selectedChat.name : selectedChat.otherParticipant?.display_name}
+                      {selectedFriend.display_name}
                     </h2>
                      <div className="h-5">
-                         {selectedChat.is_group && (
-                            <p className="text-sm text-muted-foreground">{selectedChat.participants.length} members</p>
-                         )
-                      }
+                         <p className="text-sm text-muted-foreground">{selectedFriend.email}</p>
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={handleStartCall}>
                     <Phone className="h-5 w-5" />
                     <span className="sr-only">Start Voice Call</span>
                   </Button>
-                  {!selectedChat.is_group && (
                      <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button size="icon" variant="ghost" className="text-destructive hover:text-destructive hover:bg-destructive/10">
@@ -402,13 +348,13 @@ export function ChatLayout({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently remove <span className="font-bold">{selectedChat.otherParticipant?.display_name}</span> as a friend and delete your entire chat history. This action cannot be undone.
+                            This will permanently remove <span className="font-bold">{selectedFriend.display_name}</span> as a friend and delete your entire chat history. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
                           <AlertDialogAction
-                            onClick={handleDeleteChat}
+                            onClick={handleRemoveFriend}
                             className="bg-destructive hover:bg-destructive/90"
                             disabled={isDeleting}
                           >
@@ -418,7 +364,6 @@ export function ChatLayout({
                         </AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
-                  )}
               </div>
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
@@ -465,11 +410,11 @@ export function ChatLayout({
                         {msg.sender_id !== currentUser.id && (
                             <Avatar className="h-8 w-8">
                             <AvatarImage
-                                src={msg.profiles?.photo_url || userMap.get(msg.sender_id)?.photo_url || undefined}
-                                alt={msg.profiles?.display_name || userMap.get(msg.sender_id)?.display_name || ''}
+                                src={msg.sender_profile?.photo_url || undefined}
+                                alt={msg.sender_profile?.display_name || ''}
                             />
                             <AvatarFallback>
-                                {getInitials(msg.profiles?.display_name || userMap.get(msg.sender_id)?.display_name)}
+                                {getInitials(msg.sender_profile?.display_name)}
                             </AvatarFallback>
                             </Avatar>
                         )}
@@ -482,21 +427,9 @@ export function ChatLayout({
                             msg.id.toString().startsWith('temp-') && 'opacity-70'
                             )}
                         >
-                             {msg.type === 'file' && msg.file_url ? (
-                                <a
-                                  href={msg.file_url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="flex items-center gap-2 underline"
-                                >
-                                  <Download className="h-4 w-4" />
-                                  {msg.file_url.split('/').pop()}
-                                </a>
-                              ) : (
-                                <div className="prose prose-sm dark:prose-invert max-w-none">
-                                  {parseMessageContent(msg.content)}
-                                </div>
-                              )}
+                             <div className="prose prose-sm dark:prose-invert max-w-none">
+                                {parseMessageContent(msg.content)}
+                             </div>
                             <p className="text-xs opacity-70 mt-1 text-right">
                                 {formatMessageTimestamp(msg.created_at)}
                             </p>
@@ -546,11 +479,9 @@ export function ChatLayout({
         ) : (
           <div className="flex flex-1 items-center justify-center">
             <div className="text-center">
-              <SelectChatIllustration type={listType} />
-              <p className="mt-4 text-lg font-semibold">{listType === 'friend' ? 'Select a friend' : 'Select a group'}</p>
-              <p className="text-muted-foreground">
-                {listType === 'friend' ? 'Start a conversation from your friends list.' : 'Select a group to see the conversation.'}
-              </p>
+              <SelectChatIllustration />
+              <p className="mt-4 text-lg font-semibold">Select a friend</p>
+              <p className="text-muted-foreground">Start a conversation from your friends list.</p>
             </div>
           </div>
         )}

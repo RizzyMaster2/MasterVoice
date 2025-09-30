@@ -38,8 +38,8 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { UserProfile } from '@/lib/data';
-import { getFriendsForUser } from '@/app/(auth)/actions/chat';
+import type { UserProfile, Friend } from '@/lib/data';
+import { getFriends } from '@/app/(auth)/actions/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useRouter } from 'next/navigation';
@@ -65,7 +65,7 @@ export default function ProfilePage() {
   const animationFrameRef = useRef<number | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
   const [isMicTesting, setIsMicTesting] = useState(false);
-  const [friends, setFriends] = useState<UserProfile[]>([]);
+  const [friends, setFriends] = useState<Friend[]>([]);
   const [isLoadingFriends, setIsLoadingFriends] = useState(true);
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function ProfilePage() {
       if (user) {
         setIsLoadingFriends(true);
         try {
-          const friendList = await getFriendsForUser(user.id);
+          const friendList = await getFriends();
           setFriends(friendList);
         } catch (error) {
           toast({
@@ -227,14 +227,14 @@ export default function ProfilePage() {
                 ) : friends.length > 0 ? (
                   <div className="space-y-4">
                     {friends.map((friend) => (
-                      <div key={friend.id} className="flex items-center gap-4 p-2 rounded-md hover:bg-accent/50">
+                      <div key={friend.friend_id} className="flex items-center gap-4 p-2 rounded-md hover:bg-accent/50">
                         <Avatar className="h-12 w-12">
-                          <AvatarImage src={friend.photo_url || undefined} alt={friend.display_name || ''} />
-                          <AvatarFallback>{getInitials(friend.display_name)}</AvatarFallback>
+                          <AvatarImage src={friend.friend_profile?.photo_url || undefined} alt={friend.friend_profile?.display_name || ''} />
+                          <AvatarFallback>{getInitials(friend.friend_profile?.display_name)}</AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold">{friend.display_name}</p>
-                          <p className="text-sm text-muted-foreground">{friend.email}</p>
+                          <p className="font-semibold">{friend.friend_profile?.display_name}</p>
+                          <p className="text-sm text-muted-foreground">{friend.friend_profile?.email}</p>
                         </div>
                       </div>
                     ))}

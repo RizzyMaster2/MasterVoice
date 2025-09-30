@@ -1,7 +1,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
@@ -24,7 +24,7 @@ export default async function HomeLayout({
 
     const isVerified = !!authUser.email_confirmed_at;
 
-    const { chats, allUsers, friendRequests } = await getInitialHomeData();
+    const { friends, allUsers } = await getInitialHomeData();
     
     const currentUserProfile: UserProfile = {
         id: authUser.id,
@@ -41,14 +41,11 @@ export default async function HomeLayout({
             {!isVerified && <UnverifiedAccountWarning />}
             <HomeClientLayout
                 currentUser={currentUserProfile}
-                initialChats={chats}
+                initialFriends={friends}
                 initialUsers={allUsers}
-                initialFriendRequests={friendRequests}
             >
                 {children}
             </HomeClientLayout>
         </div>
     );
 }
-
-    

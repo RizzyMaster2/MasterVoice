@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import type { Chat, Message, UserProfile, FriendRequest } from '@/lib/data';
+import type { Message, UserProfile, Friend } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
@@ -17,63 +17,6 @@ async function getCurrentUser() {
     throw new Error('User not authenticated');
   }
   return user;
-}
-
-export async function getInitialHomeData() {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) {
-        return { chats: [], allUsers: [], friendRequests: { incoming: [], outgoing: [] } };
-    }
-
-    // This single RPC call is much more efficient.
-    const { data, error } = await supabase.rpc('get_initial_home_data', { p_user_id: user.id });
-
-    if (error) {
-        console.error('Error fetching initial home data:', error);
-        throw new Error(error.message);
-    }
-
-    const { all_users, chats, incoming_friend_requests, outgoing_friend_requests } = data;
-
-    const userMap = new Map(all_users.map((u: UserProfile) => [u.id, u]));
-
-    const processedChats = chats.map((chat: any) => {
-        const participantIds = chat.participants;
-        const fullChat: Chat = {
-            ...chat,
-            participants: participantIds,
-        };
-
-        if (chat.is_group) {
-            fullChat.participantProfiles = participantIds
-                .map((id: string) => userMap.get(id))
-                .filter((p: any): p is UserProfile => !!p);
-        } else {
-            const otherParticipantId = participantIds.find((id: string) => id !== user.id);
-            if (otherParticipantId) {
-                fullChat.otherParticipant = userMap.get(otherParticipantId);
-            }
-        }
-        return fullChat;
-    }).filter((chat: Chat) => chat.is_group || !!chat.otherParticipant);
-    
-    const processedIncoming = incoming_friend_requests.map((req: any) => ({
-        ...req,
-        profiles: userMap.get(req.from_user_id)
-    })) as FriendRequest[];
-    
-    const processedOutgoing = outgoing_friend_requests.map((req: any) => ({
-        ...req,
-        profiles: userMap.get(req.to_user_id)
-    })) as FriendRequest[];
-
-    return {
-        chats: processedChats,
-        allUsers: all_users.filter((u: UserProfile) => u.id !== user.id),
-        friendRequests: { incoming: processedIncoming, outgoing: processedOutgoing },
-    };
 }
 
 
@@ -96,7 +39,6 @@ export async function getUsers(): Promise<UserProfile[]> {
       .in('id', userIds);
 
     if (profilesError) {
-      // Log the error but don't fail; we can still construct users from auth data
       console.error('Error fetching profiles for users:', profilesError);
     }
 
@@ -122,208 +64,43 @@ export async function getUsers(): Promise<UserProfile[]> {
   }
 }
 
-// Fetch all chats for the current user
-export async function getChats(): Promise<Chat[]> {
+// Fetch all friends for the current user
+export async function getFriends(): Promise<Friend[]> {
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
-    const { data: { user: authUser } } = await supabase.auth.getUser();
-    if (!authUser) {
-      return [];
-    }
+    const user = await getCurrentUser();
+
+    const { data, error } = await supabase
+      .from('friends')
+      .select('*, friend_profile:profiles!friends_friend_id_fkey(*)')
+      .eq('user_id', user.id);
     
-    // 1. Get all chat_ids the user is a part of
-    const { data: userChatLinks, error: chatLinksError } = await supabase
-      .from('chat_participants')
-      .select('chat_id')
-      .eq('user_id', authUser.id);
-    
-    if (chatLinksError) {
-      console.error("Error fetching user's chat links:", chatLinksError);
+    if (error) {
+      console.error("Error fetching friends:", error);
       return [];
     }
 
-    const chatIds = userChatLinks.map(link => link.chat_id);
-    if (chatIds.length === 0) {
-        return [];
-    }
+    return data as Friend[];
 
-    // 2. Fetch all data for those chats and all their participants
-    const { data: chatsData, error: chatsError } = await supabase
-      .from('chats')
-      .select('*, chat_participants(user_id)')
-      .in('id', chatIds);
-
-    if (chatsError) {
-        console.error('Error fetching chats:', chatsError);
-        return [];
-    }
-    
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
-    // 3. Process the chats to add participant profiles
-    const processedChats = chatsData.map((chat) => {
-      const participantIds = chat.chat_participants.map(p => p.user_id);
-      
-      const fullChat: Chat = {
-          id: chat.id,
-          created_at: chat.created_at,
-          name: chat.name,
-          is_group: chat.is_group,
-          admin_id: chat.admin_id,
-          participants: participantIds,
-      };
-
-      if (chat.is_group) {
-        fullChat.participantProfiles = participantIds
-            .map((id: string) => userMap.get(id))
-            .filter((p: any): p is UserProfile => !!p);
-      } else {
-        const otherParticipantId = participantIds.find((id: string) => id !== authUser.id);
-        if (otherParticipantId) {
-          fullChat.otherParticipant = userMap.get(otherParticipantId);
-        }
-      }
-      return fullChat;
-    }).filter(chat => {
-        // Critical fix: Ensure we only return 1-on-1 chats where we could find the other participant.
-        if (!chat.is_group) {
-            return !!chat.otherParticipant;
-        }
-        return true;
-    });
-
-    return processedChats;
   } catch (error) {
-    console.error('getChats failed:', error);
+    console.error('getFriends failed:', error);
     return [];
   }
 }
 
 
-// This function is now only used INTERNALLY by the accept_friend_request RPC
-// It is no longer exposed as a primary user action.
-export async function createChat(otherUserId: string): Promise<{ chat: Chat | null, isNew: boolean }> {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
-  try {
-    const user = await getCurrentUser();
-    const userId = user.id;
-
-    const { data: existingChat, error: existingError } = await supabase
-        .rpc('get_existing_chat', { user1_id: userId, user2_id: otherUserId });
-
-    if (existingError) {
-      throw new Error(existingError.message);
-    }
-
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
-    if (existingChat && existingChat.length > 0) {
-      const { data: chatDetails, error: detailsError } = await supabase
-        .from('chats')
-        .select('*, chat_participants!inner(*)')
-        .eq('id', existingChat[0].chat_id)
-        .single();
-      
-      if (detailsError) throw detailsError;
-
-       const participantIds = chatDetails.chat_participants.map((p: { user_id: any; }) => p.user_id);
-       const otherParticipantId = participantIds.find((id: string) => id !== userId);
-
-      const chatToReturn: Chat = {
-        ...chatDetails,
-        participants: participantIds,
-        otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
-      }
-
-      return { chat: chatToReturn, isNew: false };
-    }
-
-    const { data: newChatId, error: rpcError } = await supabase
-      .rpc('create_chat_and_add_participants', { other_user_id: otherUserId });
-
-    if (rpcError) {
-      throw new Error(rpcError.message);
-    }
-
-     if (!newChatId) {
-      throw new Error('Chat creation returned no ID.');
-    }
-
-    // After creating, fetch the full chat to return
-     const { data: finalNewChat, error: newChatError } = await supabase
-        .from('chats')
-        .select('*, chat_participants!inner(*)')
-        .eq('id', newChatId)
-        .single();
-    
-    if (newChatError || !finalNewChat) {
-      throw new Error('Failed to fetch newly created chat.');
-    }
-
-    const otherParticipantId = finalNewChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.user_id;
-
-    const chatToReturn: Chat = {
-        id: finalNewChat.id,
-        created_at: finalNewChat.created_at,
-        is_group: finalNewChat.is_group,
-        name: finalNewChat.name,
-        admin_id: finalNewChat.admin_id,
-        participants: finalNewChat.chat_participants.map((p: { user_id: any; }) => p.user_id),
-        otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
-    };
-    
-    revalidatePath('/home/friends');
-    return { chat: chatToReturn, isNew: true };
-    
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred while creating the chat.';
-    throw new Error(message);
-  }
-}
-
-export async function createGroupChat(name: string, participantIds: string[]): Promise<Chat | null> {
-    try {
-        const cookieStore = cookies();
-        const supabase = createClient(cookieStore);
-        const user = await getCurrentUser();
-        const userId = user.id;
-
-        const allParticipantIds = Array.from(new Set([userId, ...participantIds]));
-
-        const { data: newGroup, error: rpcError } = await supabase
-            .rpc('create_group_chat_and_add_participants', {
-                group_name: name,
-                participant_ids: allParticipantIds,
-            })
-            .select()
-            .single();
-
-        if (rpcError) {
-            throw new Error(rpcError.message);
-        }
-        
-        revalidatePath('/home/groups');
-        return { ...newGroup, participants: allParticipantIds };
-
-    } catch (error) {
-        throw new Error(error instanceof Error ? error.message : 'An unknown error occurred.');
-    }
-}
-
-// Fetch messages for a specific chat
-export async function getMessages(chatId: string): Promise<Message[]> {
+// Fetch messages between the current user and a friend
+export async function getMessages(friendId: string): Promise<Message[]> {
   try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+
     const { data, error } = await supabase
       .from('messages')
-      .select('*')
-      .eq('chat_id', chatId)
+      .select('*, sender_profile:profiles!messages_sender_id_fkey(*)')
+      .or(`(sender_id.eq.${user.id},receiver_id.eq.${friendId}),(sender_id.eq.${friendId},receiver_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
 
     if (error) {
@@ -338,46 +115,20 @@ export async function getMessages(chatId: string): Promise<Message[]> {
 }
 
 // Send a new message
-export async function sendMessage(chatId: string, content: string, type: 'text' | 'file' = 'text') {
+export async function sendMessage(receiverId: string, content: string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   try {
     const user = await getCurrentUser();
-    const userId = user.id;
-
-    // Verify the user is part of the chat before allowing them to send a message
-    const { data: participant, error: participantError } = await supabase
-      .from('chat_participants')
-      .select('user_id')
-      .eq('chat_id', chatId)
-      .eq('user_id', userId)
-      .single();
-
-    if (participantError || !participant) {
-      throw new Error('You are not a member of this chat.');
-    }
     
-    const messageData: {
-      chat_id: string;
-      sender_id: string;
-      content: string;
-      type: string;
-      file_url?: string;
-    } = {
-      chat_id: chatId,
-      sender_id: userId,
-      content: type === 'file' ? 'Attachment' : content,
-      type: type,
-    };
-
-    if (type === 'file') {
-      messageData.file_url = content;
-    }
-
     const { data, error } = await supabase
       .from('messages')
-      .insert([messageData])
+      .insert({
+        sender_id: user.id,
+        receiver_id: receiverId,
+        content: content
+      })
       .select()
       .single();
 
@@ -392,34 +143,69 @@ export async function sendMessage(chatId: string, content: string, type: 'text' 
   }
 }
 
-export async function deleteMessage(messageId: string) {
+export async function addFriend(friendId: string) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+
+    if (user.id === friendId) {
+        throw new Error("You cannot add yourself as a friend.");
+    }
+    
+    // The RLS policy will prevent adding a friend that already exists,
+    // but we can check here to provide a better error message.
+    const { data: existing, error: existingError } = await supabase
+        .from('friends')
+        .select()
+        .eq('user_id', user.id)
+        .eq('friend_id', friendId)
+        .single();
+    
+    if(existing) {
+        throw new Error("You are already friends with this user.");
+    }
+
+    // Add friend for current user
+    const { error: error1 } = await supabase
+        .from('friends')
+        .insert({ user_id: user.id, friend_id: friendId });
+
+    if (error1) {
+      // If the first insert fails, we don't proceed.
+      // The RLS policy might be the cause, e.g., if the friendship already exists.
+      throw new Error(error1.message);
+    }
+
+    // Add the reverse friendship
+    const { error: error2 } = await supabase
+        .from('friends')
+        .insert({ user_id: friendId, friend_id: user.id });
+
+    if (error2) {
+      // If the second insert fails, we should ideally roll back the first.
+      // For simplicity here, we'll just log the error. In a production app,
+      // you would use a transaction or an RPC function to ensure atomicity.
+      console.error("Failed to create reverse friendship:", error2);
+       throw new Error(`Friend added, but reverse relationship failed: ${error2.message}`);
+    }
+
+    revalidatePath('/home');
+    revalidatePath('/home/friends');
+}
+
+
+export async function deleteMessage(messageId: number) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
   try {
     const user = await getCurrentUser();
-    const userId = user.id;
-
-    // First, verify the user is the sender of the message
-    const { data: message, error: fetchError } = await supabase
-      .from('messages')
-      .select('sender_id')
-      .eq('id', messageId)
-      .single();
     
-    if (fetchError || !message) {
-      throw new Error('Message not found.');
-    }
-    
-    if (message.sender_id !== userId) {
-      throw new Error('You can only delete your own messages.');
-    }
-    
-    // If they are the sender, delete the message
     const { error: deleteError } = await supabase
       .from('messages')
       .delete()
-      .eq('id', messageId);
+      .eq('id', messageId)
+      .eq('sender_id', user.id); // RLS also enforces this, but it's good practice
       
     if (deleteError) {
       throw new Error(deleteError.message);
@@ -431,253 +217,50 @@ export async function deleteMessage(messageId: string) {
   }
 }
 
-export async function deleteChat(chatId: string, otherParticipantId: string) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
-  try {
+export async function removeFriend(friendId: string) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
     const userId = user.id;
-    const supabaseAdmin = createAdminClient();
 
-    // Verify the user is actually part of this chat before deleting
-    const { data: participants, error: participantError } = await supabaseAdmin
-      .from('chat_participants')
-      .select('user_id')
-      .eq('chat_id', chatId);
-
-    if (participantError) throw new Error('Could not verify chat participants.');
-
-    const participantIds = participants.map(p => p.user_id);
-    if (!participantIds.includes(userId) || !participantIds.includes(otherParticipantId)) {
-      throw new Error('You do not have permission to delete this chat.');
-    }
-
-    // Delete the chat. The `on delete cascade` on the `chat_id` foreign keys
-    // in `messages` and `chat_participants` tables will handle the cleanup.
-    const { error: deleteError } = await supabaseAdmin
-      .from('chats')
+    // Use an RPC function for atomicity or just delete both relationships.
+    const { error: error1 } = await supabase
+      .from('friends')
       .delete()
-      .eq('id', chatId);
+      .eq('user_id', userId)
+      .eq('friend_id', friendId);
 
-    if (deleteError) {
-      throw new Error(deleteError.message);
+    const { error: error2 } = await supabase
+      .from('friends')
+      .delete()
+      .eq('user_id', friendId)
+      .eq('friend_id', userId);
+
+    if (error1 || error2) {
+        const message = error1?.message || error2?.message || "An unknown error occurred.";
+        console.error("Error removing friend: ", message);
+        throw new Error(message);
     }
-
+    
+    revalidatePath('/home');
     revalidatePath('/home/friends');
-
-  } catch(error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    throw new Error(message);
-  }
 }
 
-// --- Friend Request Actions ---
-
-export async function getFriendRequests(): Promise<{ incoming: FriendRequest[], outgoing: FriendRequest[] }> {
-  try {
+export async function getInitialHomeData() {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
-    const user = await getCurrentUser();
-    const userId = user.id;
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
-
-    // Fetch incoming requests
-    const { data: incoming, error: incomingError } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('to_user_id', userId)
-      .eq('status', 'pending');
-
-    if (incomingError) throw incomingError;
-
-    // Fetch outgoing requests
-    const { data: outgoing, error: outgoingError } = await supabase
-      .from('friend_requests')
-      .select('*')
-      .eq('from_user_id', userId)
-      .eq('status', 'pending');
-      
-    if (outgoingError) throw outgoingError;
-    
-    const processedIncoming = incoming.map(req => ({
-        ...req,
-        profiles: userMap.get(req.from_user_id)
-    })) as FriendRequest[];
-    
-    const processedOutgoing = outgoing.map(req => ({
-        ...req,
-        profiles: userMap.get(req.to_user_id)
-    })) as FriendRequest[];
-
-    return { incoming: processedIncoming, outgoing: processedOutgoing };
-  } catch (error) {
-    console.error("Error fetching friend requests:", error);
-    return { incoming: [], outgoing: [] };
-  }
-}
-
-export async function sendFriendRequest(toUserId: string) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  const fromUser = await getCurrentUser();
-  const fromUserId = fromUser.id;
-  
-  if (!fromUser.email_confirmed_at) {
-    throw new Error("You must verify your email before sending friend requests.");
-  }
-
-  if (fromUserId === toUserId) {
-    throw new Error("You cannot send a friend request to yourself.");
-  }
-
-  // Use RPC to check for existing request
-  const { data: existingRequest, error: existingError } = await supabase
-    .rpc('check_existing_friend_request', {
-      user1_id: fromUserId,
-      user2_id: toUserId
-    });
-  
-  if (existingError) {
-    throw new Error(existingError.message);
-  }
-
-  if (existingRequest) {
-    if(existingRequest.status === 'pending') throw new Error("A friend request is already pending.");
-    if(existingRequest.status === 'accepted') throw new Error("You are already friends with this user.");
-  }
-  
-  // Check if they are already friends by looking for an existing chat
-  const { data: existingChat, error: chatError } = await supabase
-    .rpc('get_existing_chat', { user1_id: fromUserId, user2_id: toUserId });
-  
-  if (chatError) {
-    throw new Error(chatError.message);
-  }
-
-  if (existingChat && existingChat.length > 0) {
-    throw new Error("You are already friends with this user.");
-  }
-  
-  const { data: insertedRequest, error } = await supabase
-    .from('friend_requests')
-    .insert({ from_user_id: fromUserId, to_user_id: toUserId })
-    .select()
-    .single();
-  
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/home/friends');
-}
-
-export async function acceptFriendRequest(requestId: string): Promise<Chat | null> {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  
-  const { data: newChatId, error: rpcError } = await supabase.rpc('accept_friend_request', { request_id: requestId });
-
-  if (rpcError) {
-    throw new Error(rpcError.message);
-  }
-
-  if (!newChatId) {
-    revalidatePath('/home/friends');
-    return null;
-  }
-  
-  // Fetch the newly created chat to return it to the client for immediate update
-  const { data: newChat, error: chatError } = await supabase
-    .from('chats')
-    .select('*, chat_participants(*)')
-    .eq('id', newChatId)
-    .single();
-
-  if (chatError || !newChat) {
-    revalidatePath('/home/friends');
-    return null;
-  }
-
-  const allUsers = await getUsers();
-  const userMap = new Map(allUsers.map(u => [u.id, u]));
-  const user = await getCurrentUser();
-  const userId = user.id;
-  const otherParticipantId = newChat.chat_participants.find((p: { user_id: string; }) => p.user_id !== userId)?.user_id;
-
-  revalidatePath('/home/friends');
-
-  return {
-    ...newChat,
-    participants: newChat.chat_participants.map((p: { user_id: any; }) => p.user_id),
-    otherParticipant: otherParticipantId ? userMap.get(otherParticipantId) : undefined,
-  };
-}
-
-export async function declineFriendRequest(requestId: string) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  const { error } = await supabase
-    .from('friend_requests')
-    .update({ status: 'declined' })
-    .eq('id', requestId);
-    
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/home/friends');
-}
-
-export async function cancelFriendRequest(requestId: string) {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  const { error } = await supabase
-    .from('friend_requests')
-    .delete()
-    .eq('id', requestId);
-    
-  if (error) {
-    throw new Error(error.message);
-  }
-
-  revalidatePath('/home/friends');
-}
-
-export async function getFriendsForUser(userId: string): Promise<UserProfile[]> {
-  try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    // This function will execute a raw SQL query to get friends.
-    // 1. Find all 1-on-1 chats the user is in.
-    // 2. For each chat, find the OTHER participant.
-    // 3. Get the profile of that other participant.
-    const { data: friends, error } = await supabase.rpc('get_user_friends', { p_user_id: userId });
-
-    if (error) {
-        console.error(`Error fetching friends for user ${userId} via RPC:`, error);
-        throw new Error(error.message);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+        return { friends: [], allUsers: [] };
     }
 
-    // The RPC returns user objects which should match the UserProfile structure.
-    // We need to fetch the full profiles from the `users` (auth) and `profiles` tables
-    // to build the complete UserProfile object.
-    
-    const allUsers = await getUsers();
-    const userMap = new Map(allUsers.map(u => [u.id, u]));
+    const [friendsData, allUsersData] = await Promise.all([
+        getFriends(),
+        getUsers()
+    ]);
 
-    const friendIds = friends.map((f: { friend_id: string }) => f.friend_id);
-    
-    const friendProfiles = friendIds
-        .map(id => userMap.get(id))
-        .filter((p): p is UserProfile => !!p);
-      
-    return friendProfiles;
-
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'An unknown error occurred.';
-    console.error(`Error in getFriendsForUser for user ${userId}:`, message);
-    throw new Error(message);
-  }
+    return {
+        friends: friendsData,
+        allUsers: allUsersData.filter(u => u.id !== user.id),
+    };
 }

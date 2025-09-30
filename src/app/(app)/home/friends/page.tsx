@@ -9,7 +9,6 @@ export default function FriendsPage() {
   const {
     currentUser,
     friends,
-    friendRequests,
     allUsers,
     isLoading
   } = useHomeClient();
@@ -23,7 +22,6 @@ export default function FriendsPage() {
         <FriendsClientPage
             currentUser={currentUser}
             initialFriends={friends}
-            initialFriendRequests={friendRequests}
             allUsers={allUsers}
         />
     </div>

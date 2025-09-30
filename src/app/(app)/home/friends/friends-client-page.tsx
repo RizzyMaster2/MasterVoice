@@ -1,38 +1,22 @@
 
-
 'use client';
 
-import { useState, useMemo, useTransition, useEffect, useCallback } from 'react';
-import type { UserProfile, Chat, FriendRequest } from '@/lib/data';
+import { useState, useMemo, useTransition } from 'react';
+import type { UserProfile, Friend } from '@/lib/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
-  Users,
   Search,
   Plus,
   Loader2,
-  Send,
-  Mail,
-  Check,
-  X,
-  Trash2,
   MessageSquare,
-  UserX,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import {
-  acceptFriendRequest,
-  cancelFriendRequest,
-  declineFriendRequest,
-  sendFriendRequest,
-  getChats,
-  getFriendRequests,
-} from '@/app/(auth)/actions/chat';
-import { createClient } from '@/lib/supabase/client';
+import { addFriend } from '@/app/(auth)/actions/chat';
 import { getErrorMessage } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/use-user';
@@ -40,8 +24,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 
 interface FriendsClientPageProps {
   currentUser: UserProfile;
-  initialFriends: Chat[];
-  initialFriendRequests: { incoming: FriendRequest[]; outgoing: FriendRequest[] };
+  initialFriends: Friend[];
   allUsers: UserProfile[];
 }
 
@@ -96,42 +79,27 @@ const NoUsersFoundIllustration = () => (
 export function FriendsClientPage({
   currentUser,
   initialFriends,
-  initialFriendRequests,
   allUsers,
 }: FriendsClientPageProps) {
-  const [friends, setFriends] = useState<Chat[]>(initialFriends);
-  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
+  const [friends, setFriends] = useState<Friend[]>(initialFriends);
   const [searchQuery, setSearchQuery] = useState('');
   const [isProcessing, startTransition] = useTransition();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const { user, isVerified } = useUser();
-
-  // The parent component (HomeClientLayout) is now responsible for realtime updates.
-  // We just need to update the state when the props change.
-  useEffect(() => {
-    setFriends(initialFriends);
-  }, [initialFriends]);
-
-  useEffect(() => {
-    setFriendRequests(initialFriendRequests);
-  }, [initialFriendRequests]);
-
+  const { isVerified } = useUser();
 
   const getInitials = (name: string | null | undefined) =>
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
-  const friendIds = useMemo(() => new Set(friends.flatMap(c => c.participants)), [friends]);
-  const outgoingRequestUserIds = useMemo(() => new Set(friendRequests.outgoing.map(req => req.to_user_id)), [friendRequests.outgoing]);
-  const incomingRequestUserIds = useMemo(() => new Set(friendRequests.incoming.map(req => req.from_user_id)), [friendRequests.incoming]);
+  const friendIds = useMemo(() => new Set(friends.map(f => f.friend_id)), [friends]);
 
 
-  const handleSendFriendRequest = (user: UserProfile) => {
+  const handleAddFriend = (user: UserProfile) => {
     if (!isVerified) {
         toast({
             title: "Verification Required",
-            description: "You must verify your email before sending friend requests.",
+            description: "You must verify your email before adding friends.",
             variant: "destructive"
         });
         return;
@@ -139,13 +107,13 @@ export function FriendsClientPage({
     setProcessingId(user.id);
     startTransition(async () => {
       try {
-        await sendFriendRequest(user.id);
+        await addFriend(user.id);
         toast({
-          title: 'Request Sent',
-          description: `Your friend request to ${user.display_name} has been sent.`,
+          title: 'Friend Added',
+          description: `You are now friends with ${user.display_name}.`,
           variant: 'success',
         });
-        // Realtime from parent will handle the update
+        // Realtime update from parent will refresh the state
       } catch (error) {
         toast({
           title: 'Error',
@@ -157,55 +125,12 @@ export function FriendsClientPage({
       }
     });
   };
-
-  const handleRequestResponse = (action: 'accept' | 'decline' | 'cancel', request: FriendRequest) => {
-    setProcessingId(request.id);
-    startTransition(async () => {
-      try {
-        let user, title, description, variant;
-        switch (action) {
-          case 'accept':
-            await acceptFriendRequest(request.id);
-            user = request.profiles;
-            title = 'Request Accepted';
-            description = `You are now friends with ${user?.display_name}.`;
-            variant = 'success';
-            break;
-          case 'decline':
-            await declineFriendRequest(request.id);
-            user = request.profiles;
-            title = 'Request Declined';
-            description = `You have declined the friend request from ${user?.display_name}.`;
-            variant = 'info';
-            break;
-          case 'cancel':
-            await cancelFriendRequest(request.id);
-            user = request.profiles;
-            title = 'Request Cancelled';
-            description = `You have cancelled your friend request to ${user?.display_name}.`;
-            variant = 'info';
-            break;
-        }
-        toast({ title, description, variant: variant as any });
-        // Realtime from parent will handle the update
-      } catch (error) {
-        toast({
-          title: 'Error',
-          description: getErrorMessage(error),
-          variant: 'destructive',
-        });
-      } finally {
-        setProcessingId(null);
-      }
-    });
-  };
-
+  
   const addFriendFilteredUsers = useMemo(() => {
     const availableUsers = allUsers.filter(
       user =>
         user.id !== currentUser.id &&
-        !friendIds.has(user.id) &&
-        !incomingRequestUserIds.has(user.id)
+        !friendIds.has(user.id)
     );
 
     if (searchQuery) {
@@ -214,15 +139,14 @@ export function FriendsClientPage({
       );
     }
     return availableUsers.slice(0, 10); // Show some suggestions
-  }, [allUsers, currentUser.id, friendIds, incomingRequestUserIds, searchQuery]);
+  }, [allUsers, currentUser.id, friendIds, searchQuery]);
 
 
   return (
     <div className="h-full">
       <Tabs defaultValue="all" className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="all">All Friends ({friends.length})</TabsTrigger>
-          <TabsTrigger value="pending">Pending ({friendRequests.incoming.length})</TabsTrigger>
           <TabsTrigger value="add">Add Friend</TabsTrigger>
         </TabsList>
         
@@ -236,16 +160,16 @@ export function FriendsClientPage({
               <ScrollArea className="h-[calc(100vh-22rem)]">
                 {friends.length > 0 ? (
                   <div className="space-y-4">
-                    {friends.map(chat => (
-                      <div key={chat.id} className="flex items-center justify-between">
+                    {friends.map(friend => (
+                      <div key={friend.friend_id} className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <Avatar className="h-10 w-10">
-                            <AvatarImage src={chat.otherParticipant?.photo_url || undefined} />
-                            <AvatarFallback>{getInitials(chat.otherParticipant?.display_name)}</AvatarFallback>
+                            <AvatarImage src={friend.friend_profile?.photo_url || undefined} />
+                            <AvatarFallback>{getInitials(friend.friend_profile?.display_name)}</AvatarFallback>
                           </Avatar>
-                          <p className="font-semibold">{chat.otherParticipant?.display_name}</p>
+                          <p className="font-semibold">{friend.friend_profile?.display_name}</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/home?chat=${chat.id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/home?friend=${friend.friend_id}`)}>
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Chat
                         </Button>
@@ -262,73 +186,6 @@ export function FriendsClientPage({
             </CardContent>
           </Card>
         </TabsContent>
-
-        <TabsContent value="pending" className="flex-1 mt-6">
-          <Card className="h-full">
-            <CardHeader>
-                <CardTitle className="font-headline">Friend Requests</CardTitle>
-                <CardDescription>Manage your incoming and sent friend requests.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                <Tabs defaultValue="incoming">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="incoming">Incoming ({friendRequests.incoming.length})</TabsTrigger>
-                        <TabsTrigger value="outgoing">Sent ({friendRequests.outgoing.length})</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="incoming" className="mt-4">
-                        <ScrollArea className="h-[calc(100vh-28rem)]">
-                            <div className="space-y-4 pr-4">
-                                {friendRequests.incoming.length > 0 ? (
-                                    friendRequests.incoming.map(req => (
-                                        <div key={req.id} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10">
-                                                <AvatarImage src={req.profiles?.photo_url || undefined} />
-                                                <AvatarFallback>{getInitials(req.profiles?.display_name)}</AvatarFallback>
-                                                </Avatar>
-                                                <p className="font-semibold">{req.profiles?.display_name}</p>
-                                            </div>
-                                            <div className="flex items-center gap-1">
-                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('decline', req)} disabled={isProcessing && processingId === req.id}>
-                                                    {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <X className="h-4 w-4 text-destructive" />}
-                                                </Button>
-                                                <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('accept', req)} disabled={isProcessing && processingId === req.id}>
-                                                    {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4 text-green-500" />}
-                                                </Button>
-                                            </div>
-                                        </div>
-                                    ))
-                                ) : <p className="text-sm text-muted-foreground text-center pt-8">No incoming requests.</p>}
-                            </div>
-                        </ScrollArea>
-                    </TabsContent>
-                    <TabsContent value="outgoing" className="mt-4">
-                        <ScrollArea className="h-[calc(100vh-28rem)]">
-                            <div className="space-y-4 pr-4">
-                                {friendRequests.outgoing.length > 0 ? (
-                                    friendRequests.outgoing.map(req => (
-                                        <div key={req.id} className="flex items-center justify-between">
-                                            <div className="flex items-center gap-3">
-                                                <Avatar className="h-10 w-10">
-                                                    <AvatarImage src={req.profiles?.photo_url || undefined} />
-                                                    <AvatarFallback>{getInitials(req.profiles?.display_name)}</AvatarFallback>
-                                                </Avatar>
-                                                <p className="font-semibold">{req.profiles?.display_name}</p>
-                                            </div>
-                                            <Button variant="ghost" size="icon" onClick={() => handleRequestResponse('cancel', req)} disabled={isProcessing && processingId === req.id}>
-                                                {isProcessing && processingId === req.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Trash2 className="h-4 w-4 text-destructive" />}
-                                            </Button>
-                                        </div>
-                                    ))
-                                ) : <p className="text-sm text-muted-foreground text-center pt-8">No outgoing requests.</p>}
-                            </div>
-                        </ScrollArea>
-                    </TabsContent>
-                </Tabs>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
         <TabsContent value="add" className="flex-1 mt-6">
           <Card className="h-full">
             <CardHeader>
@@ -349,7 +206,6 @@ export function FriendsClientPage({
                  {addFriendFilteredUsers.length > 0 ? (
                   <div className="space-y-4">
                     {addFriendFilteredUsers.map(user => {
-                      const hasOutgoingRequest = outgoingRequestUserIds.has(user.id);
                       const isCurrentlyProcessing = isProcessing && processingId === user.id;
 
                       return (
@@ -362,27 +218,23 @@ export function FriendsClientPage({
                             <p className="font-semibold">{user.display_name}</p>
                           </div>
                           
-                           {hasOutgoingRequest || isCurrentlyProcessing ? (
+                           {isCurrentlyProcessing ? (
                                  <Button variant="ghost" size="icon" disabled>
-                                    {isCurrentlyProcessing ? (
-                                        <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                        <Send className="h-4 w-4 text-muted-foreground" />
-                                    )}
+                                    <Loader2 className="h-4 w-4 animate-spin" />
                                 </Button>
                            ) : (
                             <TooltipProvider>
                                 <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span tabIndex={0}>
-                                        <Button variant="ghost" size="icon" onClick={() => handleSendFriendRequest(user)} disabled={!isVerified || (isProcessing && processingId === user.id)}>
-                                            {isProcessing && processingId === user.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                                        <Button variant="ghost" size="icon" onClick={() => handleAddFriend(user)} disabled={!isVerified || (isProcessing && processingId === user.id)}>
+                                            <Plus className="h-4 w-4" />
                                         </Button>
                                     </span>
                                 </TooltipTrigger>
                                 {!isVerified && (
                                     <TooltipContent>
-                                        <p>Verify your email to send friend requests.</p>
+                                        <p>Verify your email to add friends.</p>
                                     </TooltipContent>
                                 )}
                                 </Tooltip>

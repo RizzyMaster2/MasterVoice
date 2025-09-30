@@ -10,10 +10,10 @@ export default function HomePage() {
     currentUser, 
     friends, 
     allUsers, 
-    selectedChat, 
-    setSelectedChat, 
+    selectedFriend, 
+    setSelectedFriend, 
     refreshAllData, 
-    handleChatDeleted,
+    handleFriendRemoved,
     isLoading
   } = useHomeClient();
 
@@ -25,16 +25,12 @@ export default function HomePage() {
     <div className="flex-1 flex flex-col h-full">
         <ChatLayout 
             currentUser={currentUser} 
-            chats={friends}
+            friends={friends}
             allUsers={allUsers}
-            selectedChat={selectedChat}
-            setSelectedChat={setSelectedChat}
-            listType="friend"
-            onChatUpdate={refreshAllData}
-            onChatDeleted={handleChatDeleted}
+            selectedFriend={selectedFriend}
+            setSelectedFriend={setSelectedFriend}
+            onFriendRemoved={handleFriendRemoved}
         />
     </div>
   );
 }
-
-    
