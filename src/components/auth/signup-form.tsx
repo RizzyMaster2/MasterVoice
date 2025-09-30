@@ -64,7 +64,8 @@ export function SignupForm() {
         }
 
         toast({ title: 'Signup successful!', description: 'Please check your email to verify your account.'});
-        router.refresh();
+        // Do not refresh here, as it can cause a race condition with the middleware
+        // before the user profile is created by the database trigger.
         router.push('/confirm');
 
     } catch (error) {

@@ -73,19 +73,38 @@ export async function middleware(request: NextRequest) {
 
   // if user is signed in, check if their profile exists
   if (user) {
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id')
-      .eq('id', user.id)
-      .single();
+    // If the user's email is not confirmed, they are likely a new sign-up.
+    // In this case, we bypass the profile check to allow the database trigger
+    // time to create the profile. The profile will be checked on subsequent logins
+    // after they have verified their email.
+    if (user.email_confirmed_at) {
+        const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
 
-    // if profile is missing, sign out and redirect
-    if (!profile) {
-      await supabase.auth.signOut();
-      const url = request.nextUrl.clone()
-      url.pathname = '/login'
-      url.searchParams.set('error', 'user_not_found');
-      return NextResponse.redirect(url);
+        // if profile is missing, sign out and redirect
+        if (!profile) {
+            await supabase.auth.signOut();
+            const url = request.nextUrl.clone()
+            url.pathname = '/login'
+            url.searchParams.set('error', 'user_not_found');
+            return NextResponse.redirect(url);
+        }
+    } else {
+        // Handle case where user is logged in but not verified
+        const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
+        if (!isAuthPath && request.nextUrl.pathname !== '/confirm') {
+             const { data: { user } } = await supabase.auth.getUser();
+             if (user && !user.email_confirmed_at) {
+                 const { error } = await supabase.auth.signOut();
+                 const url = request.nextUrl.clone()
+                 url.pathname = '/login'
+                 url.searchParams.set('confirmation', 'unverified');
+                 return NextResponse.redirect(url);
+             }
+        }
     }
   }
   
@@ -105,7 +124,7 @@ export async function middleware(request: NextRequest) {
   // if user is logged in and is trying to access an auth page (login, signup), redirect to home
   if (user) {
     const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup') || request.nextUrl.pathname.startsWith('/confirm');
-    if (isAuthPath) {
+    if (isAuthPath && user.email_confirmed_at) {
        return NextResponse.redirect(new URL('/home', request.url))
     }
   }

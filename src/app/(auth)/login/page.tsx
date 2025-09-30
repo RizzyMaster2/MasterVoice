@@ -19,8 +19,10 @@ interface LoginPageContentProps {
 function LoginPageContent({ searchParams }: LoginPageContentProps) {
   const message = searchParams.message as string | undefined;
   const error = searchParams.error as string | undefined;
+  const confirmation = searchParams.confirmation as string | undefined;
 
   const userNotFoundError = "Your user profile could not be found. This can happen if the account was deleted. Please sign in again or create a new account.";
+  const unverifiedUserError = "Your email is not confirmed. Please check your inbox for a verification link.";
 
   return (
     <Card className="w-full max-w-sm shadow-xl relative">
@@ -43,6 +45,13 @@ function LoginPageContent({ searchParams }: LoginPageContentProps) {
             <AlertCircle className="h-4 w-4" />
             <AlertTitle>Login Required</AlertTitle>
             <AlertDescription>{userNotFoundError}</AlertDescription>
+          </Alert>
+        )}
+         {confirmation === 'unverified' && (
+           <Alert variant="destructive" className="mb-4 animate-in fade-in-50 slide-in-from-top-5">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Email Not Verified</AlertTitle>
+            <AlertDescription>{unverifiedUserError}</AlertDescription>
           </Alert>
         )}
         <LoginForm />
