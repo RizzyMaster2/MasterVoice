@@ -54,7 +54,6 @@ function UserFriends({ userId }: { userId: string }) {
         const supabase = createClient();
         // This is a bit of a hack, RLS applies to the logged in user, not the userId passed.
         // For admin purposes, you would use the admin client.
-        // For this UI, we will just fetch all friends of the current admin user to show *something*.
         // A real implementation would need a dedicated admin-level `getFriendsForUser(userId)` function.
         const { data, error } = await supabase.from('friends').select('*, friend_profile:profiles!friends_friend_id_fkey(*)').eq('user_id', userId);
         if (error) throw error;

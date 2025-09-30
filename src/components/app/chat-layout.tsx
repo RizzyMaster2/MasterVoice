@@ -24,7 +24,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { getMessages, sendMessage, removeFriend, deleteMessage } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
@@ -48,6 +48,7 @@ import {
 import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
 import type { Message, UserProfile, Friend } from '@/lib/data';
 import { useCall } from './call-provider';
+import { createClient } from '@/lib/supabase/client';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -127,7 +128,9 @@ export function ChatLayout({
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const { startCall } = useCall();
+  const supabase = createClient();
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -170,6 +173,25 @@ export function ChatLayout({
   }, [selectedFriend, fetchMessages]);
 
   useEffect(() => {
+    if (!selectedFriend) return;
+    const channel = supabase.channel(`messages:${[currentUser.id, selectedFriend.id].sort().join(':')}`)
+        .on('postgres_changes', {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `receiver_id=in.(${currentUser.id},${selectedFriend.id})`,
+        }, payload => {
+            const newMessage = payload.new as Message;
+            if((newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedFriend.id) || (newMessage.sender_id === selectedFriend.id && newMessage.receiver_id === currentUser.id)){
+               setMessages(currentMessages => [...currentMessages, {...newMessage, sender_profile: userMap.get(newMessage.sender_id) }]);
+            }
+        })
+        .subscribe();
+    
+    return () => { supabase.removeChannel(channel); };
+  }, [selectedFriend, currentUser.id, supabase, userMap]);
+
+  useEffect(() => {
     setTimeout(scrollToBottom, 100);
   }, [messages, scrollToBottom]);
 
@@ -184,7 +206,7 @@ export function ChatLayout({
     startSendingTransition(async () => {
         try {
             await sendMessage(selectedFriend.id, content);
-            // Realtime will handle the update
+            // Realtime will handle the update, or optimistic update above.
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
         }
@@ -228,7 +250,9 @@ export function ChatLayout({
 
   const handleSelectFriend = (friend: UserProfile) => {
     setSelectedFriend(friend);
-    router.push(`${pathname}?friend=${friend.id}`, { scroll: false });
+    const newParams = new URLSearchParams(searchParams.toString());
+    newParams.set('friend', friend.id);
+    router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
   };
 
   const handleRemoveFriend = () => {
@@ -348,7 +372,7 @@ export function ChatLayout({
                         <AlertDialogHeader>
                           <AlertDialogTitle>Are you sure?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            This will permanently remove <span className="font-bold">{selectedFriend.display_name}</span> as a friend and delete your entire chat history. This action cannot be undone.
+                            This will permanently remove <span className="font-bold">{selectedFriend.display_name}</span> as a friend. This action cannot be undone.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
@@ -424,7 +448,7 @@ export function ChatLayout({
                             msg.sender_id === currentUser.id
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted',
-                            msg.id.toString().startsWith('temp-') && 'opacity-70'
+                            String(msg.id).startsWith('temp-') && 'opacity-70'
                             )}
                         >
                              <div className="prose prose-sm dark:prose-invert max-w-none">

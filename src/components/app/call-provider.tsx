@@ -1,10 +1,10 @@
 
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
-import type { UserProfile, Chat } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { VoiceCall } from './voice-call';
 import { IncomingCallDialog } from './incoming-call-dialog';
 import { useToast } from '@/hooks/use-toast';
@@ -15,16 +15,10 @@ type Call = {
   offer?: RTCSessionDescriptionInit;
 };
 
-type ActiveCallState = {
-  chatId: string;
-  participants: string[];
-};
-
 type CallContextType = {
   startCall: (participant: UserProfile, chatId?: string) => void;
   endCall: () => void;
   activeCall: Call | null;
-  activeGroupCalls: Record<string, ActiveCallState>;
   joinCall: (chatId: string) => void;
 };
 
@@ -43,23 +37,21 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
-  const [activeGroupCalls, setActiveGroupCalls] = useState<Record<string, ActiveCallState>>({});
   const supabase = createClient();
   const { toast } = useToast();
+  const signalingChannel = useRef<any>(null);
   
   const endCall = useCallback(() => {
-    if (activeCall && user) {
-        const channel = supabase.channel(`signaling:${user.id}`);
-        channel.send({
+    if (activeCall && user && signalingChannel.current) {
+        signalingChannel.current.send({
             type: 'broadcast',
             event: 'hangup',
             payload: { from: user.id },
         });
-        channel.unsubscribe();
     }
     setActiveCall(null);
     setIncomingCall(null);
-  }, [activeCall, user, supabase]);
+  }, [activeCall, user]);
 
 
   useEffect(() => {
@@ -76,11 +68,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
-    const channel = supabase.channel(`signaling:${user.id}`);
+    const channel = supabase.channel(`user-signaling:${user.id}`);
+    signalingChannel.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
         const caller = findUserById(payload.from);
-        if (caller && !activeCall) {
+        if (caller && !activeCall && !incomingCall) {
             setIncomingCall({ otherParticipant: caller, offer: payload.offer });
         }
     });
@@ -93,9 +86,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     });
     
     channel.subscribe((status, err) => {
-        if (status === 'SUBSCRIBED') {
-            // console.log(`Subscribed to signaling channel: ${user.id}`);
-        }
         if (err) {
             console.error('Signaling channel subscription error:', err);
         }
@@ -103,11 +93,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
     return () => {
         channel.unsubscribe();
+        signalingChannel.current = null;
     };
 
   }, [user, supabase, findUserById, activeCall, incomingCall, endCall, toast]);
 
-  const startCall = useCallback(async (participant: UserProfile, chatId?: string) => {
+  const startCall = useCallback(async (participant: UserProfile) => {
      if (!user) return;
      setActiveCall({ otherParticipant: participant });
   }, [user]);
@@ -129,21 +120,21 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const declineCall = () => {
     if (incomingCall && user) {
-        const channel = supabase.channel(`signaling:${incomingCall.otherParticipant.id}`);
-        channel.subscribe(() => {
-            channel.send({
+        const hangupChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
+        hangupChannel.subscribe(() => {
+            hangupChannel.send({
                 type: 'broadcast',
                 event: 'hangup',
                 payload: { from: user.id },
             });
-            channel.unsubscribe();
+            supabase.removeChannel(hangupChannel);
         });
         setIncomingCall(null);
     }
   };
 
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall, activeGroupCalls, joinCall }}>
+    <CallContext.Provider value={{ startCall, endCall, activeCall, joinCall }}>
       {children}
       {user && activeCall && (
         <VoiceCall

@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { UserProfile, Chat } from '@/lib/data';
+import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -225,13 +225,13 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     }
     
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to === currentUser.id) {
+        if (payload.to === currentUser.id && pc.signalingState !== 'closed') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
         }
     });
 
     channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && payload.candidate) {
+        if (payload.to === currentUser.id && payload.candidate && pc.signalingState !== 'closed') {
             try {
                 await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch (e) {

@@ -55,7 +55,7 @@ export function HomeClientLayout({
   const [friends, setFriends] = useState<Friend[]>(initialFriends);
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const { user } = useUser();
   const supabase = createClient();
@@ -66,6 +66,7 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async () => {
     if (!user) return;
+    setIsLoading(true);
     try {
         const [friendsData, usersData] = await Promise.all([
           getFriends(),
@@ -81,8 +82,15 @@ export function HomeClientLayout({
             description: 'Could not load your friends and contacts. Please try again later.',
             variant: 'destructive'
         });
+    } finally {
+        setIsLoading(false);
     }
   }, [user, toast]);
+
+  useEffect(() => {
+    refreshAllData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
 
   useEffect(() => {
@@ -106,25 +114,36 @@ export function HomeClientLayout({
       .channel('home-layout-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'friends' },
+        { event: '*', schema: 'public', table: 'friends', filter: `user_id=eq.${user.id}` },
         (payload) => {
+            toast({
+                title: 'Friends list updated!',
+                description: 'Your connections have changed.',
+                variant: 'info'
+            })
             refreshAllData();
-            if (payload.eventType === 'DELETE' && selectedFriend && (payload.old.friend_id === selectedFriend.id || payload.old.user_id === selectedFriend.id)) {
-                setSelectedFriend(null);
-                router.replace(pathname);
-            }
         }
       )
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
-        () => {
-           refreshAllData();
+        (payload) => {
+           const newMessage = payload.new;
+           // Only show toast if the message is not from the current user and for the selected chat
+            if (newMessage.sender_id !== user.id && selectedFriend?.id === newMessage.sender_id) {
+                // Already in chat, no toast needed, realtime message will appear
+            } else if (newMessage.sender_id !== user.id) {
+                const sender = allUsers.find(u => u.id === newMessage.sender_id);
+                toast({
+                    title: `New Message from ${sender?.display_name || 'a friend'}`,
+                    description: newMessage.content,
+                })
+            }
         }
       )
        .on(
         'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'profiles' },
         () => {
            refreshAllData();
         }
@@ -141,10 +160,10 @@ export function HomeClientLayout({
     return () => {
       supabase.removeChannel(realtimeChannel);
     };
-  }, [user, supabase, refreshAllData, selectedFriend, router, pathname]);
+  }, [user, supabase, refreshAllData, selectedFriend, toast, allUsers]);
 
   const handleFriendRemoved = useCallback(() => {
-    router.replace(pathname); 
+    router.replace(pathname, {scroll: false}); 
     refreshAllData().then(() => {
         setSelectedFriend(null);
     });
@@ -159,15 +178,9 @@ export function HomeClientLayout({
       refreshAllData,
       handleFriendRemoved,
       isLoading,
-      // The groups functionality is removed for now
-      groups: [],
-      selectedChat: null,
-      setSelectedChat: () => {},
-      handleChatDeleted: () => {},
-      friendRequests: {incoming: [], outgoing: []}
   };
   
-  if (isLoading) {
+  if (isLoading && !initialFriends.length) {
     return <LoadingScreen />;
   }
 
