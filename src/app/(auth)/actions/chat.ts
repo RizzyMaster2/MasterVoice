@@ -175,11 +175,27 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     if (user.id === receiverId) {
         throw new Error("You cannot send a friend request to yourself.");
     }
+
+    // Check if a request already exists
+    const { data: existingRequest, error: existingError } = await supabase
+      .from('friend_requests')
+      .select('id')
+      .or(`(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
+      .in('status', ['pending', 'accepted'])
+      .limit(1);
+
+    if (existingError) {
+      throw new Error(existingError.message);
+    }
+
+    if (existingRequest.length > 0) {
+      throw new Error('A friend request or friendship already exists with this user.');
+    }
     
     const { data, error } = await supabase
         .from('friend_requests')
         .insert({ sender_id: user.id, receiver_id: receiverId })
-        .select(`*, sender_profile:profiles!friend_requests_sender_id_fkey(*)`)
+        .select('*, sender_profile:profiles!friend_requests_sender_id_fkey(*)') // This might fail, but it's for the immediate return.
         .single();
 
     if (error) {
@@ -192,7 +208,6 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     return data as FriendRequest;
 }
 
-
 export async function getFriendRequests(): Promise<{
     incoming: FriendRequest[];
     outgoing: FriendRequest[];
@@ -201,13 +216,10 @@ export async function getFriendRequests(): Promise<{
     const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
 
+    // 1. Fetch all pending requests where the current user is either the sender or receiver
     const { data: requests, error } = await supabase
         .from('friend_requests')
-        .select(`
-            *,
-            sender_profile:profiles!friend_requests_sender_id_fkey(*),
-            receiver_profile:profiles!friend_requests_receiver_id_fkey(*)
-        `)
+        .select('*')
         .or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`)
         .eq('status', 'pending');
 
@@ -215,14 +227,41 @@ export async function getFriendRequests(): Promise<{
         console.error('Error fetching friend requests:', error);
         throw error;
     }
+    
+    if (!requests || requests.length === 0) {
+        return { incoming: [], outgoing: [] };
+    }
 
-    const incoming = requests
-        .filter(req => req.receiver_id === user.id)
-        .map(req => ({...req, sender_profile: req.sender_profile as UserProfile }));
+    // 2. Collect all unique user IDs involved in these requests
+    const userIds = Array.from(new Set(requests.flatMap(req => [req.sender_id, req.receiver_id])));
 
-    const outgoing = requests
-        .filter(req => req.sender_id === user.id)
-        .map(req => ({...req, sender_profile: req.receiver_profile as UserProfile }));
+    // 3. Fetch all profiles for these user IDs in a single query
+    const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*')
+        .in('id', userIds);
+
+    if (profilesError) {
+        console.error('Error fetching profiles for friend requests:', profilesError);
+        throw profilesError;
+    }
+
+    const profileMap = new Map(profiles.map(p => [p.id, p as UserProfile]));
+
+    // 4. Map requests to their respective profiles
+    const allRequestsWithProfiles: FriendRequest[] = requests.map(req => {
+        const sender_profile = profileMap.get(req.sender_id);
+        const receiver_profile = profileMap.get(req.receiver_id);
+        return {
+            ...req,
+            // The sender_profile for the UI is always the *other* person.
+            sender_profile: req.sender_id === user.id ? receiver_profile! : sender_profile!,
+        };
+    }).filter(req => req.sender_profile); // Ensure the profile exists
+
+    // 5. Separate into incoming and outgoing
+    const incoming = allRequestsWithProfiles.filter(req => req.receiver_id === user.id);
+    const outgoing = allRequestsWithProfiles.filter(req => req.sender_id === user.id);
 
     return { incoming, outgoing };
 }
