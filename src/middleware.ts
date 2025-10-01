@@ -70,41 +70,8 @@ export async function middleware(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-
-  // if user is signed in, check if their profile exists
-  if (user) {
-    // If the user's email is not confirmed, they are likely a new sign-up.
-    // In this case, we bypass the profile check to allow the database trigger
-    // time to create the profile. The profile will be checked on subsequent logins
-    // after they have verified their email.
-    if (user.email_confirmed_at) {
-        const { data: profile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-
-        // if profile is missing, sign out and redirect
-        if (!profile) {
-            await supabase.auth.signOut();
-            const url = request.nextUrl.clone()
-            url.pathname = '/login'
-            url.searchParams.set('error', 'user_not_found');
-            return NextResponse.redirect(url);
-        }
-    } else {
-        // Handle case where user is logged in but not verified
-        const isAuthPath = request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/signup');
-        if (!isAuthPath && request.nextUrl.pathname !== '/confirm') {
-            // This is a new, unverified user trying to access a protected page.
-            // Let them proceed to the /confirm page.
-            // The check will happen on their next verified login.
-        }
-    }
-  }
   
-
-  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy', '/forgot-password'];
+  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy', '/forgot-password', '/reset-password'];
   const isPublicRoot = request.nextUrl.pathname === '/';
   
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path)) || isPublicRoot;
@@ -115,6 +82,9 @@ export async function middleware(request: NextRequest) {
     url.pathname = '/unauthenticated'
     return NextResponse.redirect(url)
   }
+
+  // Refresh the session
+  await supabase.auth.getUser()
 
   return response;
 }
