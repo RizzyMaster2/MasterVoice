@@ -11,7 +11,7 @@ export function useUser() {
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [plan, setPlan] = useState<'free' | 'pro' | 'business'>('free');
-    const [isLoading, setIsLoading] = useState(true);
+    const [isLoading, setIsLoading] = useState(false);
     const supabase = createClient();
 
     useEffect(() => {
@@ -72,7 +72,8 @@ export function useUser() {
             authListener.subscription.unsubscribe();
         };
 
-    }, [supabase, isLoading, toast]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [supabase, toast]);
 
     const isVerified = !!user?.email_confirmed_at;
     const isProPlan = plan === 'pro' || plan === 'business';
