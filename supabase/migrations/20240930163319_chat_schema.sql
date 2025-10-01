@@ -1,140 +1,47 @@
 
--- Enable Row Level Security
-alter table public.profiles enable row level security;
-alter table public.friends enable row level security;
-alter table public.friend_requests enable row level security;
-alter table public.chats enable row level security;
-alter table public.chat_participants enable row level security;
-alter table public.messages enable row level security;
-
--- Drop all policies on profiles to ensure a clean slate
-drop policy if exists "Users can view their own profile." on public.profiles;
-drop policy if exists "Users can update their own profile." on public.profiles;
-drop policy if exists "Users can insert their own profile." on public.profiles;
+-- Drop existing policies on profiles to ensure a clean slate
 drop policy if exists "Public profiles are viewable by everyone." on public.profiles;
+drop policy if exists "Users can insert their own profile." on public.profiles;
+drop policy if exists "Users can update their own profile." on public.profiles;
 
--- Drop existing chat policies
-drop policy if exists "Users can view their own chats." on public.chats;
-drop policy if exists "Users can create chats." on public.chats;
-drop policy if exists "Users can view their own chat participants." on public.chat_participants;
-drop policy if exists "Users can insert their own chat participants." on public.chat_participants;
-drop policy if exists "Users can view messages in their chats." on public.messages;
-drop policy if exists "Users can send messages in their chats." on public.messages;
-drop policy if exists "Users can delete their own messages" on public.messages;
-
--- Create Policies for `profiles`
-create policy "Public profiles are viewable by everyone."
-on public.profiles for select
-using ( true );
-
-create policy "Users can insert their own profile."
-on public.profiles for insert
-with check ( auth.uid() = id );
-
-create policy "Users can update their own profile."
-on public.profiles for update
-using ( auth.uid() = id )
-with check ( auth.uid() = id );
-
-
--- Create Policies for `friends`
-create policy "Users can view their own friends."
-on public.friends for select
-using ( auth.uid() = user_id );
-
-create policy "Users can add their own friends."
-on public.friends for insert
-with check ( auth.uid() = user_id );
-
-create policy "Users can delete their own friends."
-on public.friends for delete
-using ( auth.uid() = user_id );
-
--- Create Policies for `friend_requests`
-create policy "Users can view their own friend requests."
-on public.friend_requests for select
-using ( auth.uid() = sender_id or auth.uid() = receiver_id );
-
-create policy "Users can create friend requests."
-on public.friend_requests for insert
-with check ( auth.uid() = sender_id );
-
-create policy "Users can update their own friend requests."
-on public.friend_requests for update
-using ( auth.uid() = receiver_id );
-
--- Create Policies for `chats` and related tables
-create policy "Users can view chats they are a participant in."
-on public.chats for select
-using ( exists (
-  select 1
-  from public.chat_participants
-  where chat_participants.chat_id = chats.id
-    and chat_participants.user_id = auth.uid()
-));
-
-create policy "Users can create chats."
-on public.chats for insert
-with check ( true ); -- Further checks will be on chat_participants
-
--- Policies for chat_participants
-create policy "Users can view participants of chats they are in."
-on public.chat_participants for select
-using ( exists (
-  select 1
-  from public.chat_participants as p_check
-  where p_check.chat_id = chat_participants.chat_id
-    and p_check.user_id = auth.uid()
-));
-
-create policy "Users can insert themselves into a chat."
-on public.chat_participants for insert
-with check ( user_id = auth.uid() );
-
-
--- Policies for messages
-create policy "Users can view messages in chats they are a participant in."
-on public.messages for select
-using ( exists (
-  select 1
-  from public.chat_participants
-  where chat_participants.chat_id = messages.chat_id
-    and chat_participants.user_id = auth.uid()
-));
-
-create policy "Users can send messages in chats they are a participant in."
-on public.messages for insert
-with check (
-  sender_id = auth.uid() and
-  exists (
-    select 1
-    from public.chat_participants
-    where chat_participants.chat_id = messages.chat_id
-      and chat_participants.user_id = auth.uid()
-  )
+-- Create a table for public profiles
+create table if not exists public.profiles (
+  id uuid references auth.users on delete cascade not null primary key,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+  display_name text,
+  full_name text,
+  email text,
+  photo_url text,
+  status text,
+  bio text
 );
 
-create policy "Users can delete their own messages."
-on public.messages for delete
-using ( sender_id = auth.uid() );
+-- Set up Row Level Security (RLS)
+alter table public.profiles enable row level security;
 
+-- POLICIES for profiles
+create policy "Public profiles are viewable by everyone." on public.profiles
+  for select using (true);
 
--- Drop existing function and trigger to be safe
-drop trigger if exists on_auth_user_created on auth.users;
-drop function if exists public.handle_new_user;
+create policy "Users can insert their own profile." on public.profiles
+  for insert with check (auth.uid() = id);
 
--- Function to create a profile for a new user
+create policy "Users can update their own profile." on public.profiles
+  for update using (auth.uid() = id) with check (auth.uid() = id);
+
+-- This trigger automatically creates a profile entry when a new user signs up
+drop function if exists public.handle_new_user();
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, display_name, full_name, photo_url, email)
+  insert into public.profiles (id, full_name, display_name, photo_url, email)
   values (
     new.id,
-    new.raw_user_meta_data->>'display_name',
     new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'display_name',
     new.raw_user_meta_data->>'avatar_url',
     new.email
   );
@@ -142,17 +49,102 @@ begin
 end;
 $$;
 
--- Trigger to call the function on new user creation
+-- Drop the trigger if it exists, then recreate it
+drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
--- Policies for storage
-drop policy if exists "Avatar images are publicly accessible." on storage.objects;
-create policy "Avatar images are publicly accessible." on storage.objects for select using (bucket_id = 'files');
 
-drop policy if exists "Anyone can upload an avatar." on storage.objects;
-create policy "Anyone can upload an avatar." on storage.objects for insert with check (bucket_id = 'files');
+-- Table for messages
+create table if not exists public.messages (
+  id bigint generated by default as identity primary key,
+  sender_id uuid references public.profiles on delete cascade not null,
+  receiver_id uuid references public.profiles on delete cascade not null,
+  content text not null,
+  created_at timestamp with time zone default timezone('utc'::text, now()) not null
+);
 
-drop policy if exists "Anyone can update their own avatar." on storage.objects;
-create policy "Anyone can update their own avatar." on storage.objects for update with check (bucket_id = 'files' and auth.uid() = owner);
+alter table public.messages enable row level security;
+
+-- POLICIES for messages
+create policy "Users can view their own messages." on public.messages
+  for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
+
+create policy "Users can send messages." on public.messages
+  for insert with check (auth.uid() = sender_id);
+  
+create policy "Users can delete their own messages." on public.messages
+    for delete using (auth.uid() = sender_id);
+
+
+-- Table for friends
+create table if not exists public.friends (
+    user_id uuid references public.profiles on delete cascade not null,
+    friend_id uuid references public.profiles on delete cascade not null,
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    primary key (user_id, friend_id)
+);
+
+alter table public.friends enable row level security;
+
+-- POLICIES for friends
+create policy "Users can view their own friend list." on public.friends
+  for select using (auth.uid() = user_id);
+
+create policy "Users can add friends." on public.friends
+  for insert with check (auth.uid() = user_id);
+  
+create policy "Users can remove friends." on public.friends
+  for delete using (auth.uid() = user_id);
+  
+-- Table for friend requests
+create table if not exists public.friend_requests (
+    id bigint generated by default as identity primary key,
+    sender_id uuid references public.profiles on delete cascade not null,
+    receiver_id uuid references public.profiles on delete cascade not null,
+    status text check (status in ('pending', 'accepted', 'declined')) default 'pending',
+    created_at timestamp with time zone default timezone('utc'::text, now()) not null,
+    unique(sender_id, receiver_id)
+);
+
+alter table public.friend_requests enable row level security;
+
+-- POLICIES for friend_requests
+create policy "Users can see their own friend requests." on public.friend_requests
+  for select using (auth.uid() = sender_id or auth.uid() = receiver_id);
+  
+create policy "Users can send friend requests." on public.friend_requests
+  for insert with check (auth.uid() = sender_id);
+
+create policy "Users can update their received friend requests." on public.friend_requests
+  for update using (auth.uid() = receiver_id);
+
+
+-- STORAGE
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('files', 'files', true, 5242880, '{"image/jpeg","image/png","image/gif","image/webp"}')
+on conflict (id) do nothing;
+
+create policy "Users can upload their own avatar"
+on storage.objects for insert
+to authenticated
+with check (
+    bucket_id = 'files' and
+    (select auth.uid()::text) = (storage.foldername(name))[1]
+);
+
+create policy "Users can update their own avatar"
+on storage.objects for update
+to authenticated
+with check (
+    bucket_id = 'files' and
+    (select auth.uid()::text) = (storage.foldername(name))[1]
+);
+
+create policy "Users can view their own and public avatars"
+on storage.objects for select
+to authenticated
+using (
+    bucket_id = 'files'
+);
