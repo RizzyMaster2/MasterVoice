@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@radix-ui/resolvers/zod';
 import * as z from 'zod';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
@@ -67,7 +67,7 @@ export function ProfileForm() {
         setIsVerified(!!user.email_confirmed_at);
         const metadata = user.user_metadata;
         form.reset({
-          name: metadata?.full_name || metadata?.display_name || '',
+          name: metadata?.display_name || metadata?.full_name || '',
           bio: metadata?.bio || '',
         });
         setPreviewUrl(metadata?.avatar_url || metadata?.photo_url || null);
@@ -106,7 +106,7 @@ export function ProfileForm() {
     if (!user) return;
     
     try {
-        await updateUserProfile(user.id, { full_name: values.name, bio: values.bio }, selectedFile || undefined);
+        await updateUserProfile(user.id, { display_name: values.name, bio: values.bio }, selectedFile || undefined);
         toast({
             title: 'Profile Updated',
             description: 'Your changes have been saved successfully.',

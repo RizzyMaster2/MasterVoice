@@ -79,7 +79,7 @@ export async function updateUserPlan(planId: 'pro' | 'business', purchaseType: '
 }
 
 
-export async function updateUserProfile(userId: string, updates: { full_name?: string, bio?: string }, avatarFile?: File) {
+export async function updateUserProfile(userId: string, updates: { display_name?: string, bio?: string }, avatarFile?: File) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     let avatar_url;
@@ -106,7 +106,8 @@ export async function updateUserProfile(userId: string, updates: { full_name?: s
 
     const { data: user, error: authError } = await supabase.auth.updateUser({
         data: {
-            full_name: updates.full_name,
+            display_name: updates.display_name,
+            full_name: updates.display_name, // Keep full_name and display_name in sync
             bio: updates.bio,
             ...(avatar_url && { avatar_url: avatar_url }),
         }
@@ -120,8 +121,9 @@ export async function updateUserProfile(userId: string, updates: { full_name?: s
     const { error: profileError } = await supabase
         .from('profiles')
         .update({
-            full_name: updates.full_name,
-            ...(avatar_url && { avatar_url: avatar_url }),
+            display_name: updates.display_name,
+            full_name: updates.display_name,
+            ...(avatar_url && { photo_url: avatar_url }),
         })
         .eq('id', userId);
 
