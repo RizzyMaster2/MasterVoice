@@ -176,20 +176,36 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
         throw new Error("You cannot send a friend request to yourself.");
     }
 
-    // Check if a request already exists
-    const { data: existingRequest, error: existingError } = await supabase
+    // Check if they are already friends
+    const { data: existingFriendship, error: friendCheckError } = await supabase
+      .from('friends')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .eq('friend_id', receiverId)
+      .limit(1);
+
+    if (friendCheckError) {
+      throw new Error(`Database error: ${friendCheckError.message}`);
+    }
+
+    if (existingFriendship && existingFriendship.length > 0) {
+      throw new Error("You are already friends with this user.");
+    }
+
+    // Check if a request already exists (either direction)
+    const { data: existingRequest, error: requestCheckError } = await supabase
       .from('friend_requests')
       .select('id')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
-      .in('status', ['pending', 'accepted'])
+      .eq('status', 'pending')
       .limit(1);
 
-    if (existingError) {
-      throw new Error(existingError.message);
+    if (requestCheckError) {
+      throw new Error(`Database error: ${requestCheckError.message}`);
     }
 
-    if (existingRequest.length > 0) {
-      throw new Error('A friend request or friendship already exists with this user.');
+    if (existingRequest && existingRequest.length > 0) {
+      throw new Error('A friend request already exists with this user.');
     }
     
     const { data, error } = await supabase
@@ -381,5 +397,3 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
-
-    

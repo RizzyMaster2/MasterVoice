@@ -29,6 +29,7 @@ import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
 import { Check } from 'lucide-react';
 import { LandingNav } from '@/components/app/landing-nav';
+import { FireSaleBanner } from '@/components/app/fire-sale-banner';
 
 const features = [
   {
@@ -251,14 +252,8 @@ export default function Home() {
             className="absolute inset-0 top-0 -z-10 h-1/2 bg-gradient-to-b from-primary/10 to-transparent"
           />
           <div className="container mx-auto px-4 md:px-6 text-center">
-            <Badge
-              variant="outline"
-              className="mb-4 border-accent/50 text-accent font-bold"
-            >
-              <Sparkles className="w-3 h-3 mr-2 text-accent"/>
-              Voice Calls are Here!
-            </Badge>
-            <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl">
+            <FireSaleBanner />
+            <h1 className="font-headline text-4xl font-bold tracking-tight text-foreground md:text-6xl pt-6">
               Find your harmony,
               <br />
               <span className="text-primary">Connect with the World</span>
@@ -574,5 +569,3 @@ export default function Home() {
     </div>
   );
 }
-
-    
