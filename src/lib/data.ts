@@ -6,6 +6,7 @@ export type UserProfile = {
   id: string;
   created_at: string;
   display_name: string | null;
+  full_name: string | null;
   email: string | null;
   photo_url: string | null;
   status: string | null;

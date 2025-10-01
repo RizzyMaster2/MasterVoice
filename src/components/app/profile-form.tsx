@@ -26,6 +26,7 @@ import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
 import { Save, ShieldAlert, Upload } from 'lucide-react';
 import { getErrorMessage } from '@/lib/utils';
+import { updateUserProfile } from '@/app/(auth)/actions/user';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -66,10 +67,10 @@ export function ProfileForm() {
         setIsVerified(!!user.email_confirmed_at);
         const metadata = user.user_metadata;
         form.reset({
-          name: metadata?.display_name || metadata?.full_name || '',
+          name: metadata?.full_name || metadata?.display_name || '',
           bio: metadata?.bio || '',
         });
-        setPreviewUrl(metadata?.photo_url || metadata?.avatar_url || null);
+        setPreviewUrl(metadata?.avatar_url || metadata?.photo_url || null);
       }
     };
     fetchUser();
@@ -103,55 +104,21 @@ export function ProfileForm() {
 
   async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
-    let newAvatarUrl: string | undefined = undefined;
-
-    if (selectedFile) {
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${Date.now()}.${fileExt}`;
-      const filePath = `${user.id}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('files')
-        .upload(filePath, selectedFile, {
-            contentType: selectedFile.type,
-            upsert: true
-        });
-      
-      if (uploadError) {
+    
+    try {
+        await updateUserProfile(user.id, { full_name: values.name, bio: values.bio }, selectedFile || undefined);
         toast({
-          title: 'Avatar Upload Failed',
-          description: getErrorMessage(uploadError),
-          variant: 'destructive',
+            title: 'Profile Updated',
+            description: 'Your changes have been saved successfully.',
         });
-        return;
-      }
-      
-      const { data } = supabase.storage.from('files').getPublicUrl(filePath);
-      newAvatarUrl = data.publicUrl;
-    }
-
-    const { error } = await supabase.auth.updateUser({
-      data: {
-        display_name: values.name,
-        bio: values.bio,
-        ...(newAvatarUrl && { photo_url: newAvatarUrl }),
-      },
-    });
-
-    if (error) {
-      toast({
-        title: 'Error Updating Profile',
-        description: getErrorMessage(error),
-        variant: 'destructive',
-      });
-    } else {
-      toast({
-        title: 'Profile Updated',
-        description: 'Your changes have been saved successfully.',
-      });
-      setSelectedFile(null);
-      // Refresh server components to show the new avatar in the header without a full page reload
-      router.refresh();
+        setSelectedFile(null);
+        router.refresh();
+    } catch (error) {
+         toast({
+            title: 'Error Updating Profile',
+            description: getErrorMessage(error),
+            variant: 'destructive',
+        });
     }
   }
   

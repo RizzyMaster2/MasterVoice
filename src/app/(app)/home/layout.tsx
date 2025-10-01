@@ -28,7 +28,8 @@ export default async function HomeLayout({
     
     const currentUserProfile: UserProfile = {
         id: authUser.id,
-        display_name: authUser.user_metadata?.display_name || authUser.email || 'User',
+        display_name: authUser.user_metadata?.display_name || authUser.user_metadata?.full_name || authUser.email || 'User',
+        full_name: authUser.user_metadata?.full_name || authUser.email,
         photo_url: authUser.user_metadata?.photo_url || '',
         created_at: authUser.created_at,
         email: authUser.email || null,

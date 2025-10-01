@@ -77,3 +77,58 @@ export async function updateUserPlan(planId: 'pro' | 'business', purchaseType: '
 
     return { updatedUser: data.user, inviteLink };
 }
+
+
+export async function updateUserProfile(userId: string, updates: { full_name?: string, bio?: string }, avatarFile?: File) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    let avatar_url;
+
+    if (avatarFile) {
+        const fileExt = avatarFile.name.split('.').pop();
+        const fileName = `${Date.now()}.${fileExt}`;
+        const filePath = `${userId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+            .from('files')
+            .upload(filePath, avatarFile, {
+                contentType: avatarFile.type,
+                upsert: true
+            });
+        
+        if (uploadError) {
+            throw new Error(`Avatar Upload Failed: ${uploadError.message}`);
+        }
+        
+        const { data } = supabase.storage.from('files').getPublicUrl(filePath);
+        avatar_url = data.publicUrl;
+    }
+
+    const { data: user, error: authError } = await supabase.auth.updateUser({
+        data: {
+            full_name: updates.full_name,
+            bio: updates.bio,
+            ...(avatar_url && { avatar_url: avatar_url }),
+        }
+    });
+
+    if (authError) {
+        throw new Error(`Failed to update user metadata: ${authError.message}`);
+    }
+
+    // Also update the public profiles table
+    const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+            full_name: updates.full_name,
+            ...(avatar_url && { avatar_url: avatar_url }),
+        })
+        .eq('id', userId);
+
+    if (profileError) {
+        // Log the error but don't throw, as auth update is more critical
+        console.error('Failed to update public profile:', profileError.message);
+    }
+
+    revalidatePath('/profile');
+}

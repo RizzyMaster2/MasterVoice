@@ -33,9 +33,9 @@ export function UserNav() {
     return null;
   }
   
-  const userName = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email || 'User';
+  const userName = user.user_metadata?.full_name || user.user_metadata?.display_name || user.email || 'User';
   const userEmail = user.email || 'No email provided';
-  const userAvatar = user.user_metadata?.photo_url || user.user_metadata?.avatar_url;
+  const userAvatar = user.user_metadata?.avatar_url || user.user_metadata?.photo_url;
 
   const getInitials = (name: string) => {
     return name
