@@ -71,7 +71,17 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
   
-  const publicPaths = ['/login', '/signup', '/confirm', '/unauthenticated', '/faq', '/privacy', '/forgot-password', '/reset-password'];
+  const publicPaths = [
+    '/login', 
+    '/signup', 
+    '/confirm', 
+    '/unauthenticated', 
+    '/faq', 
+    '/privacy', 
+    '/forgot-password', 
+    '/reset-password',
+    '/billing' // Allow access to all billing sub-pages
+  ];
   const isPublicRoot = request.nextUrl.pathname === '/';
   
   const isPublicPath = publicPaths.some(path => request.nextUrl.pathname.startsWith(path)) || isPublicRoot;
