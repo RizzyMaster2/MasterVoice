@@ -1,3 +1,4 @@
+
 "use client";
 
 import { createClient } from "@/lib/supabase/client";
@@ -62,6 +63,7 @@ export function useUser() {
                  // Force a full refresh to make sure all server components and layouts re-evaluate the new plan
                 window.location.reload();
             } else if (event === "SIGNED_IN" || event === "SIGNED_OUT") {
+                // A full reload on sign-in or sign-out ensures a clean state and re-runs middleware correctly.
                 window.location.reload();
             }
         });
