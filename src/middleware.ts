@@ -80,7 +80,9 @@ export async function middleware(request: NextRequest) {
     '/privacy', 
     '/forgot-password', 
     '/reset-password',
-    '/billing'
+    '/billing',
+    '/profile',
+    '/settings',
   ];
   const isPublicRoot = request.nextUrl.pathname === '/';
   
