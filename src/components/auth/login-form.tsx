@@ -46,7 +46,8 @@ const formSchema = z.object({
       }
  
       toast({ title: 'Login successful', description: 'Redirecting…' });
-      // Explicitly push to the home page to avoid middleware race conditions
+      // Explicitly push to the home page to avoid middleware race conditions.
+      // The useUser hook will handle the full page reload on SIGNED_IN event.
       router.push('/home');
     } catch (error) {
        toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
