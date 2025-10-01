@@ -536,7 +536,7 @@ export default function Home() {
                   </CardContent>
                   <div className="p-6 pt-0">
                     <Button asChild className="w-full" variant={tier.variant as any}>
-                      <Link href={tier.link}>{tier.cta}</Link>
+                      <Link href={tier.href}>{tier.cta}</Link>
                     </Button>
                   </div>
                 </Card>
