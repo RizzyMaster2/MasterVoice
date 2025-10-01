@@ -64,9 +64,11 @@ export function HomeClientLayout({
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const refreshAllData = useCallback(async () => {
+  const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
-    setIsLoading(true);
+    if (isInitialLoad) {
+        setIsLoading(true);
+    }
     try {
         const [friendsData, usersData] = await Promise.all([
           getFriends(),
@@ -83,12 +85,14 @@ export function HomeClientLayout({
             variant: 'destructive'
         });
     } finally {
-        setIsLoading(false);
+        if (isInitialLoad) {
+            setIsLoading(false);
+        }
     }
   }, [user, toast]);
 
   useEffect(() => {
-    refreshAllData();
+    refreshAllData(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -180,7 +184,7 @@ export function HomeClientLayout({
       isLoading,
   };
   
-  if (isLoading && !initialFriends.length) {
+  if (isLoading) {
     return <LoadingScreen />;
   }
 
