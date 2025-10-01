@@ -1,6 +1,10 @@
 -- Drop tables and functions safely if they exist
 drop table if exists public.friends;
 drop table if exists public.messages;
+drop table if exists public.chats cascade;
+drop table if exists public.chat_participants cascade;
+drop table if exists public.friend_requests cascade;
+
 
 -- Create public.friends table
 create table if not exists public.friends (
@@ -59,13 +63,8 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, full_name, display_name, email)
-  values (
-    new.id,
-    new.raw_user_meta_data->>'full_name',
-    new.raw_user_meta_data->>'display_name',
-    new.email
-  );
+  insert into public.profiles (id, display_name, full_name, email)
+  values (new.id, new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'full_name', new.email);
   return new;
 end;
 $$;
@@ -105,8 +104,7 @@ create policy "Users can insert their own profile."
 drop policy if exists "Users can update their own profile." on public.profiles;
 create policy "Users can update their own profile."
   on public.profiles for update
-  using (true)
-  with check ( auth.uid() = id );
+  using ( auth.uid() = id );
 
 drop policy if exists "Users can view their own friends" on public.friends;
 create policy "Users can view their own friends"
