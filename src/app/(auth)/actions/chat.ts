@@ -124,7 +124,7 @@ export async function getMessages(friendId: string): Promise<Message[]> {
     const { data, error } = await supabase
       .from('messages')
       .select('*, sender_profile:profiles!messages_sender_id_fkey(*)')
-      .or(`(sender_id.eq.${user.id},receiver_id.eq.${friendId}),(sender_id.eq.${friendId},receiver_id.eq.${user.id})`)
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${friendId}),and(sender_id.eq.${friendId},receiver_id.eq.${user.id})`)
       .order('created_at', { ascending: true });
 
     if (error) {
