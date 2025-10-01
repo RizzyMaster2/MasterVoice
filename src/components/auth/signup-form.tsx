@@ -66,8 +66,8 @@ export function SignupForm() {
             throw new Error("Signup succeeded but no user object was returned.");
         }
         
-        toast({ title: 'Signup successful!', description: 'Please check your email to verify your account.'});
-        router.push('/confirm');
+        toast({ title: 'Signup successful!', description: 'Redirecting you to the app. Please check your email to verify your account.'});
+        router.push('/home');
 
     } catch (error) {
         toast({ title: 'An unexpected error occurred', description: (error as Error).message, variant: 'destructive' });
