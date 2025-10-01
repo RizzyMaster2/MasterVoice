@@ -46,11 +46,12 @@ export async function getUsers(): Promise<UserProfile[]> {
 
     const combinedUsers: UserProfile[] = users.map(user => {
       const profile = profileMap.get(user.id);
+      const displayName = profile?.display_name || user.user_metadata?.display_name || profile?.full_name || user.email;
       return {
         id: user.id,
         created_at: profile?.created_at || user.created_at,
-        display_name: profile?.display_name || user.user_metadata?.display_name || profile?.full_name || user.email || 'User',
-        full_name: profile?.full_name || user.user_metadata?.full_name || user.email,
+        display_name: displayName,
+        full_name: profile?.full_name || user.user_metadata?.full_name || displayName,
         email: user.email || profile?.email || null,
         photo_url: profile?.photo_url || user.user_metadata?.photo_url || user.user_metadata?.avatar_url || null,
         status: profile?.status || 'offline',
@@ -265,3 +266,5 @@ export async function getInitialHomeData() {
         allUsers: allUsersData.filter(u => u.id !== user.id),
     };
 }
+
+    

@@ -53,6 +53,7 @@ export function SignupForm() {
             options: {
                 data: {
                     display_name: values.name,
+                    full_name: values.name,
                 }
             }
         });
@@ -147,3 +148,5 @@ export function SignupForm() {
     </Form>
   );
 }
+
+    
