@@ -1,4 +1,3 @@
-
 -- Drop tables and functions safely if they exist
 drop table if exists public.friends cascade;
 drop table if exists public.messages cascade;
@@ -34,14 +33,11 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'full_name') THEN
     ALTER TABLE public.profiles ADD COLUMN full_name text;
   END IF;
-  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'display_name') THEN
-    ALTER TABLE public.profiles ADD COLUMN display_name text;
-  END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'avatar_url') THEN
     ALTER TABLE public.profiles ADD COLUMN avatar_url text;
   END IF;
-    IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'bio') THEN
-    ALTER TABLE public.profiles ADD COLUMN bio text;
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'photo_url') THEN
+    ALTER TABLE public.profiles ADD COLUMN photo_url text;
   END IF;
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'data_ai_hint') THEN
     ALTER TABLE public.profiles ADD COLUMN data_ai_hint text;
@@ -52,9 +48,15 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'email') THEN
     ALTER TABLE public.profiles ADD COLUMN email text;
   END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'bio') THEN
+    ALTER TABLE public.profiles ADD COLUMN bio text;
+  END IF;
 END;
 $$;
 
+
+-- Drop the trigger first
+drop trigger if exists on_auth_user_created on auth.users;
 
 -- Function to create a profile for a new user
 create or replace function public.handle_new_user()
@@ -69,8 +71,7 @@ begin
 end;
 $$;
 
--- Trigger to call handle_new_user on new user creation
-drop trigger if exists on_auth_user_created on auth.users;
+-- Recreate the trigger
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
@@ -84,7 +85,7 @@ security definer set search_path = public
 as $$
 begin
   update public.profiles
-  set full_name = new_full_name, display_name = new_full_name
+  set full_name = new_full_name
   where id = auth.uid();
 end;
 $$;
@@ -92,8 +93,10 @@ $$;
 
 -- RLS Policies
 drop policy if exists "Public profiles are viewable by everyone." on public.profiles;
-create policy "Public profiles are viewable by everyone."
+drop policy if exists "Public profiles are viewable by authenticated users." on public.profiles;
+create policy "Public profiles are viewable by authenticated users."
   on public.profiles for select
+  to authenticated
   using ( true );
 
 drop policy if exists "Users can insert their own profile." on public.profiles;
@@ -116,11 +119,11 @@ drop policy if exists "Users can add friends" on public.friends;
 create policy "Users can add friends"
   on public.friends for insert
   with check ( auth.uid() = user_id );
-  
-drop policy if exists "Users can remove their own friends" on public.friends;
-create policy "Users can remove their own friends"
-  on public.friends for delete
-  using ( auth.uid() = user_id );
+
+drop policy if exists "Users can remove friends" on public.friends;
+create policy "Users can remove friends"
+    on public.friends for delete
+    using (auth.uid() = user_id);
 
 drop policy if exists "Users can view messages they sent or received" on public.messages;
 create policy "Users can view messages they sent or received"
@@ -134,5 +137,5 @@ create policy "Users can insert their own messages"
 
 drop policy if exists "Users can delete their own messages" on public.messages;
 create policy "Users can delete their own messages"
-  on public.messages for delete
-  using ( auth.uid() = sender_id );
+    on public.messages for delete
+    using (auth.uid() = sender_id);

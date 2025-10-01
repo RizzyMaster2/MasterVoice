@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import type { Message, UserProfile, Friend } from '@/lib/data';
+import type { Message, UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
@@ -68,54 +68,26 @@ export async function getUsers(): Promise<UserProfile[]> {
 
 // Fetch all friends for the current user
 export async function getFriends(): Promise<Friend[]> {
-  try {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const user = await getCurrentUser();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const user = await getCurrentUser();
 
-    // Step 1: Get the friend IDs
-    const { data: friendRelations, error: friendIdsError } = await supabase
-      .from('friends')
-      .select('friend_id, created_at')
-      .eq('user_id', user.id);
+  const { data: friendsData, error } = await supabase
+    .from('friends')
+    .select(`
+      user_id,
+      friend_id,
+      created_at,
+      friend_profile:profiles!friends_friend_id_fkey(*)
+    `)
+    .eq('user_id', user.id);
 
-    if (friendIdsError) {
-      console.error("Error fetching friend IDs:", friendIdsError);
-      throw friendIdsError;
-    }
-
-    if (!friendRelations || friendRelations.length === 0) {
-      return [];
-    }
-
-    const friendIds = friendRelations.map(f => f.friend_id);
-
-    // Step 2: Get the profiles for those friend IDs
-    const { data: profiles, error: profilesError } = await supabase
-      .from('profiles')
-      .select('*')
-      .in('id', friendIds);
-
-    if (profilesError) {
-      console.error("Error fetching friend profiles:", profilesError);
-      throw profilesError;
-    }
-    
-    // Step 3: Combine the data into the Friend[] type
-    const friendProfileMap = new Map(profiles.map(p => [p.id, p]));
-    const friends: Friend[] = friendRelations.map(relation => ({
-      user_id: user.id,
-      friend_id: relation.friend_id,
-      created_at: relation.created_at,
-      friend_profile: friendProfileMap.get(relation.friend_id)!
-    }));
-
-    return friends;
-
-  } catch (error) {
-    console.error('getFriends failed:', error);
-    return [];
+  if (error) {
+    console.error("Error fetching friends:", error);
+    throw error;
   }
+  
+  return friendsData as Friend[];
 }
 
 
@@ -172,53 +144,105 @@ export async function sendMessage(receiverId: string, content: string) {
   }
 }
 
-export async function addFriend(friendId: string) {
+export async function sendFriendRequest(receiverId: string): Promise<FriendRequest> {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
 
-    if (user.id === friendId) {
-        throw new Error("You cannot add yourself as a friend.");
+    if (user.id === receiverId) {
+        throw new Error("You cannot send a friend request to yourself.");
     }
     
-    // The RLS policy will prevent adding a friend that already exists,
-    // but we can check here to provide a better error message.
-    const { data: existing, error: existingError } = await supabase
-        .from('friends')
-        .select()
-        .eq('user_id', user.id)
-        .eq('friend_id', friendId)
+    const { data, error } = await supabase
+        .from('friend_requests')
+        .insert({ sender_id: user.id, receiver_id: receiverId })
+        .select(`*, sender_profile:profiles!friend_requests_sender_id_fkey(*)`)
         .single();
+
+    if (error) {
+        if (error.code === '23505') { // unique_violation
+            throw new Error('A friend request already exists with this user.');
+        }
+        throw new Error(error.message);
+    }
+    revalidatePath('/home/friends');
+    return data as FriendRequest;
+}
+
+
+export async function getFriendRequests(): Promise<{
+    incoming: FriendRequest[];
+    outgoing: FriendRequest[];
+}> {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+
+    const { data: requests, error } = await supabase
+        .from('friend_requests')
+        .select(`
+            *,
+            sender_profile:profiles!friend_requests_sender_id_fkey(*),
+            receiver_profile:profiles!friend_requests_receiver_id_fkey(*)
+        `)
+        .or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`)
+        .eq('status', 'pending');
+
+    if (error) {
+        console.error('Error fetching friend requests:', error);
+        throw error;
+    }
+
+    const incoming = requests
+        .filter(req => req.receiver_id === user.id)
+        .map(req => ({...req, sender_profile: req.sender_profile as UserProfile }));
+
+    const outgoing = requests
+        .filter(req => req.sender_id === user.id)
+        .map(req => ({...req, sender_profile: req.receiver_profile as UserProfile }));
+
+    return { incoming, outgoing };
+}
+
+export async function acceptFriendRequest(requestId: number, senderId: string) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+    const receiverId = user.id;
+
+    // Use an RPC function to handle this atomically in a real-world scenario
+    const { error: updateError } = await supabase
+        .from('friend_requests')
+        .update({ status: 'accepted' })
+        .eq('id', requestId)
+        .eq('receiver_id', receiverId);
     
-    if(existing) {
-        throw new Error("You are already friends with this user.");
-    }
+    if (updateError) throw updateError;
+    
+    // Create friendships
+    const { error: friendsError } = await supabase.from('friends').insert([
+        { user_id: senderId, friend_id: receiverId },
+        { user_id: receiverId, friend_id: senderId },
+    ]);
 
-    // Add friend for current user
-    const { error: error1 } = await supabase
-        .from('friends')
-        .insert({ user_id: user.id, friend_id: friendId });
+    if (friendsError) throw friendsError;
 
-    if (error1) {
-      // If the first insert fails, we don't proceed.
-      // The RLS policy might be the cause, e.g., if the friendship already exists.
-      throw new Error(error1.message);
-    }
+    revalidatePath('/home/friends');
+}
 
-    // Add the reverse friendship
-    const { error: error2 } = await supabase
-        .from('friends')
-        .insert({ user_id: friendId, friend_id: user.id });
+export async function declineFriendRequest(requestId: number) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+    
+    const { error } = await supabase
+        .from('friend_requests')
+        .update({ status: 'declined' })
+        .eq('id', requestId)
+        .eq('receiver_id', user.id);
 
-    if (error2) {
-      // If the second insert fails, we should ideally roll back the first.
-      // For simplicity here, we'll just log the error. In a production app,
-      // you would use a transaction or an RPC function to ensure atomicity.
-      console.error("Failed to create reverse friendship:", error2);
-       throw new Error(`Friend added, but reverse relationship failed: ${error2.message}`);
-    }
-
-    revalidatePath('/home');
+    if (error) throw error;
+    
     revalidatePath('/home/friends');
 }
 
@@ -280,16 +304,18 @@ export async function getInitialHomeData() {
     const supabase = createClient(cookieStore);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
-        return { friends: [], allUsers: [] };
+        return { friends: [], allUsers: [], friendRequests: { incoming: [], outgoing: [] } };
     }
 
-    const [friendsData, allUsersData] = await Promise.all([
+    const [friendsData, allUsersData, friendRequestsData] = await Promise.all([
         getFriends(),
-        getUsers()
+        getUsers(),
+        getFriendRequests(),
     ]);
 
     return {
         friends: friendsData,
         allUsers: allUsersData.filter(u => u.id !== user.id),
+        friendRequests: friendRequestsData
     };
 }

@@ -20,6 +20,16 @@ export type Friend = {
     friend_profile: UserProfile;
 }
 
+export type FriendRequest = {
+  id: number;
+  sender_id: string;
+  receiver_id: string;
+  status: 'pending' | 'accepted' | 'declined';
+  created_at: string;
+  sender_profile: UserProfile;
+};
+
+
 export type Message = {
   id: number;
   sender_id: string;

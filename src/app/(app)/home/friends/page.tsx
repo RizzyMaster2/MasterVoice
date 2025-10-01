@@ -10,6 +10,7 @@ export default function FriendsPage() {
     currentUser,
     friends,
     allUsers,
+    friendRequests,
     isLoading
   } = useHomeClient();
 
@@ -22,6 +23,7 @@ export default function FriendsPage() {
         <FriendsClientPage
             currentUser={currentUser}
             initialFriends={friends}
+            initialFriendRequests={friendRequests}
             allUsers={allUsers}
         />
     </div>

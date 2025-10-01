@@ -14,17 +14,18 @@ import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
-import { getFriends, getUsers } from '@/app/(auth)/actions/chat';
-import type { UserProfile, Friend } from '@/lib/data';
+import { getFriends, getUsers, getFriendRequests } from '@/app/(auth)/actions/chat';
+import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
     friends: Friend[];
+    friendRequests: { incoming: FriendRequest[], outgoing: FriendRequest[] };
     allUsers: UserProfile[];
     selectedFriend: UserProfile | null;
     setSelectedFriend: (friend: UserProfile | null) => void;
-    refreshAllData: () => void;
+    refreshAllData: (isInitialLoad?: boolean) => void;
     handleFriendRemoved: () => void;
     isLoading: boolean;
 }
@@ -42,6 +43,7 @@ export function useHomeClient() {
 interface HomeClientLayoutProps {
   currentUser: UserProfile;
   initialFriends: Friend[];
+  initialFriendRequests: { incoming: FriendRequest[], outgoing: FriendRequest[] };
   initialUsers: UserProfile[];
   children: ReactNode;
 }
@@ -49,10 +51,12 @@ interface HomeClientLayoutProps {
 export function HomeClientLayout({ 
     currentUser,
     initialFriends,
+    initialFriendRequests,
     initialUsers,
     children
 }: HomeClientLayoutProps) {
   const [friends, setFriends] = useState<Friend[]>(initialFriends);
+  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
   const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -66,16 +70,18 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
-    if (isInitialLoad) {
+    if (isInitialLoad && friends.length === 0 && allUsers.length === 0) {
         setIsLoading(true);
     }
     try {
-        const [friendsData, usersData] = await Promise.all([
+        const [friendsData, usersData, friendRequestsData] = await Promise.all([
           getFriends(),
           getUsers(),
+          getFriendRequests(),
         ]);
         setFriends(friendsData);
         setAllUsers(usersData.filter(u => u.id !== user.id));
+        setFriendRequests(friendRequestsData);
 
     } catch (error) {
         console.error("HomeClientLayout: Failed to refresh data", error);
@@ -85,11 +91,11 @@ export function HomeClientLayout({
             variant: 'destructive'
         });
     } finally {
-        if (isInitialLoad) {
+        if (isLoading) {
             setIsLoading(false);
         }
     }
-  }, [user, toast]);
+  }, [user, toast, friends, allUsers, isLoading]);
 
   useEffect(() => {
     refreshAllData(true);
@@ -126,6 +132,20 @@ export function HomeClientLayout({
                 variant: 'info'
             })
             refreshAllData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${user.id}` },
+        (payload) => {
+            refreshAllData();
+            if (payload.eventType === 'INSERT') {
+                 toast({
+                    title: 'New Friend Request!',
+                    description: `You have a new friend request.`,
+                    variant: 'info'
+                })
+            }
         }
       )
       .on(
@@ -176,6 +196,7 @@ export function HomeClientLayout({
   const value = {
       currentUser,
       friends,
+      friendRequests,
       allUsers,
       selectedFriend,
       setSelectedFriend,

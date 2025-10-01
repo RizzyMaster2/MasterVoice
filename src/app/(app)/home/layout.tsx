@@ -24,7 +24,7 @@ export default async function HomeLayout({
 
     const isVerified = !!authUser.email_confirmed_at;
 
-    const { friends, allUsers } = await getInitialHomeData();
+    const { friends, allUsers, friendRequests } = await getInitialHomeData();
     
     const currentUserProfile: UserProfile = {
         id: authUser.id,
@@ -43,6 +43,7 @@ export default async function HomeLayout({
             <HomeClientLayout
                 currentUser={currentUserProfile}
                 initialFriends={friends}
+                initialFriendRequests={friendRequests}
                 initialUsers={allUsers}
             >
                 {children}

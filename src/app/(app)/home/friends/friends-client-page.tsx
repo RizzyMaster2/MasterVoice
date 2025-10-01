@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useMemo, useTransition } from 'react';
-import type { UserProfile, Friend } from '@/lib/data';
+import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,18 +13,24 @@ import {
   Plus,
   Loader2,
   MessageSquare,
+  Check,
+  X,
+  Clock,
+  UserPlus
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { addFriend } from '@/app/(auth)/actions/chat';
+import { sendFriendRequest, acceptFriendRequest, declineFriendRequest } from '@/app/(auth)/actions/chat';
 import { getErrorMessage } from '@/lib/utils';
 import { useRouter } from 'next/navigation';
 import { useUser } from '@/hooks/use-user';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Badge } from '@/components/ui/badge';
 
 interface FriendsClientPageProps {
   currentUser: UserProfile;
   initialFriends: Friend[];
+  initialFriendRequests: { incoming: FriendRequest[], outgoing: FriendRequest[] };
   allUsers: UserProfile[];
 }
 
@@ -79,12 +85,14 @@ const NoUsersFoundIllustration = () => (
 export function FriendsClientPage({
   currentUser,
   initialFriends,
+  initialFriendRequests,
   allUsers,
 }: FriendsClientPageProps) {
   const [friends, setFriends] = useState<Friend[]>(initialFriends);
+  const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [searchQuery, setSearchQuery] = useState('');
   const [isProcessing, startTransition] = useTransition();
-  const [processingId, setProcessingId] = useState<string | null>(null);
+  const [processingId, setProcessingId] = useState<string | number | null>(null);
   const { toast } = useToast();
   const router = useRouter();
   const { isVerified } = useUser();
@@ -93,13 +101,14 @@ export function FriendsClientPage({
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
   const friendIds = useMemo(() => new Set(friends.map(f => f.friend_id)), [friends]);
+  const outgoingRequestIds = useMemo(() => new Set(friendRequests.outgoing.map(r => r.sender_profile.id)), [friendRequests]);
+  const incomingRequestIds = useMemo(() => new Set(friendRequests.incoming.map(r => r.sender_profile.id)), [friendRequests]);
 
-
-  const handleAddFriend = (user: UserProfile) => {
+  const handleSendRequest = (user: UserProfile) => {
     if (!isVerified) {
         toast({
             title: "Verification Required",
-            description: "You must verify your email before adding friends.",
+            description: "You must verify your email before sending friend requests.",
             variant: "destructive"
         });
         return;
@@ -107,13 +116,13 @@ export function FriendsClientPage({
     setProcessingId(user.id);
     startTransition(async () => {
       try {
-        await addFriend(user.id);
+        const newRequest = await sendFriendRequest(user.id);
         toast({
-          title: 'Friend Added',
-          description: `You are now friends with ${user.display_name}.`,
+          title: 'Friend Request Sent',
+          description: `Your request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        // Realtime update from parent will refresh the state
+        setFriendRequests(prev => ({...prev, outgoing: [...prev.outgoing, newRequest]}));
       } catch (error) {
         toast({
           title: 'Error',
@@ -125,12 +134,71 @@ export function FriendsClientPage({
       }
     });
   };
+
+  const handleAcceptRequest = (request: FriendRequest) => {
+    setProcessingId(request.id);
+    startTransition(async () => {
+        try {
+            await acceptFriendRequest(request.id, request.sender_id);
+            toast({
+                title: 'Friend Added',
+                description: `You are now friends with ${request.sender_profile.display_name}.`,
+                variant: 'success',
+            });
+            setFriendRequests(prev => ({
+                ...prev,
+                incoming: prev.incoming.filter(r => r.id !== request.id),
+            }));
+            setFriends(prev => [...prev, {
+                user_id: currentUser.id,
+                friend_id: request.sender_id,
+                created_at: new Date().toISOString(),
+                friend_profile: request.sender_profile,
+            }])
+        } catch (error) {
+             toast({
+                title: 'Error',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
+        } finally {
+            setProcessingId(null);
+        }
+    });
+  };
+
+  const handleDeclineRequest = (request: FriendRequest) => {
+    setProcessingId(request.id);
+     startTransition(async () => {
+        try {
+            await declineFriendRequest(request.id);
+            toast({
+                title: 'Request Declined',
+                description: `You have declined the friend request from ${request.sender_profile.display_name}.`,
+            });
+            setFriendRequests(prev => ({
+                ...prev,
+                incoming: prev.incoming.filter(r => r.id !== request.id),
+            }));
+        } catch (error) {
+             toast({
+                title: 'Error',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
+        } finally {
+            setProcessingId(null);
+        }
+    });
+  };
   
   const addFriendFilteredUsers = useMemo(() => {
     const availableUsers = allUsers.filter(
       user =>
         user.id !== currentUser.id &&
-        !friendIds.has(user.id)
+        !friendIds.has(user.id) &&
+        !outgoingRequestIds.has(user.id) &&
+        !incomingRequestIds.has(user.id)
     );
 
     if (searchQuery) {
@@ -139,14 +207,20 @@ export function FriendsClientPage({
       );
     }
     return availableUsers.slice(0, 10); // Show some suggestions
-  }, [allUsers, currentUser.id, friendIds, searchQuery]);
+  }, [allUsers, currentUser.id, friendIds, outgoingRequestIds, incomingRequestIds, searchQuery]);
 
 
   return (
     <div className="h-full">
       <Tabs defaultValue="all" className="h-full flex flex-col">
-        <TabsList className="grid w-full grid-cols-2">
+        <TabsList className="grid w-full grid-cols-3">
           <TabsTrigger value="all">All Friends ({friends.length})</TabsTrigger>
+          <TabsTrigger value="requests">
+            Requests
+            {friendRequests.incoming.length > 0 && 
+              <Badge className="ml-2 bg-primary text-primary-foreground">{friendRequests.incoming.length}</Badge>
+            }
+          </TabsTrigger>
           <TabsTrigger value="add">Add Friend</TabsTrigger>
         </TabsList>
         
@@ -186,17 +260,69 @@ export function FriendsClientPage({
             </CardContent>
           </Card>
         </TabsContent>
+        <TabsContent value="requests" className="flex-1 mt-6">
+          <Card className="h-full">
+            <CardHeader>
+              <CardTitle className="font-headline">Friend Requests</CardTitle>
+              <CardDescription>Manage your incoming friend requests.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ScrollArea className="h-[calc(100vh-22rem)]">
+                {friendRequests.incoming.length > 0 ? (
+                  <div className="space-y-4">
+                    {friendRequests.incoming.map(request => (
+                      <div key={request.id} className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={request.sender_profile?.photo_url || undefined} />
+                            <AvatarFallback>{getInitials(request.sender_profile?.display_name)}</AvatarFallback>
+                          </Avatar>
+                          <p className="font-semibold">{request.sender_profile?.display_name}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                           <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleDeclineRequest(request)} 
+                                disabled={isProcessing && processingId === request.id}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                            >
+                                {isProcessing && processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <X className="h-4 w-4" />}
+                            </Button>
+                            <Button 
+                                variant="ghost" 
+                                size="icon" 
+                                onClick={() => handleAcceptRequest(request)} 
+                                disabled={isProcessing && processingId === request.id}
+                                className="text-green-600 hover:text-green-600 hover:bg-green-600/10"
+                            >
+                                {isProcessing && processingId === request.id ? <Loader2 className="h-4 w-4 animate-spin"/> : <Check className="h-4 w-4" />}
+                            </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center text-muted-foreground p-8">
+                     <UserPlus className="h-16 w-16 mx-auto mb-4" />
+                    <p>You have no new friend requests.</p>
+                  </div>
+                )}
+              </ScrollArea>
+            </CardContent>
+          </Card>
+        </TabsContent>
         <TabsContent value="add" className="flex-1 mt-6">
           <Card className="h-full">
             <CardHeader>
-              <CardTitle className="font-headline">Find New Friends</CardTitle>
-              <CardDescription>Search for people to connect with.</CardDescription>
+              <CardTitle className="font-headline">Find New Connections</CardTitle>
+              <CardDescription>Search for people or see our suggestions.</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="relative mb-4">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  placeholder="Search for people..."
+                  placeholder="Search by name..."
                   className="pl-9"
                   value={searchQuery}
                   onChange={e => setSearchQuery(e.target.value)}
@@ -227,7 +353,7 @@ export function FriendsClientPage({
                                 <Tooltip>
                                 <TooltipTrigger asChild>
                                     <span tabIndex={0}>
-                                        <Button variant="ghost" size="icon" onClick={() => handleAddFriend(user)} disabled={!isVerified || (isProcessing && processingId === user.id)}>
+                                        <Button variant="ghost" size="icon" onClick={() => handleSendRequest(user)} disabled={!isVerified || (isProcessing && processingId === user.id)}>
                                             <Plus className="h-4 w-4" />
                                         </Button>
                                     </span>
@@ -246,10 +372,31 @@ export function FriendsClientPage({
                     })}
                   </div>
                 ) : (
-                  <div className="text-center text-muted-foreground p-8">
-                     <NoUsersFoundIllustration />
-                     <p>{searchQuery ? 'No users found.' : 'No new suggestions at the moment.'}</p>
-                  </div>
+                   friendRequests.outgoing.length > 0 && !searchQuery ? (
+                    <div>
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2 mt-4">Pending Requests</h4>
+                         {friendRequests.outgoing.map(request => (
+                             <div key={request.id} className="flex items-center justify-between p-2 rounded-md bg-accent/50">
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                    <AvatarImage src={request.sender_profile?.photo_url || undefined} />
+                                    <AvatarFallback>{getInitials(request.sender_profile?.display_name)}</AvatarFallback>
+                                    </Avatar>
+                                    <p className="font-semibold">{request.sender_profile?.display_name}</p>
+                                </div>
+                                <div className="flex items-center gap-2 text-muted-foreground text-sm">
+                                    <Clock className="h-4 w-4" />
+                                    <span>Pending</span>
+                                </div>
+                             </div>
+                         ))}
+                    </div>
+                   ) : (
+                     <div className="text-center text-muted-foreground p-8">
+                        <NoUsersFoundIllustration />
+                        <p>{searchQuery ? 'No users found.' : 'No new suggestions at the moment.'}</p>
+                     </div>
+                   )
                 )}
               </ScrollArea>
             </CardContent>
