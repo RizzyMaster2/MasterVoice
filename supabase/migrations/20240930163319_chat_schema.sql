@@ -45,6 +45,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'email') THEN
     ALTER TABLE public.profiles ADD COLUMN email text;
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'bio') THEN
+    ALTER TABLE public.profiles ADD COLUMN bio text;
+  END IF;
 END;
 $$;
 
@@ -56,11 +59,11 @@ language plpgsql
 security definer set search_path = public
 as $$
 begin
-  insert into public.profiles (id, display_name, full_name, email)
+  insert into public.profiles (id, full_name, display_name, email)
   values (
-    new.id, 
-    new.raw_user_meta_data->>'display_name',
+    new.id,
     new.raw_user_meta_data->>'full_name',
+    new.raw_user_meta_data->>'display_name',
     new.email
   );
   return new;
@@ -82,7 +85,7 @@ security definer set search_path = public
 as $$
 begin
   update public.profiles
-  set full_name = new_full_name, display_name = new_full_name
+  set full_name = new_full_name
   where id = auth.uid();
 end;
 $$;
@@ -114,11 +117,6 @@ drop policy if exists "Users can add friends" on public.friends;
 create policy "Users can add friends"
   on public.friends for insert
   with check ( auth.uid() = user_id );
-  
-drop policy if exists "Users can remove their own friends" on public.friends;
-create policy "Users can remove their own friends"
-    on public.friends for delete
-    using (auth.uid() = user_id);
 
 drop policy if exists "Users can view messages they sent or received" on public.messages;
 create policy "Users can view messages they sent or received"
@@ -129,8 +127,3 @@ drop policy if exists "Users can insert their own messages" on public.messages;
 create policy "Users can insert their own messages"
   on public.messages for insert
   with check ( auth.uid() = sender_id );
-
-drop policy if exists "Users can delete their own messages" on public.messages;
-create policy "Users can delete their own messages"
-    on public.messages for delete
-    using (auth.uid() = sender_id);
