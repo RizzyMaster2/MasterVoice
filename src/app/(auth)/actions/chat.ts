@@ -72,22 +72,45 @@ export async function getFriends(): Promise<Friend[]> {
   const supabase = createClient(cookieStore);
   const user = await getCurrentUser();
 
-  const { data: friendsData, error } = await supabase
+  // Step 1: Get the friend relationships for the current user.
+  const { data: friendsRelations, error: friendsError } = await supabase
     .from('friends')
-    .select(`
-      user_id,
-      friend_id,
-      created_at,
-      friend_profile:profiles!friends_friend_id_fkey(*)
-    `)
+    .select('friend_id, created_at')
     .eq('user_id', user.id);
-
-  if (error) {
-    console.error("Error fetching friends:", error);
-    throw error;
+  
+  if (friendsError) {
+    console.error("Error fetching friends relationships:", friendsError);
+    throw friendsError;
   }
   
-  return friendsData as Friend[];
+  if (!friendsRelations || friendsRelations.length === 0) {
+    return [];
+  }
+
+  // Step 2: Extract the friend IDs.
+  const friendIds = friendsRelations.map(f => f.friend_id);
+
+  // Step 3: Fetch the profiles for those friend IDs.
+  const { data: profiles, error: profilesError } = await supabase
+    .from('profiles')
+    .select('*')
+    .in('id', friendIds);
+
+  if (profilesError) {
+    console.error("Error fetching friend profiles:", profilesError);
+    throw profilesError;
+  }
+
+  // Step 4: Combine the data into the `Friend` type.
+  const profileMap = new Map(profiles.map(p => [p.id, p]));
+  const friendsData: Friend[] = friendsRelations.map(relation => ({
+    user_id: user.id,
+    friend_id: relation.friend_id,
+    created_at: relation.created_at,
+    friend_profile: profileMap.get(relation.friend_id) as UserProfile, // Assume profile exists for simplicity
+  })).filter(f => f.friend_profile); // Filter out any friends whose profiles weren't found
+  
+  return friendsData;
 }
 
 
