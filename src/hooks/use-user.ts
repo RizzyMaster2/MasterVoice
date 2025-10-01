@@ -72,7 +72,7 @@ export function useUser() {
             authListener.subscription.unsubscribe();
         };
 
-    }, [supabase, isLoading, toast, user]);
+    }, [supabase, isLoading, toast]);
 
     const isVerified = !!user?.email_confirmed_at;
     const isProPlan = plan === 'pro' || plan === 'business';
