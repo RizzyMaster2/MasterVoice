@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useUser } from '@/hooks/use-user';
@@ -11,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import Link from 'next/link';
 import { MainHeader } from '@/components/app/main-header';
+import type { User } from '@supabase/supabase-js';
 
 const pricingTiers = [
   {
@@ -65,33 +65,24 @@ const pricingTiers = [
 ];
 
 
-export default function BillingPage() {
-  const { user, isVerified, isLoading, plan: currentUserPlanId } = useUser();
-  const router = useRouter();
+function BillingPageContent({ user, isVerified, isLoading, currentUserPlanId }: { user: User | null, isVerified: boolean, isLoading: boolean, currentUserPlanId: string }) {
+   const router = useRouter();
 
-  if (isLoading) {
-    return (
-        <div className="flex flex-col min-h-screen bg-background">
-            <MainHeader />
-            <main className="flex-1 py-12 md:py-20">
-                <div className="container mx-auto px-4 max-w-5xl space-y-6">
-                    <Skeleton className="h-12 w-1/3 mx-auto" />
-                    <Skeleton className="h-8 w-2/3 mx-auto" />
-                     <div className="grid gap-8 md:grid-cols-3 pt-8">
-                        <Skeleton className="h-96 w-full" />
-                        <Skeleton className="h-96 w-full" />
-                        <Skeleton className="h-96 w-full" />
-                    </div>
+    if (isLoading) {
+        return (
+             <div className="container mx-auto px-4 max-w-5xl space-y-6">
+                <Skeleton className="h-12 w-1/3 mx-auto" />
+                <Skeleton className="h-8 w-2/3 mx-auto" />
+                 <div className="grid gap-8 md:grid-cols-3 pt-8">
+                    <Skeleton className="h-96 w-full" />
+                    <Skeleton className="h-96 w-full" />
+                    <Skeleton className="h-96 w-full" />
                 </div>
-           </main>
-      </div>
-    );
-  }
-
-  return (
-    <div className="flex flex-col min-h-screen bg-background">
-      <MainHeader />
-       <main className="flex-1 py-12 md:py-20">
+            </div>
+        );
+    }
+    
+    return (
         <div className="container mx-auto px-4 max-w-5xl space-y-6">
             {user && !isVerified && <UnverifiedAccountWarning />}
             <CardHeader className="text-center px-0">
@@ -144,6 +135,17 @@ export default function BillingPage() {
                 ))}
             </div>
         </div>
+    )
+}
+
+export default function BillingPage() {
+  const { user, isVerified, isLoading, plan: currentUserPlanId } = useUser();
+  
+  return (
+    <div className="flex flex-col min-h-screen bg-background">
+      <MainHeader user={user} />
+       <main className="flex-1 py-12 md:py-20">
+        <BillingPageContent user={user} isVerified={isVerified} isLoading={isLoading} currentUserPlanId={currentUserPlanId} />
        </main>
     </div>
   );

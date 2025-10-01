@@ -30,6 +30,8 @@ import { MainHeader } from '@/components/app/main-header';
 import { Check } from 'lucide-react';
 import { LandingNav } from '@/components/app/landing-nav';
 import { FireSaleBanner } from '@/components/app/fire-sale-banner';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 const features = [
   {
@@ -237,12 +239,19 @@ const AIConnectIllustration = () => (
 );
 
 
-export default function Home() {
+export default async function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
 
   return (
     <div className="flex flex-col min-h-screen bg-background text-foreground">
-      <MainHeader />
+      <MainHeader user={user} />
       <LandingNav />
 
       <main className="flex-1 lg:pl-48">

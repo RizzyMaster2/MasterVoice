@@ -1,17 +1,11 @@
+'use client';
 
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/server';
+import type { User } from '@supabase/supabase-js';
 import { HeaderButtons } from '@/components/app/header-buttons';
 import { Logo } from '@/components/logo';
-import { cookies } from 'next/headers';
 
-export async function MainHeader() {
-  const cookieStore = cookies();
-  const supabase = createClient(cookieStore);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
+export function MainHeader({ user }: { user: User | null }) {
   return (
     <header className="sticky top-0 z-50 w-full bg-background/80 backdrop-blur-sm">
       <div className="container mx-auto flex h-16 items-center justify-between px-4 md:px-6">

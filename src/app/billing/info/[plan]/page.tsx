@@ -82,7 +82,7 @@ export default function BillingInfoPage() {
   }
   
   const getPrice = () => {
-    if (!selectedPrice) return '$0';
+    if (!plan || !selectedPrice) return '$0';
     if (selectedPrice === 'monthly') return plan.monthlyPrice.split('/')[0];
     return plan.lifetimePrice;
   }
@@ -186,7 +186,7 @@ export default function BillingInfoPage() {
 
   return (
      <div className="flex flex-col min-h-screen bg-background">
-      <MainHeader />
+      <MainHeader user={user} />
        <main className="flex-1 py-12 md:py-20">
             <div className="container mx-auto px-4">
                 {renderContent()}

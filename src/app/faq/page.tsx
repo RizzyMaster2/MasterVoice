@@ -3,6 +3,8 @@
 import { MainHeader } from '@/components/app/main-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 const faqs = [
     {
@@ -55,10 +57,16 @@ const FaqIcon = () => (
 );
 
 
-export default function FaqPage() {
+export default async function FaqPage() {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <MainHeader />
+      <MainHeader user={user} />
       <main className="flex-1">
         <div className="container mx-auto px-4 py-12 md:py-20">
           <Card className="max-w-3xl mx-auto bg-card/80 backdrop-blur-sm">

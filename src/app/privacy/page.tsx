@@ -2,6 +2,8 @@
 
 import { MainHeader } from '@/components/app/main-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
 
 const PrivacyIcon = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="h-16 w-16 text-primary">
@@ -21,10 +23,16 @@ const PrivacyIcon = () => (
 );
 
 
-export default function PrivacyPolicyPage() {
+export default async function PrivacyPolicyPage() {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
   return (
     <div className="flex flex-col min-h-screen bg-background">
-      <MainHeader />
+      <MainHeader user={user} />
       <main className="flex-1">
         <div className="container mx-auto px-4 py-12 md:py-20">
           <Card className="max-w-4xl mx-auto bg-card/80 backdrop-blur-sm">
