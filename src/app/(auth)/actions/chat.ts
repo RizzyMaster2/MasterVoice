@@ -180,7 +180,7 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     const { data: existingRequest, error: existingError } = await supabase
       .from('friend_requests')
       .select('id')
-      .or(`(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
+      .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
       .in('status', ['pending', 'accepted'])
       .limit(1);
 
@@ -381,3 +381,5 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
+
+    
