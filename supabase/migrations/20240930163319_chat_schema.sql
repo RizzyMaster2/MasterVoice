@@ -1,9 +1,8 @@
 -- Drop tables and functions safely if they exist
 drop table if exists public.friends;
 drop table if exists public.messages;
-drop table if exists public.chats cascade;
-drop table if exists public.chat_participants cascade;
-drop table if exists public.friend_requests cascade;
+drop function if exists public.handle_new_user;
+drop function if exists public.update_user_profile;
 
 
 -- Create public.friends table
@@ -52,6 +51,9 @@ BEGIN
   IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'bio') THEN
     ALTER TABLE public.profiles ADD COLUMN bio text;
   END IF;
+    IF NOT EXISTS (SELECT 1 FROM pg_attribute WHERE attrelid = 'public.profiles'::regclass AND attname = 'display_name') THEN
+    ALTER TABLE public.profiles ADD COLUMN display_name text;
+  END IF;
 END;
 $$;
 
@@ -64,7 +66,7 @@ security definer set search_path = public
 as $$
 begin
   insert into public.profiles (id, display_name, full_name, email)
-  values (new.id, new.raw_user_meta_data->>'display_name', new.raw_user_meta_data->>'full_name', new.email);
+  values (new.id, new.raw_user_meta_data ->> 'display_name', new.raw_user_meta_data ->> 'full_name', new.email);
   return new;
 end;
 $$;
@@ -104,7 +106,8 @@ create policy "Users can insert their own profile."
 drop policy if exists "Users can update their own profile." on public.profiles;
 create policy "Users can update their own profile."
   on public.profiles for update
-  using ( auth.uid() = id );
+  using (auth.uid() = id)
+  with check ( auth.uid() = id );
 
 drop policy if exists "Users can view their own friends" on public.friends;
 create policy "Users can view their own friends"
