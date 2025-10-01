@@ -90,7 +90,7 @@ const pricingTiers = [
       'Priority Support',
     ],
     cta: 'Upgrade to Pro',
-    href: '/signup',
+    href: '/billing/info/pro',
     link: '/billing/info/pro',
     variant: 'default',
     featured: true,
@@ -107,7 +107,7 @@ const pricingTiers = [
       '24/7 Dedicated Support',
     ],
     cta: 'Contact Sales',
-    href: '/signup',
+    href: '/billing/info/business',
     link: '/billing/info/business',
     variant: 'outline',
   },
@@ -545,7 +545,7 @@ export default async function Home() {
                   </CardContent>
                   <div className="p-6 pt-0">
                     <Button asChild className="w-full" variant={tier.variant as any}>
-                      <Link href={tier.href}>{tier.cta}</Link>
+                      <Link href={user ? tier.link : '/signup'}>{tier.cta}</Link>
                     </Button>
                   </div>
                 </Card>
