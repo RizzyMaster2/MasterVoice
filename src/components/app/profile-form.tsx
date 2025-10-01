@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@radix-ui/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import type { User as SupabaseUser } from '@supabase/supabase-js';
 import { createClient } from '@/lib/supabase/client';
