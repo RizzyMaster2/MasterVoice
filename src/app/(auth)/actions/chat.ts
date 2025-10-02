@@ -175,6 +175,29 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     if (user.id === receiverId) {
         throw new Error("You cannot send a friend request to yourself.");
     }
+    
+    // HOTFIX: Ensure sender has a public profile before sending a request.
+    // This handles cases for users who signed up before the profile trigger was added.
+    const { data: senderProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+    
+    if (profileError || !senderProfile) {
+        const { error: insertError } = await supabase.from('profiles').insert({
+            id: user.id,
+            display_name: user.user_metadata.display_name || user.email,
+            full_name: user.user_metadata.full_name || user.email,
+            email: user.email,
+            photo_url: user.user_metadata.avatar_url || user.user_metadata.photo_url,
+        });
+
+        if (insertError) {
+             throw new Error(`Could not create sender profile: ${insertError.message}`);
+        }
+    }
+
 
     // Check if they are already friends
     const { data: existingFriendship, error: friendCheckError } = await supabase
@@ -197,7 +220,7 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
       .from('friend_requests')
       .select('id')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
-      .eq('status', 'pending')
+      .in('status', ['pending', 'accepted'])
       .limit(1);
 
     if (requestCheckError) {
@@ -210,7 +233,7 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     
     const { data, error } = await supabase
         .from('friend_requests')
-        .insert({ sender_id: user.id, receiver_id: receiverId })
+        .insert({ sender_id: user.id, receiver_id: receiverId, status: 'pending' })
         .select('*, sender_profile:profiles!friend_requests_sender_id_fkey(*)')
         .single();
 
@@ -298,7 +321,8 @@ export async function declineFriendRequest(requestId: number) {
         .from('friend_requests')
         .delete()
         .eq('id', requestId)
-        .eq('receiver_id', user.id);
+        .or(`sender_id.eq.${user.id},receiver_id.eq.${user.id}`);
+
 
     if (error) throw new Error(error.message);
     
@@ -378,3 +402,5 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
+
+    
