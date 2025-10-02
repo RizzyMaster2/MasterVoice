@@ -1,119 +1,144 @@
-
--- Drop tables if they exist
-DROP TABLE IF EXISTS public.friends CASCADE;
-DROP TABLE IF EXISTS public.friend_requests CASCADE;
+-- Drop tables with CASCADE to remove dependent objects
 DROP TABLE IF EXISTS public.messages CASCADE;
 DROP TABLE IF EXISTS public.chat_participants CASCADE;
 DROP TABLE IF EXISTS public.chats CASCADE;
+DROP TABLE IF EXISTS public.friend_requests CASCADE;
+DROP TABLE IF EXISTS public.friends CASCADE;
 DROP TABLE IF EXISTS public.profiles CASCADE;
 
--- Drop functions if they exist
-DROP FUNCTION IF EXISTS public.accept_friend_request(bigint, uuid, uuid);
+-- Drop functions with CASCADE
+DROP FUNCTION IF EXISTS public.accept_friend_request(bigint) CASCADE;
+DROP FUNCTION IF EXISTS public.delete_user_data() CASCADE;
+DROP FUNCTION IF EXISTS public.create_public_profile_for_user() CASCADE;
+
+-- Drop trigger if it exists
+DROP TRIGGER IF EXISTS on_auth_user_deleted ON auth.users;
 
 -- Create profiles table
 CREATE TABLE public.profiles (
-    id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    display_name text,
-    full_name text,
-    email text,
-    photo_url text,
-    status text,
-    bio text
+  id uuid NOT NULL PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  display_name text,
+  full_name text,
+  email text,
+  photo_url text,
+  status text,
+  bio text
 );
-
--- Create chats table
-CREATE TABLE public.chats (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    is_group_chat boolean DEFAULT false,
-    group_name text,
-    group_photo_url text
-);
-
--- Create chat_participants table
-CREATE TABLE public.chat_participants (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    chat_id bigint NOT NULL REFERENCES public.chats(id) ON DELETE CASCADE,
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    UNIQUE(chat_id, user_id)
-);
-
--- Create messages table
-CREATE TABLE public.messages (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    receiver_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    content text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    chat_id bigint REFERENCES public.chats(id) ON DELETE CASCADE
-);
-
--- Create friends table
-CREATE TABLE public.friends (
-    user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    friend_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    PRIMARY KEY (user_id, friend_id)
-);
-
--- Create friend_requests table
-CREATE TABLE public.friend_requests (
-    id bigint PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
-    sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    receiver_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
-    status text DEFAULT 'pending'::text,
-    created_at timestamp with time zone DEFAULT now() NOT NULL,
-    UNIQUE(sender_id, receiver_id)
-);
-
--- Create accept_friend_request function
-CREATE OR REPLACE FUNCTION public.accept_friend_request(p_request_id bigint, p_sender_id uuid, p_receiver_id uuid)
-RETURNS void
-LANGUAGE plpgsql
-SECURITY DEFINER
-AS $$
-BEGIN
-    -- Insert the two-way friendship
-    INSERT INTO public.friends (user_id, friend_id)
-    VALUES (p_receiver_id, p_sender_id);
-
-    INSERT INTO public.friends (user_id, friend_id)
-    VALUES (p_sender_id, p_receiver_id);
-
-    -- Delete the friend request
-    DELETE FROM public.friend_requests
-    WHERE id = p_request_id;
-END;
-$$;
-
-
--- Enable Row Level Security
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friends ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
-
--- RLS Policies for profiles
 CREATE POLICY "Public profiles are viewable by everyone." ON public.profiles FOR SELECT USING (true);
 CREATE POLICY "Users can insert their own profile." ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 CREATE POLICY "Users can update their own profile." ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
--- RLS Policies for friends
-CREATE POLICY "Users can view their own friendships." ON public.friends FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can insert their own friendships." ON public.friends FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can delete their own friendships." ON public.friends FOR DELETE USING (auth.uid() = user_id);
 
--- RLS Policies for friend_requests
-CREATE POLICY "Users can see their own friend requests." ON public.friend_requests FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-CREATE POLICY "Users can send friend requests." ON public.friend_requests FOR INSERT WITH CHECK (auth.uid() = sender_id);
-CREATE POLICY "Users can update their own friend requests." ON public.friend_requests FOR UPDATE USING (auth.uid() = receiver_id);
-CREATE POLICY "Users can delete their own friend requests." ON public.friend_requests FOR DELETE USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+-- Create friends table
+CREATE TABLE public.friends (
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  friend_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (user_id, friend_id)
+);
+ALTER TABLE public.friends ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view their own friends." ON public.friends FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can insert their own friends." ON public.friends FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Users can delete their own friends." ON public.friends FOR DELETE USING (auth.uid() = user_id);
 
--- RLS Policies for messages
-CREATE POLICY "Users can see messages they sent or received." ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
-CREATE POLICY "Users can send messages." ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
+
+-- Create friend_requests table
+CREATE TABLE public.friend_requests (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  receiver_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  status text NOT NULL DEFAULT 'pending'::text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  UNIQUE (sender_id, receiver_id)
+);
+ALTER TABLE public.friend_requests ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own friend requests." ON public.friend_requests FOR ALL USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+
+
+-- Create chats table
+CREATE TABLE public.chats (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.chats ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Participants can view their chats." ON public.chats FOR SELECT USING (
+  id IN (SELECT chat_id FROM public.chat_participants WHERE user_id = auth.uid())
+);
+
+
+-- Create chat_participants table
+CREATE TABLE public.chat_participants (
+  chat_id bigint NOT NULL REFERENCES public.chats(id) ON DELETE CASCADE,
+  user_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (chat_id, user_id)
+);
+ALTER TABLE public.chat_participants ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can manage their own chat participation." ON public.chat_participants FOR ALL USING (auth.uid() = user_id);
+
+
+-- Create messages table
+CREATE TABLE public.messages (
+  id bigint GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
+  sender_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  receiver_id uuid NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+  content text NOT NULL,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Users can view messages they sent or received." ON public.messages FOR SELECT USING (auth.uid() = sender_id OR auth.uid() = receiver_id);
+CREATE POLICY "Users can insert their own messages." ON public.messages FOR INSERT WITH CHECK (auth.uid() = sender_id);
 CREATE POLICY "Users can delete their own messages." ON public.messages FOR DELETE USING (auth.uid() = sender_id);
+
+-- Function to accept a friend request
+create or replace function public.accept_friend_request(p_request_id bigint)
+returns void as $$
+declare
+  v_sender_id uuid;
+  v_receiver_id uuid;
+begin
+  -- Get sender and receiver from the request, ensure the caller is the receiver
+  select sender_id, receiver_id into v_sender_id, v_receiver_id
+  from public.friend_requests
+  where id = p_request_id and receiver_id = auth.uid();
+
+  if v_sender_id is null then
+    raise exception 'Friend request not found or you are not the receiver.';
+  end if;
+
+  -- Add to friends table for both users
+  insert into public.friends(user_id, friend_id) values (v_receiver_id, v_sender_id);
+  insert into public.friends(user_id, friend_id) values (v_sender_id, v_receiver_id);
+
+  -- Delete the friend request
+  delete from public.friend_requests where id = p_request_id;
+end;
+$$ language plpgsql volatile security definer;
+
+
+-- Function to delete user data
+create or replace function public.delete_user_data()
+returns trigger as $$
+begin
+  -- Delete from profiles, which will cascade to other tables
+  delete from public.profiles where id = old.id;
+  return old;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger to delete user data
+create trigger on_auth_user_deleted
+  after delete on auth.users
+  for each row execute procedure public.delete_user_data();
+
+-- Grant usage on schema to required roles
+GRANT USAGE ON SCHEMA public TO postgres, anon, authenticated, service_role;
+
+-- Grant all permissions on tables to postgres and service_role
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, service_role;
+
+-- Grant permissions to anon and authenticated users
+GRANT SELECT ON ALL TABLES IN SCHEMA public TO anon, authenticated;
+GRANT INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
