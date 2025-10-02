@@ -275,9 +275,9 @@ export async function acceptFriendRequest(requestId: number, senderId: string) {
 
     // Call the RPC function
     const { error } = await supabase.rpc('accept_friend_request', {
-        request_id: requestId,
-        sender_id: senderId,
-        receiver_id: user.id
+        p_request_id: requestId,
+        p_sender_id: senderId,
+        p_receiver_id: user.id
     });
 
     if (error) {
@@ -293,13 +293,14 @@ export async function declineFriendRequest(requestId: number) {
     const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
     
+    // Instead of updating, we just delete the request.
     const { error } = await supabase
         .from('friend_requests')
-        .update({ status: 'declined' })
+        .delete()
         .eq('id', requestId)
         .eq('receiver_id', user.id);
 
-    if (error) throw error;
+    if (error) throw new Error(error.message);
     
     revalidatePath('/home/friends');
 }
