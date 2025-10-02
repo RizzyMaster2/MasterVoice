@@ -207,7 +207,6 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
         throw new Error("You cannot send a friend request to yourself.");
     }
     
-    // Ensure both sender and receiver have public profiles before sending a request.
     await ensureProfileExists(user.id);
     await ensureProfileExists(receiverId);
 
@@ -233,7 +232,6 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
       .from('friend_requests')
       .select('id')
       .or(`and(sender_id.eq.${user.id},receiver_id.eq.${receiverId}),and(sender_id.eq.${receiverId},receiver_id.eq.${user.id})`)
-      .in('status', ['pending', 'accepted'])
       .limit(1);
 
     if (requestCheckError) {
@@ -304,16 +302,13 @@ export async function getFriendRequests(): Promise<{
   };
 }
 
-export async function acceptFriendRequest(requestId: number, senderId: string) {
+export async function acceptFriendRequest(requestId: number) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
-    const user = await getCurrentUser();
-
+    
     // Call the RPC function
     const { error } = await supabase.rpc('accept_friend_request', {
-        p_request_id: requestId,
-        p_sender_id: senderId,
-        p_receiver_id: user.id
+        p_request_id: requestId
     });
 
     if (error) {
@@ -415,7 +410,3 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
-
-    
-
-    

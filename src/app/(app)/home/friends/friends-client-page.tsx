@@ -146,7 +146,7 @@ export function FriendsClientPage({
     setProcessingId(request.id);
     startTransition(async () => {
         try {
-            await acceptFriendRequest(request.id, request.sender_id);
+            await acceptFriendRequest(request.id);
             toast({
                 title: 'Friend Added',
                 description: `You are now friends with ${request.sender_profile.display_name}.`,
@@ -448,5 +448,3 @@ export function FriendsClientPage({
     </div>
   );
 }
-
-
