@@ -101,8 +101,9 @@ export function FriendsClientPage({
     name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U';
 
   const friendIds = useMemo(() => new Set(friends.map(f => f.friend_id)), [friends]);
-  const outgoingRequestIds = useMemo(() => new Set(friendRequests.outgoing.map(r => r.sender_profile.id)), [friendRequests]);
-  const incomingRequestIds = useMemo(() => new Set(friendRequests.incoming.map(r => r.sender_profile.id)), [friendRequests]);
+  const outgoingRequestReceiverIds = useMemo(() => new Set(friendRequests.outgoing.map(r => r.receiver_id)), [friendRequests]);
+  const incomingRequestSenderIds = useMemo(() => new Set(friendRequests.incoming.map(r => r.sender_id)), [friendRequests]);
+
 
   const handleSendRequest = (user: UserProfile) => {
     if (!isVerified) {
@@ -122,7 +123,12 @@ export function FriendsClientPage({
           description: `Your request to ${user.display_name} has been sent.`,
           variant: 'success',
         });
-        setFriendRequests(prev => ({...prev, outgoing: [...prev.outgoing, newRequest]}));
+        // Refetch or update state optimistically
+        setFriendRequests(prev => ({...prev, outgoing: [...prev.outgoing, {
+            ...newRequest,
+            // The profile for an outgoing request in the UI is the person we sent it to
+            sender_profile: user
+        }]}));
       } catch (error) {
         toast({
           title: 'Error',
@@ -197,8 +203,8 @@ export function FriendsClientPage({
       user =>
         user.id !== currentUser.id &&
         !friendIds.has(user.id) &&
-        !outgoingRequestIds.has(user.id) &&
-        !incomingRequestIds.has(user.id)
+        !outgoingRequestReceiverIds.has(user.id) &&
+        !incomingRequestSenderIds.has(user.id)
     );
 
     if (searchQuery) {
@@ -207,7 +213,7 @@ export function FriendsClientPage({
       );
     }
     return availableUsers.slice(0, 10); // Show some suggestions
-  }, [allUsers, currentUser.id, friendIds, outgoingRequestIds, incomingRequestIds, searchQuery]);
+  }, [allUsers, currentUser.id, friendIds, outgoingRequestReceiverIds, incomingRequestSenderIds, searchQuery]);
 
 
   return (

@@ -211,7 +211,7 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
     const { data, error } = await supabase
         .from('friend_requests')
         .insert({ sender_id: user.id, receiver_id: receiverId })
-        .select('*, sender_profile:profiles!friend_requests_sender_id_fkey(*)') // This might fail, but it's for the immediate return.
+        .select('*, sender_profile:profiles!friend_requests_sender_id_fkey(*)')
         .single();
 
     if (error) {
@@ -225,61 +225,46 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
 }
 
 export async function getFriendRequests(): Promise<{
-    incoming: FriendRequest[];
-    outgoing: FriendRequest[];
+  incoming: FriendRequest[];
+  outgoing: FriendRequest[];
 }> {
-    const cookieStore = cookies();
-    const supabase = createClient(cookieStore);
-    const user = await getCurrentUser();
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const user = await getCurrentUser();
 
-    // 1. Fetch all pending requests where the current user is either the sender or receiver
-    const { data: requests, error } = await supabase
-        .from('friend_requests')
-        .select('*')
-        .or(`receiver_id.eq.${user.id},sender_id.eq.${user.id}`)
-        .eq('status', 'pending');
+  const [incomingRes, outgoingRes] = await Promise.all([
+    supabase
+      .from('friend_requests')
+      .select('*, sender_profile:profiles!friend_requests_sender_id_fkey(*)')
+      .eq('receiver_id', user.id)
+      .eq('status', 'pending'),
+    supabase
+      .from('friend_requests')
+      .select('*, sender_profile:profiles!friend_requests_receiver_id_fkey(*)')
+      .eq('sender_id', user.id)
+      .eq('status', 'pending'),
+  ]);
 
-    if (error) {
-        console.error('Error fetching friend requests:', error);
-        throw error;
-    }
-    
-    if (!requests || requests.length === 0) {
-        return { incoming: [], outgoing: [] };
-    }
+  if (incomingRes.error) {
+    console.error('Error fetching incoming friend requests:', incomingRes.error);
+    throw incomingRes.error;
+  }
+  if (outgoingRes.error) {
+    console.error('Error fetching outgoing friend requests:', outgoingRes.error);
+    throw outgoingRes.error;
+  }
 
-    // 2. Collect all unique user IDs involved in these requests
-    const userIds = Array.from(new Set(requests.flatMap(req => [req.sender_id, req.receiver_id])));
-
-    // 3. Fetch all profiles for these user IDs in a single query
-    const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*')
-        .in('id', userIds);
-
-    if (profilesError) {
-        console.error('Error fetching profiles for friend requests:', profilesError);
-        throw profilesError;
-    }
-
-    const profileMap = new Map(profiles.map(p => [p.id, p as UserProfile]));
-
-    // 4. Map requests to their respective profiles
-    const allRequestsWithProfiles: FriendRequest[] = requests.map(req => {
-        const sender_profile = profileMap.get(req.sender_id);
-        const receiver_profile = profileMap.get(req.receiver_id);
-        return {
-            ...req,
-            // The sender_profile for the UI is always the *other* person.
-            sender_profile: req.sender_id === user.id ? receiver_profile! : sender_profile!,
-        };
-    }).filter(req => req.sender_profile); // Ensure the profile exists
-
-    // 5. Separate into incoming and outgoing
-    const incoming = allRequestsWithProfiles.filter(req => req.receiver_id === user.id);
-    const outgoing = allRequestsWithProfiles.filter(req => req.sender_id === user.id);
-
-    return { incoming, outgoing };
+  // The 'sender_profile' for an outgoing request is actually the receiver's profile,
+  // which we aliased in the query.
+  const outgoing = outgoingRes.data.map(req => ({
+      ...req,
+      sender_profile: req.sender_profile as UserProfile, // The alias makes this the receiver's profile
+  }));
+  
+  return {
+    incoming: (incomingRes.data as FriendRequest[]) || [],
+    outgoing: (outgoing as FriendRequest[]) || [],
+  };
 }
 
 export async function acceptFriendRequest(requestId: number, senderId: string) {
