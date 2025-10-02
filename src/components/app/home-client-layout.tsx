@@ -127,27 +127,34 @@ export function HomeClientLayout({
       .channel('home-layout-realtime')
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'friends', filter: `user_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'friends' },
         (payload) => {
-            toast({
-                title: 'Friends list updated!',
-                description: 'Your connections have changed.',
-                variant: 'info'
-            })
-            refreshAllData();
+            // Check if the change is relevant to the current user
+            if (payload.new.user_id === user.id || payload.old.user_id === user.id) {
+                toast({
+                    title: 'Friends list updated!',
+                    description: 'Your connections have changed.',
+                    variant: 'info'
+                });
+                refreshAllData();
+            }
         }
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'friend_requests', filter: `or(sender_id.eq.${user.id},receiver_id.eq.${user.id})` },
+        { event: '*', schema: 'public', table: 'friend_requests' },
         (payload) => {
-            refreshAllData();
-            if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id) {
-                 toast({
-                    title: 'New Friend Request!',
-                    description: `You have a new friend request.`,
-                    variant: 'info'
-                })
+             // Check if the change is relevant to the current user
+            if (payload.new.receiver_id === user.id || payload.new.sender_id === user.id || payload.old.receiver_id === user.id || payload.old.sender_id === user.id) {
+                refreshAllData();
+                if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id) {
+                    const sender = allUsers.find(u => u.id === payload.new.sender_id);
+                    toast({
+                        title: 'New Friend Request!',
+                        description: `You have a new friend request from ${sender?.display_name || 'a user'}.`,
+                        variant: 'info'
+                    });
+                }
             }
         }
       )
