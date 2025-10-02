@@ -1,2 +1,0 @@
--- This file is intentionally left blank.
--- The contents have been moved to 0004_unify_friend_request_logic.sql to resolve migration conflicts.
