@@ -167,6 +167,37 @@ export async function sendMessage(receiverId: string, content: string) {
   }
 }
 
+async function ensureProfileExists(userId: string) {
+    const supabase = createClient(cookies());
+    const supabaseAdmin = createAdminClient();
+
+    const { data: profile } = await supabase.from('profiles').select('id').eq('id', userId).single();
+
+    if (!profile) {
+        const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+
+        if (userError) {
+            throw new Error(`Could not fetch user to create profile: ${userError.message}`);
+        }
+        if (!user) {
+            throw new Error(`User with ID ${userId} not found for profile creation.`);
+        }
+
+        const { error: insertError } = await supabase.from('profiles').insert({
+            id: user.id,
+            display_name: user.user_metadata.display_name || user.email,
+            full_name: user.user_metadata.full_name || user.email,
+            email: user.email,
+            photo_url: user.user_metadata.photo_url || user.user_metadata.avatar_url,
+        });
+
+        if (insertError) {
+            throw new Error(`Could not create missing profile: ${insertError.message}`);
+        }
+    }
+}
+
+
 export async function sendFriendRequest(receiverId: string): Promise<FriendRequest> {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
@@ -176,27 +207,9 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
         throw new Error("You cannot send a friend request to yourself.");
     }
     
-    // HOTFIX: Ensure sender has a public profile before sending a request.
-    // This handles cases for users who signed up before the profile trigger was added.
-    const { data: senderProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('id', user.id)
-        .single();
-    
-    if (profileError || !senderProfile) {
-        const { error: insertError } = await supabase.from('profiles').insert({
-            id: user.id,
-            display_name: user.user_metadata.display_name || user.email,
-            full_name: user.user_metadata.full_name || user.email,
-            email: user.email,
-            photo_url: user.user_metadata.avatar_url || user.user_metadata.photo_url,
-        });
-
-        if (insertError) {
-             throw new Error(`Could not create sender profile: ${insertError.message}`);
-        }
-    }
+    // Ensure both sender and receiver have public profiles before sending a request.
+    await ensureProfileExists(user.id);
+    await ensureProfileExists(receiverId);
 
 
     // Check if they are already friends
@@ -402,5 +415,7 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
+
+    
 
     
