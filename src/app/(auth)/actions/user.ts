@@ -134,3 +134,25 @@ export async function updateUserProfile(userId: string, updates: { display_name?
 
     revalidatePath('/profile');
 }
+
+
+export async function createPublicProfile(userId: string, email: string, fullName: string | null) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  
+  const { data, error } = await supabase
+    .from('profiles')
+    .insert({
+      id: userId,
+      email: email,
+      display_name: fullName || email,
+      full_name: fullName || email,
+    });
+    
+  if (error) {
+    console.error("Error creating public profile:", error);
+    throw new Error(`Could not create public profile: ${error.message}`);
+  }
+  
+  return data;
+}

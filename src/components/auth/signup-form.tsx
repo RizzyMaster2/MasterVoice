@@ -19,6 +19,7 @@ import { UserPlus, Eye, EyeOff } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
+import { createPublicProfile } from '@/app/(auth)/actions/user';
 
 const formSchema = z.object({
   name: z.string().min(2, { message: 'Name must be at least 2 characters.' }),
@@ -66,6 +67,9 @@ export function SignupForm() {
             throw new Error("Signup succeeded but no user object was returned.");
         }
         
+        // After successful signup, create the public profile
+        await createPublicProfile(data.user.id, values.email, values.name);
+
         toast({ title: 'Signup successful!', description: 'Redirecting you to the app. Please check your email to verify your account.'});
         router.push('/home');
 
