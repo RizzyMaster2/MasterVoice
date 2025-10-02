@@ -70,7 +70,7 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
-    if (isInitialLoad && friends.length === 0 && allUsers.length === 0) {
+    if (isInitialLoad && initialFriends.length === 0 && initialUsers.length === 0) {
         setIsLoading(true);
     }
     try {
@@ -95,10 +95,13 @@ export function HomeClientLayout({
             setIsLoading(false);
         }
     }
-  }, [user, toast, friends, allUsers, isLoading]);
+  }, [user, toast, initialFriends, initialUsers, isLoading]);
 
   useEffect(() => {
-    refreshAllData(true);
+    // We only want to run this once on initial load, but not on subsequent re-renders
+    if (isLoading) {
+        refreshAllData(true);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -136,10 +139,10 @@ export function HomeClientLayout({
       )
       .on(
         'postgres_changes',
-        { event: '*', schema: 'public', table: 'friend_requests', filter: `receiver_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'friend_requests', filter: `or(sender_id.eq.${user.id},receiver_id.eq.${user.id})` },
         (payload) => {
             refreshAllData();
-            if (payload.eventType === 'INSERT') {
+            if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id) {
                  toast({
                     title: 'New Friend Request!',
                     description: `You have a new friend request.`,
