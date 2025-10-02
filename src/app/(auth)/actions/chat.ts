@@ -240,7 +240,7 @@ export async function getFriendRequests(): Promise<{
       .eq('status', 'pending'),
     supabase
       .from('friend_requests')
-      .select('*, sender_profile:profiles!friend_requests_receiver_id_fkey(*)')
+      .select('*, receiver_profile:profiles!friend_requests_receiver_id_fkey(*)')
       .eq('sender_id', user.id)
       .eq('status', 'pending'),
   ]);
@@ -254,16 +254,17 @@ export async function getFriendRequests(): Promise<{
     throw outgoingRes.error;
   }
 
-  // The 'sender_profile' for an outgoing request is actually the receiver's profile,
-  // which we aliased in the query.
+  // For outgoing requests, the profile we care about is the receiver's.
+  // We aliased this to `receiver_profile` in the query.
   const outgoing = outgoingRes.data.map(req => ({
       ...req,
-      sender_profile: req.sender_profile as UserProfile, // The alias makes this the receiver's profile
+      // We are assigning the receiver's profile to the `sender_profile` field for UI consistency
+      sender_profile: req.receiver_profile as UserProfile, 
   }));
   
   return {
     incoming: (incomingRes.data as FriendRequest[]) || [],
-    outgoing: (outgoing as FriendRequest[]) || [],
+    outgoing: (outgoing as any[]) || [],
   };
 }
 
@@ -271,24 +272,18 @@ export async function acceptFriendRequest(requestId: number, senderId: string) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     const user = await getCurrentUser();
-    const receiverId = user.id;
 
-    // Use an RPC function to handle this atomically in a real-world scenario
-    const { error: updateError } = await supabase
-        .from('friend_requests')
-        .update({ status: 'accepted' })
-        .eq('id', requestId)
-        .eq('receiver_id', receiverId);
-    
-    if (updateError) throw updateError;
-    
-    // Create friendships
-    const { error: friendsError } = await supabase.from('friends').insert([
-        { user_id: senderId, friend_id: receiverId },
-        { user_id: receiverId, friend_id: senderId },
-    ]);
+    // Call the RPC function
+    const { error } = await supabase.rpc('accept_friend_request', {
+        request_id: requestId,
+        sender_id: senderId,
+        receiver_id: user.id
+    });
 
-    if (friendsError) throw friendsError;
+    if (error) {
+        console.error('Error accepting friend request:', error);
+        throw new Error(`Could not accept friend request: ${error.message}`);
+    }
 
     revalidatePath('/home/friends');
 }
