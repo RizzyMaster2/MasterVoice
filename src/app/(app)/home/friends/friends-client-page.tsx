@@ -16,7 +16,8 @@ import {
   Check,
   X,
   Clock,
-  UserPlus
+  UserPlus,
+  Ban,
 } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
@@ -197,6 +198,31 @@ export function FriendsClientPage({
         }
     });
   };
+
+  const handleCancelRequest = (request: FriendRequest) => {
+    setProcessingId(request.id);
+    startTransition(async () => {
+      try {
+        await declineFriendRequest(request.id);
+        toast({
+          title: 'Request Cancelled',
+          description: `Your friend request to ${request.sender_profile.display_name} has been cancelled.`,
+        });
+        setFriendRequests(prev => ({
+          ...prev,
+          outgoing: prev.outgoing.filter(r => r.id !== request.id),
+        }));
+      } catch (error) {
+        toast({
+          title: 'Error',
+          description: getErrorMessage(error),
+          variant: 'destructive',
+        });
+      } finally {
+        setProcessingId(null);
+      }
+    });
+  };
   
   const addFriendFilteredUsers = useMemo(() => {
     const availableUsers = allUsers.filter(
@@ -335,7 +361,7 @@ export function FriendsClientPage({
                 />
               </div>
               <ScrollArea className="h-[calc(100vh-25rem)]">
-                 {addFriendFilteredUsers.length > 0 ? (
+                 {addFriendFilteredUsers.length > 0 && (
                   <div className="space-y-4">
                     {addFriendFilteredUsers.map(user => {
                       const isCurrentlyProcessing = isProcessing && processingId === user.id;
@@ -377,11 +403,13 @@ export function FriendsClientPage({
                       )
                     })}
                   </div>
-                ) : (
-                   friendRequests.outgoing.length > 0 && !searchQuery ? (
-                    <div>
-                        <h4 className="text-sm font-semibold text-muted-foreground mb-2 mt-4">Pending Requests</h4>
-                         {friendRequests.outgoing.map(request => (
+                )}
+                {friendRequests.outgoing.length > 0 && (
+                    <div className="mt-4">
+                        <h4 className="text-sm font-semibold text-muted-foreground mb-2">Pending Requests</h4>
+                         {friendRequests.outgoing.map(request => {
+                            const isCurrentlyProcessing = isProcessing && processingId === request.id;
+                            return (
                              <div key={request.id} className="flex items-center justify-between p-2 rounded-md bg-accent/50">
                                 <div className="flex items-center gap-3">
                                     <Avatar className="h-10 w-10">
@@ -390,19 +418,27 @@ export function FriendsClientPage({
                                     </Avatar>
                                     <p className="font-semibold">{request.sender_profile?.display_name}</p>
                                 </div>
-                                <div className="flex items-center gap-2 text-muted-foreground text-sm">
-                                    <Clock className="h-4 w-4" />
-                                    <span>Pending</span>
-                                </div>
+                                {isCurrentlyProcessing ? (
+                                    <Button variant="outline" size="sm" disabled>
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    </Button>
+                                ) : (
+                                    <Button variant="outline" size="sm" onClick={() => handleCancelRequest(request)}>
+                                        <Ban className="h-4 w-4 mr-2" />
+                                        Cancel
+                                    </Button>
+                                )}
                              </div>
-                         ))}
+                            )
+                         })}
                     </div>
-                   ) : (
+                )}
+
+                {addFriendFilteredUsers.length === 0 && friendRequests.outgoing.length === 0 && (
                      <div className="text-center text-muted-foreground p-8">
                         <NoUsersFoundIllustration />
                         <p>{searchQuery ? 'No users found.' : 'No new suggestions at the moment.'}</p>
                      </div>
-                   )
                 )}
               </ScrollArea>
             </CardContent>
@@ -412,4 +448,5 @@ export function FriendsClientPage({
     </div>
   );
 }
+
 
