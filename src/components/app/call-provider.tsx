@@ -68,6 +68,8 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!user) return;
+    
+    // This channel is for this user to receive signals
     const channel = supabase.channel(`user-signaling:${user.id}`);
     signalingChannel.current = channel;
     
@@ -100,7 +102,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const startCall = useCallback(async (participant: UserProfile) => {
      if (!user) return;
+     // Set the active call locally to open the UI
      setActiveCall({ otherParticipant: participant });
+     
+     // The `VoiceCall` component will handle creating and sending the offer.
   }, [user]);
 
   const joinCall = (chatId: string) => {
@@ -120,14 +125,17 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
 
   const declineCall = () => {
     if (incomingCall && user) {
-        const hangupChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
-        hangupChannel.subscribe(() => {
-            hangupChannel.send({
-                type: 'broadcast',
-                event: 'hangup',
-                payload: { from: user.id },
-            });
-            supabase.removeChannel(hangupChannel);
+        // Send a hangup message to the caller's channel
+        const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
+        callerChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                callerChannel.send({
+                    type: 'broadcast',
+                    event: 'hangup',
+                    payload: { from: user.id },
+                });
+                supabase.removeChannel(callerChannel);
+            }
         });
         setIncomingCall(null);
     }

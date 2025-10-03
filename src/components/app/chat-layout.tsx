@@ -174,21 +174,29 @@ export function ChatLayout({
 
   useEffect(() => {
     if (!selectedFriend) return;
-    const channel = supabase.channel(`messages:${[currentUser.id, selectedFriend.id].sort().join(':')}`)
+    
+    // This channel listens for new messages in the current chat
+    const messageChannel = supabase.channel(`messages:${[currentUser.id, selectedFriend.id].sort().join(':')}`)
         .on('postgres_changes', {
             event: 'INSERT',
             schema: 'public',
             table: 'messages',
-            filter: `receiver_id=in.(${currentUser.id},${selectedFriend.id})`,
+            // Listen for messages where either user is the sender and the other is the receiver
+            filter: `(sender_id=eq.${currentUser.id} and receiver_id=eq.${selectedFriend.id}) or (sender_id=eq.${selectedFriend.id} and receiver_id=eq.${currentUser.id})`
         }, payload => {
             const newMessage = payload.new as Message;
-            if((newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedFriend.id) || (newMessage.sender_id === selectedFriend.id && newMessage.receiver_id === currentUser.id)){
-               setMessages(currentMessages => [...currentMessages, {...newMessage, sender_profile: userMap.get(newMessage.sender_id) }]);
-            }
+            // Add the new message to the state
+            setMessages(currentMessages => {
+                // Avoid adding duplicate messages
+                if (currentMessages.some(m => m.id === newMessage.id)) {
+                    return currentMessages;
+                }
+                return [...currentMessages, {...newMessage, sender_profile: userMap.get(newMessage.sender_id) }];
+            });
         })
         .subscribe();
     
-    return () => { supabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(messageChannel); };
   }, [selectedFriend, currentUser.id, supabase, userMap]);
 
   useEffect(() => {
@@ -206,9 +214,11 @@ export function ChatLayout({
     startSendingTransition(async () => {
         try {
             await sendMessage(selectedFriend.id, content);
-            // Realtime will handle the update, or optimistic update above.
+            // Realtime will handle the update
         } catch (error) {
             toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+            // Re-add the message to the input if sending fails
+            setNewMessage(content);
         }
     });
   };
