@@ -79,12 +79,22 @@ export async function updateUserPlan(planId: 'pro' | 'business', purchaseType: '
 }
 
 
-export async function updateUserProfile(userId: string, updates: { display_name?: string, bio?: string }, avatarFile?: File) {
+export async function updateUserProfile(formData: FormData) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
+    
+    const userId = formData.get('userId') as string;
+    const name = formData.get('name') as string;
+    const bio = formData.get('bio') as string;
+    const avatarFile = formData.get('avatarFile') as File | null;
+
+    if (!userId) {
+        throw new Error('User ID is missing.');
+    }
+
     let avatar_url;
 
-    if (avatarFile) {
+    if (avatarFile && avatarFile.size > 0) {
         const fileExt = avatarFile.name.split('.').pop();
         const fileName = `${Date.now()}.${fileExt}`;
         const filePath = `${userId}/${fileName}`;
@@ -104,27 +114,32 @@ export async function updateUserProfile(userId: string, updates: { display_name?
         avatar_url = data.publicUrl;
     }
 
+    const updates = {
+        display_name: name,
+        full_name: name, // Keep full_name and display_name in sync
+        bio: bio,
+        ...(avatar_url && { avatar_url: avatar_url }),
+    };
+
     const { data: user, error: authError } = await supabase.auth.updateUser({
-        data: {
-            display_name: updates.display_name,
-            full_name: updates.display_name, // Keep full_name and display_name in sync
-            bio: updates.bio,
-            ...(avatar_url && { avatar_url: avatar_url }),
-        }
+        data: updates
     });
 
     if (authError) {
         throw new Error(`Failed to update user metadata: ${authError.message}`);
     }
 
+    const profileUpdates = {
+        display_name: name,
+        full_name: name,
+        bio: bio,
+        ...(avatar_url && { photo_url: avatar_url }),
+    };
+
     // Also update the public profiles table
     const { error: profileError } = await supabase
         .from('profiles')
-        .update({
-            display_name: updates.display_name,
-            full_name: updates.display_name,
-            ...(avatar_url && { photo_url: avatar_url }),
-        })
+        .update(profileUpdates)
         .eq('id', userId);
 
     if (profileError) {

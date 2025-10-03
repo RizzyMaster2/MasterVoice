@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -24,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '../ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '../ui/alert';
-import { Save, ShieldAlert, Upload } from 'lucide-react';
+import { Save, ShieldAlert, Upload, Loader2 } from 'lucide-react';
 import { getErrorMessage } from '@/lib/utils';
 import { updateUserProfile } from '@/app/(auth)/actions/user';
 
@@ -34,6 +34,7 @@ const formSchema = z.object({
     .string()
     .max(160, { message: 'Bio cannot exceed 160 characters.' })
     .optional(),
+  avatarFile: z.instanceof(File).optional(),
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -43,8 +44,8 @@ export function ProfileForm() {
   const router = useRouter();
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isSubmitting, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const supabase = createClient();
 
@@ -79,20 +80,16 @@ export function ProfileForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      setSelectedFile(file);
-      // Create a temporary URL for the preview
+      form.setValue('avatarFile', file);
       const newPreviewUrl = URL.createObjectURL(file);
       
-      // If there's an old temporary URL, revoke it to prevent memory leaks
       if (previewUrl && !previewUrl.startsWith('https://')) {
           URL.revokeObjectURL(previewUrl);
       }
-
       setPreviewUrl(newPreviewUrl);
     }
   };
 
-  // Effect to clean up the object URL when the component unmounts
   useEffect(() => {
     return () => {
       if (previewUrl && !previewUrl.startsWith('https://')) {
@@ -105,21 +102,31 @@ export function ProfileForm() {
   async function onSubmit(values: ProfileFormValues) {
     if (!user) return;
     
-    try {
-        await updateUserProfile(user.id, { display_name: values.name, bio: values.bio }, selectedFile || undefined);
-        toast({
-            title: 'Profile Updated',
-            description: 'Your changes have been saved successfully.',
-        });
-        setSelectedFile(null);
-        router.refresh();
-    } catch (error) {
-         toast({
-            title: 'Error Updating Profile',
-            description: getErrorMessage(error),
-            variant: 'destructive',
-        });
-    }
+    startTransition(async () => {
+        try {
+            const formData = new FormData();
+            formData.append('userId', user.id);
+            formData.append('name', values.name);
+            formData.append('bio', values.bio || '');
+            if (values.avatarFile) {
+                formData.append('avatarFile', values.avatarFile);
+            }
+
+            await updateUserProfile(formData);
+            toast({
+                title: 'Profile Updated',
+                description: 'Your changes have been saved successfully.',
+            });
+            form.reset(values); // Reset with new values to clear dirty state
+            router.refresh();
+        } catch (error) {
+            toast({
+                title: 'Error Updating Profile',
+                description: getErrorMessage(error),
+                variant: 'destructive',
+            });
+        }
+    });
   }
   
   const getInitials = (name: string | undefined | null) =>
@@ -238,9 +245,9 @@ export function ProfileForm() {
         </div>
 
         <div className="flex justify-end">
-            <Button type="submit" disabled={!isVerified || form.formState.isSubmitting}>
-                <Save className="mr-2 h-4 w-4" />
-                {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" disabled={!isVerified || isSubmitting || !form.formState.isDirty}>
+                {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                {isSubmitting ? 'Saving...' : 'Save Changes'}
             </Button>
         </div>
       </form>
