@@ -24,6 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from '@/app/(auth)/actions/user';
 import { useToast } from '@/hooks/use-toast';
