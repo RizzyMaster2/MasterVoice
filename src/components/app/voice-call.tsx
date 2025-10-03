@@ -121,7 +121,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   }, [localStream, supabase]);
 
   const handleClose = useCallback((notify = true) => {
-    if (notify) {
+    if (notify && currentUser.id && otherParticipantId) {
         const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
         otherUserChannel.subscribe((status) => {
             if (status === 'SUBSCRIBED') {
@@ -173,7 +173,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           description: 'Please allow microphone access to make calls.',
           variant: 'destructive',
         });
-        setTimeout(() => onClose(), 2000);
+        setTimeout(() => handleClose(true), 2000);
       }
     };
     init();
@@ -185,10 +185,9 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   }, []);
 
   useEffect(() => {
-    if (!localStream) return;
-    
-    // Ensure we don't create multiple connections
-    if (peerConnectionRef.current) return;
+    if (!localStream || !currentUser.id || !otherParticipantId) {
+        return;
+    }
 
     const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
     peerConnectionRef.current = pc;
@@ -196,35 +195,38 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
-      if (event.candidate) {
-        signalingChannelRef.current?.send({
-            type: 'broadcast',
-            event: 'ice-candidate',
-            payload: { to: otherParticipantId, candidate: event.candidate },
-        });
-      }
+        if (event.candidate && signalingChannelRef.current) {
+            signalingChannelRef.current.send({
+                type: 'broadcast',
+                event: 'ice-candidate',
+                payload: { to: otherParticipantId, candidate: event.candidate },
+            });
+        }
     };
 
     pc.ontrack = event => {
-      if (event.streams && event.streams[0]) {
-        setRemoteStream(event.streams[0]);
-        if (remoteAudioRef.current) {
-          remoteAudioRef.current.srcObject = event.streams[0];
+        if (event.streams && event.streams[0]) {
+            setRemoteStream(event.streams[0]);
+            if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = event.streams[0];
+            }
         }
-      }
     };
-    
+
     pc.onconnectionstatechange = () => {
         if (!peerConnectionRef.current) return;
         const state = peerConnectionRef.current.connectionState;
-        if(state === 'connected') setStatus('connected');
-        else if (['failed', 'disconnected', 'closed'].includes(state)) handleClose(false);
+        if(state === 'connected') {
+            setStatus('connected');
+        } else if (['failed', 'disconnected', 'closed'].includes(state)) {
+            handleClose(false);
+        }
     };
-    
+
     const channelId = `signaling:${[currentUser.id, otherParticipantId].sort().join(':')}`;
     const channel = supabase.channel(channelId);
     signalingChannelRef.current = channel;
-    
+
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.to === currentUser.id && pc.signalingState !== 'closed') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
@@ -240,23 +242,29 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         }
     });
-    
+
     const setupSignaling = async () => {
-        if (initialOffer) {
+        if (initialOffer) { // This user is the receiver
+            setStatus('connecting');
+            if (pc.signalingState !== "stable") {
+                console.warn("Peer connection not stable for setting remote description. State:", pc.signalingState);
+                return;
+            }
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            channel.send({
-                type: 'broadcast',
-                event: 'answer',
-                payload: { to: otherParticipantId, from: currentUser.id, answer },
-            });
-            setStatus('connecting');
-        } else {
+            if (signalingChannelRef.current) {
+                signalingChannelRef.current.send({
+                    type: 'broadcast',
+                    event: 'answer',
+                    payload: { to: otherParticipantId, from: currentUser.id, answer },
+                });
+            }
+        } else { // This user is the caller
+            const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-
-            const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
+            
             otherUserChannel.subscribe((status) => {
                 if (status === 'SUBSCRIBED') {
                     otherUserChannel.send({
@@ -268,24 +276,24 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             });
         }
     };
-
-    channel.subscribe(async (subStatus, err) => {
-        if (subStatus === 'SUBSCRIBED') {
-            await setupSignaling();
-        }
-        if (err) console.error("Signaling channel subscription failed", err);
+    
+    channel.subscribe(async (subStatus) => {
+      if (subStatus === 'SUBSCRIBED') {
+        await setupSignaling();
+      }
     });
 
-    return () => { 
-        pc.close();
+
+    return () => {
+        if (pc) pc.close();
         peerConnectionRef.current = null;
         if(signalingChannelRef.current) {
             supabase.removeChannel(signalingChannelRef.current);
             signalingChannelRef.current = null;
         }
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localStream]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localStream, currentUser.id, otherParticipantId]);
   
   const toggleMute = () => {
       if (localStream) {
