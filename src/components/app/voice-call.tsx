@@ -204,12 +204,44 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       config: { broadcast: { self: false } },
     });
     signalingChannelRef.current = channel;
-    let pc: RTCPeerConnection | null = null;
+    let pc: RTCPeerConnection | null = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
+    peerConnectionRef.current = pc;
+
+    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+
+    pc.onicecandidate = event => {
+        if (event.candidate && signalingChannelRef.current) {
+            signalingChannelRef.current.send({
+                type: 'broadcast',
+                event: 'ice-candidate',
+                payload: { to: otherParticipantId, candidate: event.candidate },
+            });
+        }
+    };
+
+    pc.ontrack = event => {
+        if (event.streams && event.streams[0]) {
+            setRemoteStream(event.streams[0]);
+            if (remoteAudioRef.current) {
+                remoteAudioRef.current.srcObject = event.streams[0];
+            }
+        }
+    };
+
+    pc.onconnectionstatechange = () => {
+        if (!peerConnectionRef.current) return;
+        const state = peerConnectionRef.current.connectionState;
+        if(state === 'connected') {
+            setStatus('connected');
+        } else if (['failed', 'disconnected', 'closed'].includes(state)) {
+            handleClose(false);
+        }
+    };
 
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (pc && pc.signalingState === 'have-local-offer' && payload.to === currentUser.id) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
+            iceCandidateQueue.forEach(candidate => pc.addIceCandidate(candidate));
             setIceCandidateQueue([]);
         }
     });
@@ -230,42 +262,9 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     
     channel.subscribe(async (subStatus) => {
       if (subStatus === 'SUBSCRIBED') {
-        pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
-        peerConnectionRef.current = pc;
-
-        localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
-
-        pc.onicecandidate = event => {
-            if (event.candidate && signalingChannelRef.current) {
-                signalingChannelRef.current.send({
-                    type: 'broadcast',
-                    event: 'ice-candidate',
-                    payload: { to: otherParticipantId, candidate: event.candidate },
-                });
-            }
-        };
-
-        pc.ontrack = event => {
-            if (event.streams && event.streams[0]) {
-                setRemoteStream(event.streams[0]);
-                if (remoteAudioRef.current) {
-                    remoteAudioRef.current.srcObject = event.streams[0];
-                }
-            }
-        };
-
-        pc.onconnectionstatechange = () => {
-            if (!peerConnectionRef.current) return;
-            const state = peerConnectionRef.current.connectionState;
-            if(state === 'connected') {
-                setStatus('connected');
-            } else if (['failed', 'disconnected', 'closed'].includes(state)) {
-                handleClose(false);
-            }
-        };
-
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
+            if (!pc) return;
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             
             const answer = await pc.createAnswer();
