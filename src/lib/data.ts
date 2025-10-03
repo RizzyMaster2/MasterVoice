@@ -37,4 +37,6 @@ export type Message = {
   content: string;
   created_at: string;
   sender_profile?: UserProfile;
+  is_typing?: boolean;
 };
+

@@ -27,7 +27,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
-import { getMessages, sendMessage, removeFriend, deleteMessage } from '@/app/(auth)/actions/chat';
+import { getMessages, sendMessage, removeFriend, deleteMessage, sendTypingIndicator } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
 import {
   DropdownMenu,
@@ -109,6 +109,17 @@ const SelectChatIllustration = () => (
     </svg>
 );
 
+const TypingIndicator = () => (
+    <div className="flex items-center gap-1">
+        <span className="text-sm text-muted-foreground italic">typing</span>
+        <div className="flex gap-0.5">
+            <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]" />
+            <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]" />
+            <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce" />
+        </div>
+    </div>
+);
+
 
 export function ChatLayout({
   currentUser,
@@ -132,6 +143,8 @@ export function ChatLayout({
   const searchParams = useSearchParams();
   const { startCall } = useCall();
   const supabase = createClient();
+  const [isTyping, setIsTyping] = useState(false);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -177,8 +190,9 @@ export function ChatLayout({
     if (!selectedFriend) return;
 
     const channelName = `chat:${[currentUser.id, selectedFriend.id].sort().join(':')}`;
-    const messageChannel = supabase
-      .channel(channelName)
+    const messageChannel = supabase.channel(channelName, { config: { broadcast: { self: false } }});
+
+    messageChannel
       .on(
         'postgres_changes',
         {
@@ -189,28 +203,32 @@ export function ChatLayout({
         (payload) => {
           const newMessage = payload.new as Message;
 
-          // Check if the message belongs to the current chat
           const isForCurrentChat =
             (newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedFriend.id) ||
             (newMessage.sender_id === selectedFriend.id && newMessage.receiver_id === currentUser.id);
 
           if (isForCurrentChat) {
             setMessages((currentMessages) => {
-              // Avoid adding duplicate messages
               if (currentMessages.some((m) => m.id === newMessage.id)) {
                 return currentMessages;
               }
               return [...currentMessages, { ...newMessage, sender_profile: userMap.get(newMessage.sender_id) }];
             });
+             if (isTyping) setIsTyping(false);
           }
         }
       )
+      .on('broadcast', { event: 'typing' }, (payload) => {
+          if (payload.payload.sender_id === selectedFriend.id) {
+             setIsTyping(payload.payload.is_typing);
+          }
+      })
       .subscribe();
 
     return () => {
       supabase.removeChannel(messageChannel);
     };
-  }, [selectedFriend, currentUser.id, supabase, userMap]);
+  }, [selectedFriend, currentUser.id, supabase, userMap, isTyping]);
 
 
   useEffect(() => {
@@ -224,6 +242,8 @@ export function ChatLayout({
 
     const content = newMessage;
     setNewMessage('');
+    if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    sendTypingIndicator(selectedFriend.id, false);
     
     startSendingTransition(async () => {
         try {
@@ -267,10 +287,19 @@ export function ChatLayout({
     });
   };
 
-
   const handleNewMessageChange = (e: ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
+    if (!selectedFriend) return;
+
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    sendTypingIndicator(selectedFriend.id, true);
+
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTypingIndicator(selectedFriend.id, false);
+    }, 2000);
   };
+
 
   const handleSelectFriend = (friend: UserProfile) => {
     setSelectedFriend(friend);
@@ -378,7 +407,7 @@ export function ChatLayout({
                       {selectedFriend.display_name}
                     </h2>
                      <div className="h-5">
-                         <p className="text-sm text-muted-foreground">{selectedFriend.email}</p>
+                        {isTyping ? <TypingIndicator /> : <p className="text-sm text-muted-foreground">{selectedFriend.email}</p>}
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={handleStartCall}>
@@ -537,3 +566,4 @@ export function ChatLayout({
     </Card>
   );
 }
+

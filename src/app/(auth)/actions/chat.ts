@@ -144,6 +144,22 @@ export async function getMessages(friendId: string): Promise<Message[]> {
   }
 }
 
+export async function sendTypingIndicator(receiverId: string, isTyping: boolean) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const user = await getCurrentUser();
+    
+    const channelName = `chat:${[user.id, receiverId].sort().join(':')}`;
+    const channel = supabase.channel(channelName);
+
+    await channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { sender_id: user.id, is_typing: isTyping },
+    });
+}
+
+
 // Send a new message
 export async function sendMessage(receiverId: string, content: string) {
   const cookieStore = cookies();
