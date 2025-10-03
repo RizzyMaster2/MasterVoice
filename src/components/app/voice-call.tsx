@@ -90,6 +90,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [ping, setPing] = useState<number | null>(null);
+  const [iceCandidateQueue, setIceCandidateQueue] = useState<RTCIceCandidate[]>([]);
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
@@ -199,13 +200,19 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.to === currentUser.id && pc && pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
+            setIceCandidateQueue([]);
         }
     });
 
     channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && payload.candidate && pc && pc.signalingState !== 'closed') {
+        if (payload.to === currentUser.id && payload.candidate && pc) {
             try {
-                await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                if (pc.remoteDescription) {
+                    await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                } else {
+                    setIceCandidateQueue(prev => [...prev, new RTCIceCandidate(payload.candidate)]);
+                }
             } catch (e) {
                 console.error('Error adding received ice candidate', e);
             }
@@ -251,6 +258,9 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
+            setIceCandidateQueue([]);
+
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             if (signalingChannelRef.current) {
