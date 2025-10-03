@@ -5,6 +5,7 @@ import './globals.css';
 import { cn } from '@/lib/utils';
 import { Toaster } from "@/components/ui/toaster"
 import { ThemeProvider } from '@/components/app/theme-provider';
+import { AnimatedFavicon } from '@/components/app/animated-favicon';
 
 const fontPoppins = Poppins({
   subsets: ['latin'],
@@ -28,6 +29,14 @@ const fontFiraCode = Fira_Code({
 export const metadata: Metadata = {
   title: 'MasterVoice',
   description: 'Find your harmony. Connect with the world.',
+  icons: [
+    {
+      rel: 'icon',
+      id: 'favicon',
+      url: '/favicon.ico', // Default fallback
+      type: 'image/x-icon',
+    }
+  ]
 };
 
 export const viewport: Viewport = {
@@ -45,6 +54,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <AnimatedFavicon />
+      </head>
       <body
         className={cn(
           'min-h-screen bg-background font-body antialiased',
