@@ -308,7 +308,7 @@ export async function acceptFriendRequest(requestId: number) {
     
     // Call the RPC function
     const { error } = await supabase.rpc('accept_friend_request', {
-        p_request_id: requestId
+        request_id: requestId
     });
 
     if (error) {
