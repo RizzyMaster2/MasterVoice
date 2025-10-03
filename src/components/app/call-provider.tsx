@@ -39,15 +39,12 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
-  const signalingChannel = useRef<any>(null);
+  const userChannelRef = useRef<any>(null);
   
   const endCall = useCallback(() => {
-    if (activeCall && user && signalingChannel.current) {
-        signalingChannel.current.send({
-            type: 'broadcast',
-            event: 'hangup',
-            payload: { from: user.id },
-        });
+    if (activeCall && user && userChannelRef.current) {
+        // Broadcast hangup on the shared channel if one exists in RTC component,
+        // or just clean up locally. The other side will handle via connection state change.
     }
     setActiveCall(null);
     setIncomingCall(null);
@@ -71,7 +68,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     
     // This channel is for this user to receive signals
     const channel = supabase.channel(`user-signaling:${user.id}`);
-    signalingChannel.current = channel;
+    userChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
         const caller = findUserById(payload.from);
@@ -94,8 +91,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-        channel.unsubscribe();
-        signalingChannel.current = null;
+        if (channel) {
+            supabase.removeChannel(channel);
+        }
+        userChannelRef.current = null;
     };
 
   }, [user, supabase, findUserById, activeCall, incomingCall, endCall, toast]);
@@ -133,8 +132,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                     type: 'broadcast',
                     event: 'hangup',
                     payload: { from: user.id },
-                });
-                supabase.removeChannel(callerChannel);
+                }).then(() => supabase.removeChannel(callerChannel));
             }
         });
         setIncomingCall(null);

@@ -121,15 +121,21 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
   const handleClose = useCallback((notify = true) => {
     if (notify) {
-        signalingChannelRef.current.send({
-            type: 'broadcast',
-            event: 'hangup',
-            payload: { from: currentUser.id },
+        // To hangup, we send a message to the other user's private channel.
+        const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
+        otherUserChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                otherUserChannel.send({
+                    type: 'broadcast',
+                    event: 'hangup',
+                    payload: { from: currentUser.id },
+                }).then(() => supabase.removeChannel(otherUserChannel));
+            }
         });
     }
     cleanup();
     onClose();
-  }, [cleanup, onClose, currentUser.id]);
+  }, [cleanup, onClose, currentUser.id, otherParticipantId, supabase]);
 
   useEffect(() => {
     let timerInterval: NodeJS.Timeout | null = null;
@@ -213,10 +219,17 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     const createOffer = async () => {
       const offer = await pc.createOffer();
       await pc.setLocalDescription(offer);
-      channel.send({
-          type: 'broadcast',
-          event: 'offer',
-          payload: { to: otherParticipantId, from: currentUser.id, offer },
+
+      // Send the offer to the other user's private channel
+      const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
+      otherUserChannel.subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          otherUserChannel.send({
+            type: 'broadcast',
+            event: 'offer',
+            payload: { from: currentUser.id, offer },
+          }).then(() => supabase.removeChannel(otherUserChannel));
+        }
       });
     };
 
