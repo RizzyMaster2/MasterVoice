@@ -60,7 +60,6 @@ export function useUser() {
                     description: `You are now on the ${currentPlan} plan.`,
                     variant: "success",
                 });
-                 // Force a full refresh to make sure all server components and layouts re-evaluate the new plan
                 window.location.reload();
             } else if (event === "SIGNED_OUT") {
                 // A full reload on sign-in or sign-out ensures a clean state and re-runs middleware correctly.
