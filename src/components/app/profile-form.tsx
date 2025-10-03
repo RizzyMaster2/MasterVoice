@@ -34,7 +34,6 @@ const formSchema = z.object({
     .string()
     .max(160, { message: 'Bio cannot exceed 160 characters.' })
     .optional(),
-  avatarFile: z.any().optional(),
 });
 
 type ProfileFormValues = z.infer<typeof formSchema>;
@@ -45,6 +44,7 @@ export function ProfileForm() {
   const [user, setUser] = useState<SupabaseUser | null>(null);
   const [isVerified, setIsVerified] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [isSubmitting, startTransition] = useTransition();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const formRef = useRef<HTMLFormElement>(null);
@@ -55,9 +55,10 @@ export function ProfileForm() {
     defaultValues: {
       name: '',
       bio: '',
-      avatarFile: undefined,
     },
   });
+  
+  const { formState: { isDirty } } = form;
 
   useEffect(() => {
     const fetchUser = async () => {
@@ -82,7 +83,7 @@ export function ProfileForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      form.setValue('avatarFile', file, { shouldDirty: true });
+      setAvatarFile(file);
       const newPreviewUrl = URL.createObjectURL(file);
       
       if (previewUrl && !previewUrl.startsWith('https://')) {
@@ -101,17 +102,24 @@ export function ProfileForm() {
   }, [previewUrl]);
 
 
-  async function onSubmit(data: FormData) {
+  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     if (!user) return;
+
+    const formData = new FormData(event.currentTarget);
+    if (avatarFile) {
+        formData.append('avatarFile', avatarFile);
+    }
     
     startTransition(async () => {
         try {
-            await updateUserProfile(data);
+            await updateUserProfile(formData);
             toast({
                 title: 'Profile Updated',
                 description: 'Your changes have been saved successfully.',
             });
             form.reset(form.getValues()); // Reset with new values to clear dirty state
+            setAvatarFile(null);
             router.refresh();
         } catch (error) {
             toast({
@@ -153,6 +161,8 @@ export function ProfileForm() {
     );
   }
 
+  const isSaveDisabled = !isVerified || isSubmitting || (!isDirty && !avatarFile);
+
   return (
     <>
       {!isVerified && (
@@ -168,7 +178,7 @@ export function ProfileForm() {
         </Alert>
       )}
       <Form {...form}>
-        <form ref={formRef} action={onSubmit} className="space-y-8">
+        <form ref={formRef} onSubmit={onSubmit} className="space-y-8">
           <input type="hidden" name="userId" value={user.id} />
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
             <div className="col-span-1 flex flex-col items-center text-center gap-4">
@@ -239,7 +249,7 @@ export function ProfileForm() {
           </div>
 
           <div className="flex justify-end">
-              <Button type="submit" disabled={!isVerified || isSubmitting || !form.formState.isDirty}>
+              <Button type="submit" disabled={isSaveDisabled}>
                   {isSubmitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
                   {isSubmitting ? 'Saving...' : 'Save Changes'}
               </Button>
