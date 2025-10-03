@@ -22,7 +22,7 @@ interface VoiceCallProps {
   currentUser: UserProfile;
   otherParticipant: UserProfile;
   initialOffer?: RTCSessionDescriptionInit;
-  onClose: (notify?: boolean) => void;
+  onClose: () => void;
 }
 
 const PEER_CONNECTION_CONFIG: RTCConfiguration = {
@@ -93,18 +93,19 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
+  const signalingChannelRef = useRef<any>(null);
+
   const { toast } = useToast();
   
   const otherParticipantId = otherParticipant.id;
   
   const isLocalUserSpeaking = useActiveSpeaker(localStream);
   const isRemoteUserSpeaking = useActiveSpeaker(remoteStream);
-  
-  const signalingChannelRef = useRef(supabase.channel(`signaling:${[currentUser.id, otherParticipantId].sort().join(':')}`));
 
   const cleanup = useCallback(() => {
-    localStream?.getTracks().forEach(track => track.stop());
-    remoteStream?.getTracks().forEach(track => track.stop());
+    if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+    }
     setLocalStream(null);
     setRemoteStream(null);
     
@@ -114,14 +115,13 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     }
     
     if (signalingChannelRef.current) {
-      signalingChannelRef.current.unsubscribe();
+      supabase.removeChannel(signalingChannelRef.current);
+      signalingChannelRef.current = null;
     }
-  }, [localStream, remoteStream]);
-
+  }, [localStream, supabase]);
 
   const handleClose = useCallback((notify = true) => {
     if (notify) {
-        // To hangup, we send a message to the other user's private channel.
         const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
         otherUserChannel.subscribe((status) => {
             if (status === 'SUBSCRIBED') {
@@ -144,7 +144,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     if (status === 'connected') {
       timerInterval = setInterval(() => setCallDuration(prev => prev + 1), 1000);
       statsInterval = setInterval(async () => {
-        if (peerConnectionRef.current) {
+        if (peerConnectionRef.current?.connectionState === 'connected') {
           const stats = await peerConnectionRef.current.getStats();
           stats.forEach(report => {
             if (report.type === 'remote-inbound-rtp' && report.roundTripTime) {
@@ -173,17 +173,22 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           description: 'Please allow microphone access to make calls.',
           variant: 'destructive',
         });
-        setTimeout(() => onClose(false), 2000);
+        setTimeout(() => onClose(), 2000);
       }
     };
     init();
 
-    return () => cleanup();
+    return () => {
+        localStream?.getTracks().forEach(track => track.stop());
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!localStream || !otherParticipantId) return;
+    if (!localStream) return;
+    
+    // Ensure we don't create multiple connections
+    if (peerConnectionRef.current) return;
 
     const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
     peerConnectionRef.current = pc;
@@ -192,7 +197,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
     pc.onicecandidate = event => {
       if (event.candidate) {
-        signalingChannelRef.current.send({
+        signalingChannelRef.current?.send({
             type: 'broadcast',
             event: 'ice-candidate',
             payload: { to: otherParticipantId, candidate: event.candidate },
@@ -210,32 +215,15 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     };
     
     pc.onconnectionstatechange = () => {
-      if(pc.connectionState === 'connected') setStatus('connected');
-      else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
+        if (!peerConnectionRef.current) return;
+        const state = peerConnectionRef.current.connectionState;
+        if(state === 'connected') setStatus('connected');
+        else if (['failed', 'disconnected', 'closed'].includes(state)) handleClose(false);
     };
     
-    const channel = signalingChannelRef.current;
-    
-    const createOffer = async () => {
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // Send the offer to the other user's private channel
-      const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
-      otherUserChannel.subscribe((status) => {
-        if (status === 'SUBSCRIBED') {
-          otherUserChannel.send({
-            type: 'broadcast',
-            event: 'offer',
-            payload: { from: currentUser.id, offer },
-          }).then(() => supabase.removeChannel(otherUserChannel));
-        }
-      });
-    };
-
-    if (!initialOffer) {
-        createOffer();
-    }
+    const channelId = `signaling:${[currentUser.id, otherParticipantId].sort().join(':')}`;
+    const channel = supabase.channel(channelId);
+    signalingChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (payload.to === currentUser.id && pc.signalingState !== 'closed') {
@@ -252,13 +240,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         }
     });
-
-    channel.on('broadcast', { event: 'hangup' }, () => {
-        handleClose(false);
-    });
     
-    if (initialOffer) {
-        pc.setRemoteDescription(new RTCSessionDescription(initialOffer)).then(async () => {
+    const setupSignaling = async () => {
+        if (initialOffer) {
+            await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
             channel.send({
@@ -267,15 +252,40 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
                 payload: { to: otherParticipantId, from: currentUser.id, answer },
             });
             setStatus('connecting');
-        }).catch(e => console.error("Error setting remote description from offer", e));
-    }
+        } else {
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
 
-    channel.subscribe((status, err) => {
+            const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
+            otherUserChannel.subscribe((status) => {
+                if (status === 'SUBSCRIBED') {
+                    otherUserChannel.send({
+                        type: 'broadcast',
+                        event: 'offer',
+                        payload: { from: currentUser.id, offer },
+                    }).then(() => supabase.removeChannel(otherUserChannel));
+                }
+            });
+        }
+    };
+
+    channel.subscribe(async (subStatus, err) => {
+        if (subStatus === 'SUBSCRIBED') {
+            await setupSignaling();
+        }
         if (err) console.error("Signaling channel subscription failed", err);
     });
 
-    return () => { pc.close(); };
-  }, [localStream, supabase, currentUser.id, otherParticipantId, handleClose, initialOffer, toast, otherParticipant.display_name]);
+    return () => { 
+        pc.close();
+        peerConnectionRef.current = null;
+        if(signalingChannelRef.current) {
+            supabase.removeChannel(signalingChannelRef.current);
+            signalingChannelRef.current = null;
+        }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localStream]);
   
   const toggleMute = () => {
       if (localStream) {
