@@ -23,6 +23,18 @@ async function getCurrentUser() {
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
   try {
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.warn("SUPABASE_SERVICE_ROLE_KEY is not set. Admin features will be limited.");
+      // Fallback to a non-admin query if the key is not available
+      const cookieStore = cookies();
+      const supabase = createClient(cookieStore);
+      const { data: profiles, error: profilesError } = await supabase
+        .from('profiles')
+        .select('*');
+      if (profilesError) throw profilesError;
+      return profiles as UserProfile[];
+    }
+
     const supabaseAdmin = createAdminClient();
     const { data: { users }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
     
@@ -169,6 +181,12 @@ export async function sendMessage(receiverId: string, content: string) {
 
 async function ensureProfileExists(userId: string) {
     const supabase = createClient(cookies());
+    
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.warn('Cannot ensure profile exists without admin key. Skipping.');
+        return;
+    }
+
     const supabaseAdmin = createAdminClient();
 
     const { data: profile } = await supabase.from('profiles').select('id').eq('id', userId).single();
