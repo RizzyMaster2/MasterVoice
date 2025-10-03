@@ -24,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { deleteUser } from '@/app/(auth)/actions/user';
 import { useToast } from '@/hooks/use-toast';
@@ -33,7 +32,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
-import { getFriends } from '@/app/(auth)/actions/chat';
+import { getFriendsForUser } from '@/app/(auth)/actions/admin';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
 import { createClient } from '@/lib/supabase/client';
@@ -51,12 +50,7 @@ function UserFriends({ userId }: { userId: string }) {
     async function fetchFriends() {
       try {
         setIsLoading(true);
-        const supabase = createClient();
-        // This is a bit of a hack, RLS applies to the logged in user, not the userId passed.
-        // For admin purposes, you would use the admin client.
-        // A real implementation would need a dedicated admin-level `getFriendsForUser(userId)` function.
-        const { data, error } = await supabase.from('friends').select('*, friend_profile:profiles!friends_friend_id_fkey(*)').eq('user_id', userId);
-        if (error) throw error;
+        const data = await getFriendsForUser(userId);
         setFriends(data as Friend[]);
       } catch (e) {
         setError((e as Error).message);

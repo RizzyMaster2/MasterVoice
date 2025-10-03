@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
 import { cookies } from 'next/headers';
-import type { UserProfile } from '@/lib/data';
+import type { UserProfile, Friend } from '@/lib/data';
 import { getUsers } from './chat';
 
 type AdminStats = {
@@ -30,6 +30,23 @@ async function checkAdminPermissions() {
     }
     return createAdminClient();
 }
+
+export async function getFriendsForUser(userId: string): Promise<Friend[]> {
+    const supabaseAdmin = await checkAdminPermissions();
+
+    const { data, error } = await supabaseAdmin
+        .from('friends')
+        .select('*, friend_profile:profiles!friends_friend_id_fkey(*)')
+        .eq('user_id', userId);
+
+    if (error) {
+        console.error('Error fetching friends for user:', error);
+        throw error;
+    }
+
+    return data as Friend[];
+}
+
 
 export async function getAdminStats(): Promise<AdminStats> {
  try {
