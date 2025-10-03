@@ -197,7 +197,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     let pc: RTCPeerConnection | null = null;
 
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && pc && pc.signalingState !== 'closed') {
+        if (payload.to === currentUser.id && pc && pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
         }
     });
@@ -250,12 +250,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
-            if (pc.signalingState !== "stable") {
-                await Promise.all([
-                    new Promise(resolve => { if (pc!.signalingState === 'stable') resolve(true); }),
-                    new Promise(resolve => setTimeout(resolve, 200)) // fallback timeout
-                ]);
-            }
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
