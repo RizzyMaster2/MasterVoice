@@ -185,10 +185,10 @@ async function ensureProfileExists(userId: string) {
 
         const { error: insertError } = await supabase.from('profiles').insert({
             id: user.id,
-            display_name: user.user_metadata.display_name || user.email,
-            full_name: user.user_metadata.full_name || user.email,
+            display_name: user.user_metadata?.display_name || user.user_metadata?.full_name || user.email,
+            full_name: user.user_metadata?.full_name || user.email,
             email: user.email,
-            photo_url: user.user_metadata.photo_url || user.user_metadata.avatar_url,
+            photo_url: user.user_metadata?.photo_url || user.user_metadata?.avatar_url,
         });
 
         if (insertError) {
