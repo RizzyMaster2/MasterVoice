@@ -83,7 +83,7 @@ const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
                 cancelAnimationFrame(animationFrameRef.current);
             }
             if (audioContextRef.current?.state !== 'closed') {
-                audioContextRef.current?.close();
+                audioContextRef.current?.close().catch(console.error);
             }
             setIsSpeaking(false);
         };
@@ -268,14 +268,12 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             
-            // The local stream is already added when the PC is created.
-            // Do not add it again here.
-            
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
             iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
             setIceCandidateQueue([]);
 
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
             if (signalingChannelRef.current) {
                 signalingChannelRef.current.send({
                     type: 'broadcast',
