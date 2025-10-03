@@ -207,6 +207,7 @@ export async function sendFriendRequest(receiverId: string): Promise<FriendReque
         throw new Error("You cannot send a friend request to yourself.");
     }
     
+    // Ensure both sender and receiver profiles exist before creating a request
     await ensureProfileExists(user.id);
     await ensureProfileExists(receiverId);
 
@@ -306,7 +307,7 @@ export async function acceptFriendRequest(requestId: number) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
     
-    // Call the RPC function
+    // Call the RPC function with the correct parameter name
     const { error } = await supabase.rpc('accept_friend_request', {
         request_id: requestId
     });
