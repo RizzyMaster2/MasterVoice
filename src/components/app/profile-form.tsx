@@ -54,6 +54,7 @@ export function ProfileForm() {
     defaultValues: {
       name: '',
       bio: '',
+      avatarFile: undefined,
     },
   });
 
@@ -80,7 +81,7 @@ export function ProfileForm() {
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files && event.target.files[0]) {
       const file = event.target.files[0];
-      form.setValue('avatarFile', file);
+      form.setValue('avatarFile', file, { shouldDirty: true });
       const newPreviewUrl = URL.createObjectURL(file);
       
       if (previewUrl && !previewUrl.startsWith('https://')) {
