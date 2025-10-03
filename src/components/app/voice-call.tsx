@@ -267,6 +267,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+            localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
             iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
             setIceCandidateQueue([]);
 
@@ -309,6 +310,24 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localStream]);
+
+  // Timeout effect
+  useEffect(() => {
+    if (status === 'calling' || status === 'connecting') {
+      const timer = setTimeout(() => {
+        if (status === 'calling' || status === 'connecting') {
+          toast({
+            title: 'Call Timeout',
+            description: 'Could not establish a connection.',
+            variant: 'destructive',
+          });
+          handleClose(true);
+        }
+      }, 10000); // 10 seconds
+
+      return () => clearTimeout(timer);
+    }
+  }, [status, handleClose, toast]);
   
   const toggleMute = () => {
       if (localStream) {
