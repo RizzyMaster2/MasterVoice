@@ -29,6 +29,15 @@ const PEER_CONNECTION_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    // A TURN server is crucial for connections to work across different
+    // networks (e.g., different home Wi-Fi, mobile networks, etc.).
+    // The following is a placeholder for a real TURN server configuration.
+    // You would get these credentials from a service like Twilio.
+    // {
+    //   urls: 'turn:your-turn-server.com:3478',
+    //   username: 'your-username',
+    //   credential: 'your-password',
+    // },
   ],
 };
 
