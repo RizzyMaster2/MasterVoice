@@ -207,7 +207,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     let pc: RTCPeerConnection | null = null;
 
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && pc && pc.signalingState === 'have-local-offer') {
+        if (pc && pc.signalingState === 'have-local-offer' && payload.to === currentUser.id) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
             iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
             setIceCandidateQueue([]);
@@ -267,7 +267,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-            localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
+            
+            // The local stream is already added when the PC is created.
+            // Do not add it again here.
+            
             iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
             setIceCandidateQueue([]);
 
