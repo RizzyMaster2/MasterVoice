@@ -272,11 +272,13 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         } else { // This user is the caller
             const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
             
-            otherUserChannel.subscribe((status) => {
+            otherUserChannel.subscribe(async (status) => {
                 if (status === 'SUBSCRIBED') {
+                    if (!pc) return;
+                    const offer = await pc.createOffer();
+                    await pc.setLocalDescription(offer);
+
                     otherUserChannel.send({
                         type: 'broadcast',
                         event: 'offer',
