@@ -188,53 +188,22 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     if (!localStream || !currentUser.id || !otherParticipantId) {
         return;
     }
-
-    const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
-    peerConnectionRef.current = pc;
-
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
-
-    pc.onicecandidate = event => {
-        if (event.candidate && signalingChannelRef.current) {
-            signalingChannelRef.current.send({
-                type: 'broadcast',
-                event: 'ice-candidate',
-                payload: { to: otherParticipantId, candidate: event.candidate },
-            });
-        }
-    };
-
-    pc.ontrack = event => {
-        if (event.streams && event.streams[0]) {
-            setRemoteStream(event.streams[0]);
-            if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = event.streams[0];
-            }
-        }
-    };
-
-    pc.onconnectionstatechange = () => {
-        if (!peerConnectionRef.current) return;
-        const state = peerConnectionRef.current.connectionState;
-        if(state === 'connected') {
-            setStatus('connected');
-        } else if (['failed', 'disconnected', 'closed'].includes(state)) {
-            handleClose(false);
-        }
-    };
-
+    
     const channelId = `signaling:${[currentUser.id, otherParticipantId].sort().join(':')}`;
-    const channel = supabase.channel(channelId);
+    const channel = supabase.channel(channelId, {
+      config: { broadcast: { self: false } },
+    });
     signalingChannelRef.current = channel;
+    let pc: RTCPeerConnection | null = null;
 
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && pc.signalingState !== 'closed') {
+        if (payload.to === currentUser.id && pc && pc.signalingState !== 'closed') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
         }
     });
 
     channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && payload.candidate && pc.signalingState !== 'closed') {
+        if (payload.to === currentUser.id && payload.candidate && pc && pc.signalingState !== 'closed') {
             try {
                 await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
             } catch (e) {
@@ -242,13 +211,50 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         }
     });
+    
+    channel.subscribe(async (subStatus) => {
+      if (subStatus === 'SUBSCRIBED') {
+        pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
+        peerConnectionRef.current = pc;
 
-    const setupSignaling = async () => {
+        localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
+
+        pc.onicecandidate = event => {
+            if (event.candidate && signalingChannelRef.current) {
+                signalingChannelRef.current.send({
+                    type: 'broadcast',
+                    event: 'ice-candidate',
+                    payload: { to: otherParticipantId, candidate: event.candidate },
+                });
+            }
+        };
+
+        pc.ontrack = event => {
+            if (event.streams && event.streams[0]) {
+                setRemoteStream(event.streams[0]);
+                if (remoteAudioRef.current) {
+                    remoteAudioRef.current.srcObject = event.streams[0];
+                }
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            if (!peerConnectionRef.current) return;
+            const state = peerConnectionRef.current.connectionState;
+            if(state === 'connected') {
+                setStatus('connected');
+            } else if (['failed', 'disconnected', 'closed'].includes(state)) {
+                handleClose(false);
+            }
+        };
+
         if (initialOffer) { // This user is the receiver
             setStatus('connecting');
             if (pc.signalingState !== "stable") {
-                console.warn("Peer connection not stable for setting remote description. State:", pc.signalingState);
-                return;
+                await Promise.all([
+                    new Promise(resolve => { if (pc!.signalingState === 'stable') resolve(true); }),
+                    new Promise(resolve => setTimeout(resolve, 200)) // fallback timeout
+                ]);
             }
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
             const answer = await pc.createAnswer();
@@ -275,14 +281,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
                 }
             });
         }
-    };
-    
-    channel.subscribe(async (subStatus) => {
-      if (subStatus === 'SUBSCRIBED') {
-        await setupSignaling();
       }
     });
-
 
     return () => {
         if (pc) pc.close();
@@ -292,7 +292,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             signalingChannelRef.current = null;
         }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [localStream, currentUser.id, otherParticipantId]);
   
   const toggleMute = () => {
