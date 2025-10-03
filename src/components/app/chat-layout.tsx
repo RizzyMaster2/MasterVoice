@@ -174,30 +174,43 @@ export function ChatLayout({
 
   useEffect(() => {
     if (!selectedFriend) return;
-    
-    // This channel listens for new messages in the current chat
-    const messageChannel = supabase.channel(`messages:${[currentUser.id, selectedFriend.id].sort().join(':')}`)
-        .on('postgres_changes', {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'messages',
-            // Listen for messages where either user is the sender and the other is the receiver
-            filter: `(sender_id=eq.${currentUser.id} and receiver_id=eq.${selectedFriend.id}) or (sender_id=eq.${selectedFriend.id} and receiver_id=eq.${currentUser.id})`
-        }, payload => {
-            const newMessage = payload.new as Message;
-            // Add the new message to the state
-            setMessages(currentMessages => {
-                // Avoid adding duplicate messages
-                if (currentMessages.some(m => m.id === newMessage.id)) {
-                    return currentMessages;
-                }
-                return [...currentMessages, {...newMessage, sender_profile: userMap.get(newMessage.sender_id) }];
+
+    const channelName = `chat:${[currentUser.id, selectedFriend.id].sort().join(':')}`;
+    const messageChannel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+        },
+        (payload) => {
+          const newMessage = payload.new as Message;
+
+          // Check if the message belongs to the current chat
+          const isForCurrentChat =
+            (newMessage.sender_id === currentUser.id && newMessage.receiver_id === selectedFriend.id) ||
+            (newMessage.sender_id === selectedFriend.id && newMessage.receiver_id === currentUser.id);
+
+          if (isForCurrentChat) {
+            setMessages((currentMessages) => {
+              // Avoid adding duplicate messages
+              if (currentMessages.some((m) => m.id === newMessage.id)) {
+                return currentMessages;
+              }
+              return [...currentMessages, { ...newMessage, sender_profile: userMap.get(newMessage.sender_id) }];
             });
-        })
-        .subscribe();
-    
-    return () => { supabase.removeChannel(messageChannel); };
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(messageChannel);
+    };
   }, [selectedFriend, currentUser.id, supabase, userMap]);
+
 
   useEffect(() => {
     setTimeout(scrollToBottom, 100);
