@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -351,7 +352,7 @@ export function ChatLayout({
                         </p>
                    </div>
                   <p className="text-sm text-muted-foreground truncate">
-                    {friend.friend_profile?.bio || 'No bio set'}
+                    {friend.friend_profile?.bio || 'No bio available'}
                   </p>
                 </div>
               </div>
