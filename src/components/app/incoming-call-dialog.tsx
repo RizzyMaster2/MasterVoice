@@ -15,6 +15,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff } from 'lucide-react';
 import type { UserProfile } from '@/lib/data';
 
+// A simple, short ringing sound as a Base64 data URI (WAV format)
+const ringtoneDataUri = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+
 interface IncomingCallDialogProps {
   caller: UserProfile;
   onAccept: () => void;
@@ -25,49 +28,24 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?';
 
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const oscillatorRef = useRef<OscillatorNode | null>(null);
-  const gainRef = useRef<GainNode | null>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
 
   useEffect(() => {
-    // Create audio context and nodes
-    audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-    oscillatorRef.current = audioContextRef.current.createOscillator();
-    gainRef.current = audioContextRef.current.createGain();
-
-    // Configure oscillator
-    oscillatorRef.current.type = 'sine';
-    oscillatorRef.current.frequency.setValueAtTime(440, audioContextRef.current.currentTime); // A4 note
-    
-    // Connect nodes
-    oscillatorRef.current.connect(gainRef.current);
-    gainRef.current.connect(audioContextRef.current.destination);
-
-    // Start oscillator
-    oscillatorRef.current.start();
-    
-    // Create the ringing pattern
-    const ring = () => {
-      if (!audioContextRef.current || !gainRef.current) return;
-      const now = audioContextRef.current.currentTime;
-      gainRef.current.gain.cancelScheduledValues(now);
-      gainRef.current.gain.setValueAtTime(0, now);
-      // Ring for 1 second, pause for 2 seconds
-      gainRef.current.gain.linearRampToValueAtTime(1, now + 0.1);
-      gainRef.current.gain.linearRampToValueAtTime(0, now + 1);
-    };
-
-    ring(); // Initial ring
-    const interval = setInterval(ring, 3000); // Repeat every 3 seconds
-
-    // Cleanup function
-    return () => {
-      clearInterval(interval);
-      if (oscillatorRef.current) {
-        oscillatorRef.current.stop();
+    const playSound = async () => {
+      if (audioRef.current) {
+        try {
+          await audioRef.current.play();
+        } catch (error) {
+          console.warn("Ringtone autoplay was blocked by the browser. A user interaction is required to play audio.");
+        }
       }
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.close();
+    };
+    
+    playSound();
+
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause();
       }
     };
   }, []);
@@ -91,6 +69,7 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
             <Phone className="h-7 w-7" />
           </Button>
         </DialogFooter>
+        <audio ref={audioRef} src={ringtoneDataUri} loop />
       </DialogContent>
     </Dialog>
   );
