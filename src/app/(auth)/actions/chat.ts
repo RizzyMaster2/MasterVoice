@@ -23,57 +23,51 @@ async function getCurrentUser() {
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
   try {
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      console.warn("SUPABASE_SERVICE_ROLE_KEY is not set. Admin features will be limited.");
-      // Fallback to a non-admin query if the key is not available
-      const cookieStore = cookies();
-      const supabase = createClient(cookieStore);
-      const { data: profiles, error: profilesError } = await supabase
-        .from('profiles')
-        .select('*');
-      if (profilesError) throw profilesError;
-      return profiles as UserProfile[];
-    }
-
-    const supabaseAdmin = createAdminClient();
-    const { data: { users }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
-    
-    if (authUsersError) {
-      throw new Error('Could not fetch users from authentication system.');
-    }
-
-    const userIds = users.map(u => u.id);
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
+
+    // First, try to get all profiles using the standard client.
+    // This is more robust and doesn't rely on the service key.
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
-      .select('*')
-      .in('id', userIds);
-
+      .select('*');
+      
     if (profilesError) {
-      console.error('Error fetching profiles for users:', profilesError);
+      // If that fails, and we have an admin key, try the admin route.
+      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        console.warn("Falling back to admin client to fetch users due to an error:", profilesError.message);
+        const supabaseAdmin = createAdminClient();
+        const { data: { users: authUsers }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
+        
+        if (authUsersError) throw authUsersError;
+
+        const userIds = authUsers.map(u => u.id);
+        const { data: adminProfiles, error: adminProfilesError } = await supabase.from('profiles').select('*').in('id', userIds);
+        if (adminProfilesError) throw adminProfilesError;
+
+        const profileMap = new Map(adminProfiles?.map(p => [p.id, p]) || []);
+        return authUsers.map(user => {
+          const profile = profileMap.get(user.id);
+          return {
+            id: user.id,
+            created_at: profile?.created_at || user.created_at,
+            display_name: profile?.display_name || user.user_metadata?.display_name || user.email || 'N/A',
+            full_name: profile?.full_name || user.user_metadata?.full_name || user.email,
+            email: user.email || profile?.email || null,
+            photo_url: profile?.photo_url || user.user_metadata?.photo_url || null,
+            status: profile?.status || 'offline',
+            bio: profile?.bio || null,
+          };
+        });
+      }
+      // If no admin key, re-throw the original error.
+      throw profilesError;
     }
 
-    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-    const combinedUsers: UserProfile[] = users.map(user => {
-      const profile = profileMap.get(user.id);
-      const displayName = profile?.display_name || user.user_metadata?.display_name || profile?.full_name || user.email;
-      return {
-        id: user.id,
-        created_at: profile?.created_at || user.created_at,
-        display_name: displayName,
-        full_name: profile?.full_name || user.user_metadata?.full_name || displayName,
-        email: user.email || profile?.email || null,
-        photo_url: profile?.photo_url || user.user_metadata?.photo_url || user.user_metadata?.avatar_url || null,
-        status: profile?.status || 'offline',
-        bio: profile?.bio || user.user_metadata?.bio || null,
-      };
-    });
-    return combinedUsers;
-
+    return profiles as UserProfile[];
   } catch (error) {
     console.error('Error in getUsers:', error);
+    // Return an empty array on failure to prevent crashing consumers.
     return [];
   }
 }
@@ -429,3 +423,5 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
+
+    
