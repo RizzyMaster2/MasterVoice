@@ -297,7 +297,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         }
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [localStream, currentUser.id, otherParticipantId]);
+  }, [localStream]);
   
   const toggleMute = () => {
       if (localStream) {
