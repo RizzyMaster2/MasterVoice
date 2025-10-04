@@ -36,7 +36,12 @@ export type Message = {
   receiver_id: string;
   content: string;
   created_at: string;
+  is_edited?: boolean;
   sender_profile?: UserProfile;
   is_typing?: boolean;
 };
 
+export type MessageEdit = {
+    id: number;
+    content: string;
+}

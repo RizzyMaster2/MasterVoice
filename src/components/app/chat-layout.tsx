@@ -12,6 +12,7 @@ import {
   type FormEvent,
   type ChangeEvent,
   type ReactNode,
+  type KeyboardEvent,
 } from 'react';
 import {
   Card,
@@ -27,7 +28,7 @@ import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
-import { getMessages, sendMessage, removeFriend, deleteMessage, sendTypingIndicator } from '@/app/(auth)/actions/chat';
+import { getMessages, sendMessage, removeFriend, deleteMessage, editMessage, sendTypingIndicator } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
 import {
   DropdownMenu,
@@ -46,8 +47,8 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
-import type { Message, UserProfile, Friend } from '@/lib/data';
+import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy, Pencil, Check, X } from 'lucide-react';
+import type { Message, UserProfile, Friend, MessageEdit } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
 import { useHomeClient } from './home-client-layout';
@@ -136,6 +137,8 @@ export function ChatLayout({
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, startSendingTransition] = useTransition();
   const [isDeleting, startDeletingTransition] = useTransition();
+  const [editingMessage, setEditingMessage] = useState<MessageEdit | null>(null);
+
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -220,6 +223,12 @@ export function ChatLayout({
           }
         }
       )
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
+          const updatedMessage = payload.new as Message;
+          setMessages(currentMessages =>
+            currentMessages.map(msg => msg.id === updatedMessage.id ? { ...msg, ...updatedMessage, sender_profile: userMap.get(updatedMessage.sender_id) } : msg)
+          );
+      })
       .on('broadcast', { event: 'typing' }, (payload) => {
           if (payload.payload.sender_id === selectedFriend.id) {
              setIsTyping(payload.payload.is_typing);
@@ -302,6 +311,29 @@ export function ChatLayout({
     typingTimeoutRef.current = setTimeout(() => {
       sendTypingIndicator(selectedFriend.id, false);
     }, 2000);
+  };
+
+  const handleSaveEdit = () => {
+      if (!editingMessage) return;
+      
+      startTransition(async () => {
+          try {
+              await editMessage(editingMessage.id, editingMessage.content);
+              setEditingMessage(null);
+              // Optimistic update handled by real-time subscription
+          } catch(error) {
+              toast({ title: "Error saving message", description: getErrorMessage(error), variant: "destructive" });
+          }
+      });
+  };
+  
+  const handleEditKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            handleSaveEdit();
+        } else if (e.key === 'Escape') {
+            setEditingMessage(null);
+        }
   };
 
 
@@ -463,13 +495,13 @@ export function ChatLayout({
                 ) : (
                     <div className="space-y-1">
                     {messages.map((msg) => (
-                        <div
+                      <div
                         key={msg.id}
                         className={cn(
                             'group/message flex items-end gap-2 w-full',
                             msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'
                         )}
-                        >
+                      >
                         {msg.sender_id === currentUser.id && (
                            <div className="opacity-0 group-hover/message:opacity-100 transition-opacity">
                              <DropdownMenu>
@@ -479,6 +511,10 @@ export function ChatLayout({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
+                                  <DropdownMenuItem onClick={() => setEditingMessage({ id: msg.id, content: msg.content })}>
+                                      <Pencil className="mr-2 h-4 w-4" />
+                                      Edit
+                                  </DropdownMenuItem>
                                   <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
                                       <Copy className="mr-2 h-4 w-4" />
                                       Copy
@@ -511,20 +547,45 @@ export function ChatLayout({
                             String(msg.id).startsWith('temp-') && 'opacity-70'
                             )}
                         >
-                             <div className="prose prose-sm dark:prose-invert max-w-none">
-                                {parseMessageContent(msg.content)}
-                             </div>
-                            <p className="text-xs opacity-70 mt-1 text-right">
-                                {formatMessageTimestamp(msg.created_at)}
-                            </p>
+                            {editingMessage?.id === msg.id ? (
+                                <div className="flex items-center gap-2">
+                                    <Input
+                                        value={editingMessage.content}
+                                        onChange={(e) => setEditingMessage({ ...editingMessage, content: e.target.value })}
+                                        onKeyDown={handleEditKeyDown}
+                                        className="h-8 bg-background/80 text-foreground"
+                                        autoFocus
+                                    />
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => setEditingMessage(null)}><X className="h-4 w-4"/></Button>
+                                    <Button size="icon" variant="ghost" className="h-7 w-7 text-green-500" onClick={handleSaveEdit}><Check className="h-4 w-4"/></Button>
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="prose prose-sm dark:prose-invert max-w-none">
+                                        {parseMessageContent(msg.content)}
+                                    </div>
+                                    <p className="text-xs opacity-70 mt-1 text-right">
+                                        {msg.is_edited && '(edited) '}
+                                        {formatMessageTimestamp(msg.created_at)}
+                                    </p>
+                                </>
+                            )}
                         </div>
-                        </div>
+                      </div>
                     ))}
                     </div>
                 )}
               </ScrollArea>
             </div>
-            <CardFooter className="p-4 border-t">
+            <CardFooter className="p-4 border-t flex flex-col items-start gap-1">
+              <div className="h-5">
+                  {newMessage.length > 0 && (
+                      <div className="flex items-center gap-1.5 text-xs text-muted-foreground italic">
+                           <Pencil className="h-3 w-3" />
+                           You are typing...
+                      </div>
+                  )}
+              </div>
               <form
                 onSubmit={handleSendMessage}
                 className="flex w-full items-center space-x-2"

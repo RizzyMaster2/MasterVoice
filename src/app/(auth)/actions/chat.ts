@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import type { Message, UserProfile, Friend, FriendRequest } from '@/lib/data';
+import type { Message, UserProfile, Friend, FriendRequest, MessageEdit } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
@@ -362,6 +362,45 @@ export async function deleteMessage(messageId: number) {
   }
 }
 
+export async function editMessage(messageId: number, content: string) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+
+    try {
+        const user = await getCurrentUser();
+
+        // RLS should enforce this, but an extra check doesn't hurt.
+        // It also provides a better error message than a generic RLS violation.
+        const { data: message, error: fetchError } = await supabase
+            .from('messages')
+            .select('sender_id')
+            .eq('id', messageId)
+            .single();
+
+        if (fetchError || !message) {
+            throw new Error("Message not found or you don't have permission to edit it.");
+        }
+
+        if (message.sender_id !== user.id) {
+            throw new Error("You can only edit your own messages.");
+        }
+
+        const { error: updateError } = await supabase
+            .from('messages')
+            .update({ content: content, is_edited: true })
+            .eq('id', messageId);
+        
+        if (updateError) {
+            throw new Error(`Failed to edit message: ${updateError.message}`);
+        }
+
+    } catch(error) {
+        const message = error instanceof Error ? error.message : 'An unknown error occurred.';
+        throw new Error(message);
+    }
+}
+
+
 export async function removeFriend(friendId: string) {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
@@ -411,5 +450,3 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
-
-    
