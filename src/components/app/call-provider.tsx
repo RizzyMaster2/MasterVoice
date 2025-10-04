@@ -139,13 +139,24 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const currentUserProfile: UserProfile | null = user ? {
+    id: user.id,
+    display_name: user.user_metadata?.display_name || user.email,
+    full_name: user.user_metadata?.full_name || user.email,
+    photo_url: user.user_metadata?.photo_url || '',
+    created_at: user.created_at,
+    email: user.email || null,
+    status: 'online', // Placeholder
+    bio: user.user_metadata?.bio || null,
+  } : null;
+
   return (
     <CallContext.Provider value={{ startCall, endCall, activeCall, joinCall }}>
       {children}
-      {user && activeCall && (
+      {currentUserProfile && activeCall && (
         <VoiceCall
           supabase={supabase}
-          currentUser={{ ...user, ...findUserById(user.id)} as UserProfile}
+          currentUser={currentUserProfile}
           otherParticipant={activeCall.otherParticipant}
           initialOffer={activeCall.offer}
           onClose={endCall}
