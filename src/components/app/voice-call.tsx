@@ -53,11 +53,18 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const { toast } = useToast();
 
   const handleClose = useCallback((notify = true) => {
+    console.log('[RTC] Closing call...');
     localStreamRef.current?.getTracks().forEach(track => track.stop());
-    peerConnectionRef.current?.close();
-    audioContextRef.current?.close();
+    if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+    }
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+        audioContextRef.current.close();
+    }
 
     if (notify && signalingChannelRef.current) {
+      console.log('[RTC] Sending hangup signal.');
       signalingChannelRef.current.send({
         type: 'broadcast',
         event: 'hangup',
@@ -66,6 +73,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     }
     if (signalingChannelRef.current) {
       supabase.removeChannel(signalingChannelRef.current);
+      signalingChannelRef.current = null;
     }
     onClose();
   }, [onClose, currentUser.id, supabase]);
@@ -77,9 +85,15 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   }, [status]);
 
   useEffect(() => {
+    let isMounted = true;
+    let speakingInterval: NodeJS.Timeout | null = null;
+    let statsInterval: NodeJS.Timeout | null = null;
+
     const init = async () => {
+      console.log('[RTC] Initializing call...');
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        if (!isMounted) return;
         localStreamRef.current = stream;
 
         const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
@@ -89,6 +103,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
         pc.onicecandidate = event => {
           if (event.candidate) {
+            console.log('[ICE] Local candidate:', event.candidate);
             signalingChannelRef.current?.send({
               type: 'broadcast',
               event: 'ice-candidate',
@@ -98,51 +113,77 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         };
 
         pc.ontrack = event => {
+          console.log('[RTC] Received remote track.');
           if (remoteAudioRef.current && event.streams[0]) {
             remoteAudioRef.current.srcObject = event.streams[0];
           }
         };
 
         pc.onconnectionstatechange = () => {
+          console.log(`[RTC] Connection state changed: ${pc.connectionState}`);
+          if (!isMounted) return;
           if (pc.connectionState === 'connected') setStatus('connected');
-          else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
+          else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+            toast({ title: "Call disconnected" });
+            handleClose(false);
+          }
         };
-        
+
+        // Setup signaling channel FIRST
         const channelId = `signaling:${[currentUser.id, otherParticipant.id].sort().join(':')}`;
         const channel = supabase.channel(channelId, { config: { broadcast: { self: false } } });
         signalingChannelRef.current = channel;
 
         channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-          if (pc.signalingState === 'have-local-offer') {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload));
-          }
+            console.log('[RTC] Received answer:', payload);
+            if (pc.signalingState === 'have-local-offer') {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload));
+            }
         });
-
+        
         channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-          if (payload) await pc.addIceCandidate(new RTCIceCandidate(payload));
+            console.log('[ICE] Received remote candidate:', payload);
+            if (payload) {
+                try {
+                    await pc.addIceCandidate(new RTCIceCandidate(payload));
+                } catch (e) {
+                    console.error('[ICE] Error adding received ICE candidate', e);
+                }
+            }
         });
-
+        
+        // This is now the critical part: Subscribe first, THEN create offer/answer
         channel.subscribe(async (subStatus) => {
-          if (subStatus !== 'SUBSCRIBED') return;
+            if (subStatus !== 'SUBSCRIBED') {
+                console.log(`[RTC] Channel subscription status: ${subStatus}`);
+                return;
+            }
 
-          if (initialOffer) { // We are receiving a call, so we create an answer
-            await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-          } else { // We are initiating a call, so we create an offer
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
+            console.log(`[RTC] Successfully subscribed to channel: ${channelId}`);
             
-            // Send offer to the specific user's channel
-            const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
-            offerChannel.subscribe(status => {
-              if (status === 'SUBSCRIBED') {
-                offerChannel.send({ type: 'broadcast', event: 'offer', payload: { from: currentUser.id, offer } })
-                  .then(() => supabase.removeChannel(offerChannel));
-              }
-            });
-          }
+            if (initialOffer) { // We are RECEIVING a call
+                console.log('[RTC] initialOffer exists. Creating an answer.');
+                await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                console.log('[RTC] Created and set local answer:', answer);
+                channel.send({ type: 'broadcast', event: 'answer', payload: answer });
+            } else { // We are INITIATING a call
+                console.log('[RTC] No initialOffer. Creating an offer.');
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log('[RTC] Created and set local offer:', offer);
+                
+                // Use a SEPARATE, TEMPORARY channel to send the initial offer to the specific user
+                const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
+                offerChannel.subscribe(status => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log(`[RTC] Sending offer to ${otherParticipant.display_name}`);
+                        offerChannel.send({ type: 'broadcast', event: 'offer', payload: { from: currentUser.id, offer } })
+                        .then(() => supabase.removeChannel(offerChannel));
+                    }
+                });
+            }
         });
 
         // Active speaker detection
@@ -160,10 +201,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           setIsSpeaking(volume > 10);
         };
 
-        const speakingInterval = setInterval(detectSpeaking, 200);
+        speakingInterval = setInterval(detectSpeaking, 200);
 
         // Stats polling
-        const statsInterval = setInterval(async () => {
+        statsInterval = setInterval(async () => {
           if (!peerConnectionRef.current) return;
           const statsReport = await peerConnectionRef.current.getStats();
           statsReport.forEach(report => {
@@ -177,21 +218,24 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           });
         }, 2000);
 
-        return () => {
-          clearInterval(speakingInterval);
-          clearInterval(statsInterval);
-        };
-
       } catch (error) {
         console.error('[RTC] Initialization error:', error);
         setStatus('error');
         toast({ title: 'Microphone Access Error', description: 'Please allow microphone access to make calls.', variant: 'destructive' });
-        setTimeout(() => handleClose(true), 2000);
+        if(isMounted) {
+            setTimeout(() => handleClose(true), 2000);
+        }
       }
     };
+
     init();
 
-    return () => handleClose(false);
+    return () => {
+      isMounted = false;
+      if (speakingInterval) clearInterval(speakingInterval);
+      if (statsInterval) clearInterval(statsInterval);
+      handleClose(false);
+    };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -268,3 +312,5 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
+
+    
