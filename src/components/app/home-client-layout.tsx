@@ -112,7 +112,9 @@ export function HomeClientLayout({
   }, [user, toast]);
 
   useEffect(() => {
-    refreshAllData(true);
+    if (user) {
+        refreshAllData(true);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -156,7 +158,7 @@ export function HomeClientLayout({
             const newRecord = payload.new as { receiver_id?: string; sender_id?: string };
 
              // Check if the change is relevant to the current user
-            if (newRecord.receiver_id === user.id || newRecord.sender_id === user.id || oldRecord.receiver_id === user.id || oldRecord.sender_id === user.id) {
+            if ((newRecord?.receiver_id === user.id || newRecord?.sender_id === user.id) || (oldRecord?.receiver_id === user.id || oldRecord?.sender_id === user.id)) {
                 refreshAllData();
                 if (payload.eventType === 'INSERT' && newRecord.receiver_id === user.id) {
                     const sender = allUsers.find(u => u.id === newRecord.sender_id);

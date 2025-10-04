@@ -25,9 +25,16 @@ interface VoiceCallProps {
 }
 
 const PEER_CONNECTION_CONFIG: RTCConfiguration = {
-    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
-};
-
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      {
+        urls: 'turn:openrelay.metered.ca:443',
+        username: 'openrelayproject',
+        credential: 'openrelayproject'
+      }
+    ]
+  };
+  
 export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffer, onClose }: VoiceCallProps) {
   const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>(initialOffer ? 'connecting' : 'calling');
   const [isMicMuted, setIsMicMuted] = useState(false);
