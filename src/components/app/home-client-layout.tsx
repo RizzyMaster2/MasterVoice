@@ -84,7 +84,7 @@ export function HomeClientLayout({
 
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
-    if (isInitialLoad && initialFriends.length === 0 && initialUsers.length === 0) {
+    if (isInitialLoad) {
         setIsLoading(true);
     }
     try {
@@ -105,17 +105,14 @@ export function HomeClientLayout({
             variant: 'destructive'
         });
     } finally {
-        if (isLoading) {
+        if (isInitialLoad) {
             setIsLoading(false);
         }
     }
-  }, [user, toast, initialFriends, initialUsers, isLoading]);
+  }, [user, toast]);
 
   useEffect(() => {
-    // We only want to run this once on initial load, but not on subsequent re-renders
-    if (isLoading) {
-        refreshAllData(true);
-    }
+    refreshAllData(true);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
@@ -128,7 +125,7 @@ export function HomeClientLayout({
         if (friendToSelect) {
             setSelectedFriend(friendToSelect);
         }
-    } else {
+    } else if (!friendIdFromUrl) { // explicitly check for removal
       setSelectedFriend(null);
     }
   }, [searchParams, allUsers]);
@@ -155,11 +152,14 @@ export function HomeClientLayout({
         'postgres_changes',
         { event: '*', schema: 'public', table: 'friend_requests' },
         (payload) => {
+            const oldRecord = payload.old as { receiver_id?: string; sender_id?: string };
+            const newRecord = payload.new as { receiver_id?: string; sender_id?: string };
+
              // Check if the change is relevant to the current user
-            if (payload.new.receiver_id === user.id || payload.new.sender_id === user.id || payload.old.receiver_id === user.id || payload.old.sender_id === user.id) {
+            if (newRecord.receiver_id === user.id || newRecord.sender_id === user.id || oldRecord.receiver_id === user.id || oldRecord.sender_id === user.id) {
                 refreshAllData();
-                if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id) {
-                    const sender = allUsers.find(u => u.id === payload.new.sender_id);
+                if (payload.eventType === 'INSERT' && newRecord.receiver_id === user.id) {
+                    const sender = allUsers.find(u => u.id === newRecord.sender_id);
                     toast({
                         title: 'New Friend Request!',
                         description: `You have a new friend request from ${sender?.display_name || 'a user'}.`,
@@ -173,7 +173,7 @@ export function HomeClientLayout({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
         (payload) => {
-           const newMessage = payload.new;
+           const newMessage = payload.new as { sender_id: string, content: string};
            // Only show toast if the message is not from the current user and for the selected chat
             if (newMessage.sender_id !== user.id && selectedFriend?.id === newMessage.sender_id) {
                 // Already in chat, no toast needed, realtime message will appear
