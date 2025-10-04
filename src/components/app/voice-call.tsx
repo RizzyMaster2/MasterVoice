@@ -25,16 +25,32 @@ interface VoiceCallProps {
   onClose: () => void;
 }
 
-const PEER_CONNECTION_CONFIG: RTCConfiguration = {
-  iceServers: [
-    // Using OpenRelay's free STUN and TURN servers for development.
-    // Not recommended for production due to lack of SLA.
-    { urls: 'stun:openrelay.metered.ca:80' },
-    { urls: 'turn:openrelay.metered.ca:80' },
-    { urls: 'turn:openrelay.metered.ca:443' },
-    { urls: 'turn:openrelay.metered.ca:443?transport=tcp' },
-  ],
-};
+/**
+ * Simulates fetching temporary TURN credentials from a backend.
+ * In a real-world application, this function would make a secure API call
+ * to your server, which would then use a secret key to generate time-limited
+ * credentials for a service like Twilio or your own CoTURN server.
+ * This is the standard method for preventing TURN server abuse.
+ */
+async function fetchTurnCredentials(): Promise<RTCConfiguration> {
+    console.log("Fetching TURN credentials from backend...");
+    // This is a placeholder. Replace with your actual backend call.
+    // The credentials would be temporary and specific to the user making the call.
+    return {
+        iceServers: [
+            // STUN servers are still useful for finding a direct path.
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            // Example of what a response from your backend might look like:
+            // {
+            //   urls: 'turn:your-turn-server.com:3478?transport=udp',
+            //   username: 'temp_user_for_this_call',
+            //   credential: 'temp_password_valid_for_30_mins',
+            // },
+        ]
+    };
+}
+
 
 const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
     const [isSpeaking, setIsSpeaking] = useState(false);
@@ -199,104 +215,117 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       config: { broadcast: { self: false } },
     });
     signalingChannelRef.current = channel;
-    let pc: RTCPeerConnection | null = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
-    peerConnectionRef.current = pc;
 
-    localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
+    const createPeerConnection = async () => {
+        const rtcConfig = await fetchTurnCredentials();
+        const pc = new RTCPeerConnection(rtcConfig);
+        peerConnectionRef.current = pc;
 
-    pc.onicecandidate = event => {
-        if (event.candidate && signalingChannelRef.current) {
-            signalingChannelRef.current.send({
-                type: 'broadcast',
-                event: 'ice-candidate',
-                payload: { to: otherParticipantId, candidate: event.candidate },
-            });
-        }
-    };
-
-    pc.ontrack = event => {
-        if (event.streams && event.streams[0]) {
-            setRemoteStream(event.streams[0]);
-            if (remoteAudioRef.current) {
-                remoteAudioRef.current.srcObject = event.streams[0];
+        localStream.getTracks().forEach(track => {
+            if(!pc.getSenders().find(s => s.track === track)) {
+                pc.addTrack(track, localStream)
             }
-        }
-    };
+        });
 
-    pc.onconnectionstatechange = () => {
-        if (!peerConnectionRef.current) return;
-        const state = peerConnectionRef.current.connectionState;
-        if(state === 'connected') {
-            setStatus('connected');
-        } else if (['failed', 'disconnected', 'closed'].includes(state)) {
-            handleClose(false);
-        }
-    };
-
-    channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-        if (pc && pc.signalingState === 'have-local-offer' && payload.to === currentUser.id) {
-            await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
-            setIceCandidateQueue([]);
-        }
-    });
-
-    channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-        if (payload.to === currentUser.id && payload.candidate && pc) {
-            try {
-                if (pc.remoteDescription) {
-                    await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
-                } else {
-                    setIceCandidateQueue(prev => [...prev, new RTCIceCandidate(payload.candidate)]);
-                }
-            } catch (e) {
-                console.error('Error adding received ice candidate', e);
-            }
-        }
-    });
-    
-    channel.subscribe(async (subStatus) => {
-      if (subStatus === 'SUBSCRIBED') {
-        if (initialOffer) { // This user is the receiver
-            setStatus('connecting');
-            if (!pc) return;
-            await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
-            setIceCandidateQueue([]);
-
-            if (signalingChannelRef.current) {
+        pc.onicecandidate = event => {
+            if (event.candidate && signalingChannelRef.current) {
                 signalingChannelRef.current.send({
                     type: 'broadcast',
-                    event: 'answer',
-                    payload: { to: otherParticipantId, from: currentUser.id, answer },
+                    event: 'ice-candidate',
+                    payload: { to: otherParticipantId, candidate: event.candidate },
                 });
             }
-        } else { // This user is the caller
-            const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
-            
-            otherUserChannel.subscribe(async (status) => {
-                if (status === 'SUBSCRIBED') {
-                    if (!pc) return;
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
+        };
 
-                    otherUserChannel.send({
-                        type: 'broadcast',
-                        event: 'offer',
-                        payload: { from: currentUser.id, offer },
-                    }).then(() => supabase.removeChannel(otherUserChannel));
+        pc.ontrack = event => {
+            if (event.streams && event.streams[0]) {
+                setRemoteStream(event.streams[0]);
+                if (remoteAudioRef.current) {
+                    remoteAudioRef.current.srcObject = event.streams[0];
                 }
-            });
-        }
-      }
-    });
+            }
+        };
+
+        pc.onconnectionstatechange = () => {
+            if (!peerConnectionRef.current) return;
+            const state = peerConnectionRef.current.connectionState;
+            if(state === 'connected') {
+                setStatus('connected');
+            } else if (['failed', 'disconnected', 'closed'].includes(state)) {
+                handleClose(false);
+            }
+        };
+
+        channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
+            if (pc && pc.signalingState === 'have-local-offer' && payload.to === currentUser.id) {
+                await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
+                iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
+                setIceCandidateQueue([]);
+            }
+        });
+
+        channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
+            if (payload.to === currentUser.id && payload.candidate && pc) {
+                try {
+                    if (pc.remoteDescription) {
+                        await pc.addIceCandidate(new RTCIceCandidate(payload.candidate));
+                    } else {
+                        setIceCandidateQueue(prev => [...prev, new RTCIceCandidate(payload.candidate)]);
+                    }
+                } catch (e) {
+                    console.error('Error adding received ice candidate', e);
+                }
+            }
+        });
+        
+        channel.subscribe(async (subStatus) => {
+          if (subStatus === 'SUBSCRIBED') {
+            if (initialOffer) { // This user is the receiver
+                setStatus('connecting');
+                if (!pc) return;
+
+                await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+
+                iceCandidateQueue.forEach(candidate => pc.addIceCandidate(candidate));
+                setIceCandidateQueue([]);
+
+                if (signalingChannelRef.current) {
+                    signalingChannelRef.current.send({
+                        type: 'broadcast',
+                        event: 'answer',
+                        payload: { to: otherParticipantId, from: currentUser.id, answer },
+                    });
+                }
+            } else { // This user is the caller
+                const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
+                
+                otherUserChannel.subscribe(async (status) => {
+                    if (status === 'SUBSCRIBED') {
+                        if (!pc) return;
+                        const offer = await pc.createOffer();
+                        await pc.setLocalDescription(offer);
+
+                        otherUserChannel.send({
+                            type: 'broadcast',
+                            event: 'offer',
+                            payload: { from: currentUser.id, offer },
+                        }).then(() => supabase.removeChannel(otherUserChannel));
+                    }
+                });
+            }
+          }
+        });
+    }
+
+    createPeerConnection();
 
     return () => {
-        if (pc) pc.close();
-        peerConnectionRef.current = null;
+        if (peerConnectionRef.current) {
+          peerConnectionRef.current.close();
+          peerConnectionRef.current = null;
+        }
         if(signalingChannelRef.current) {
             supabase.removeChannel(signalingChannelRef.current);
             signalingChannelRef.current = null;
@@ -405,7 +434,3 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
-
-    
-
-    
