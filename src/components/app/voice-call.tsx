@@ -29,10 +29,14 @@ const PEER_CONNECTION_CONFIG: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
     // A TURN server is crucial for connections to work across different
     // networks (e.g., different home Wi-Fi, mobile networks, etc.).
     // The following is a placeholder for a real TURN server configuration.
-    // You would get these credentials from a service like Twilio.
+    // To get this to work reliably in production, you would need to
+    // sign up for a service like Twilio and get TURN server credentials.
     // {
     //   urls: 'turn:your-turn-server.com:3478',
     //   username: 'your-username',
@@ -207,7 +211,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     let pc: RTCPeerConnection | null = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
     peerConnectionRef.current = pc;
 
-    localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
+    localStream.getTracks().forEach(track => pc!.addTrack(track, localStream));
 
     pc.onicecandidate = event => {
         if (event.candidate && signalingChannelRef.current) {
@@ -241,7 +245,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
         if (pc && pc.signalingState === 'have-local-offer' && payload.to === currentUser.id) {
             await pc.setRemoteDescription(new RTCSessionDescription(payload.answer));
-            iceCandidateQueue.forEach(candidate => pc.addIceCandidate(candidate));
+            iceCandidateQueue.forEach(candidate => pc!.addIceCandidate(candidate));
             setIceCandidateQueue([]);
         }
     });
@@ -266,7 +270,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             setStatus('connecting');
             if (!pc) return;
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-            
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
 
@@ -411,3 +414,5 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
+
+    
