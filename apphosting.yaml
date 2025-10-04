@@ -5,6 +5,10 @@ runConfig:
   # Increase this value if you'd like to automatically spin up
   # more instances in response to increased traffic.
   maxInstances: 1
+  environment:
+    NEXT_PUBLIC_SUPABASE_URL: ${secret:NEXT_PUBLIC_SUPABASE_URL}
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: ${secret:NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    ADMIN_EMAILS: ${secret:ADMIN_EMAILS}
 secretEnv:
   - secret: NEXT_PUBLIC_SUPABASE_URL
   - secret: NEXT_PUBLIC_SUPABASE_ANON_KEY
