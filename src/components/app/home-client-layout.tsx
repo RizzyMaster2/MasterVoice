@@ -1,11 +1,11 @@
 
+
 'use client';
 
 import { 
     useState, 
     useEffect, 
     useCallback, 
-    useMemo, 
     createContext, 
     useContext,
     type ReactNode 
@@ -28,6 +28,7 @@ interface HomeClientContextType {
     refreshAllData: (isInitialLoad?: boolean) => void;
     handleFriendRemoved: () => void;
     isLoading: boolean;
+    unreadMessages: Set<string>;
 }
 
 const HomeClientContext = createContext<HomeClientContextType | null>(null);
@@ -58,8 +59,9 @@ export function HomeClientLayout({
   const [friends, setFriends] = useState<Friend[]>(initialFriends);
   const [friendRequests, setFriendRequests] = useState(initialFriendRequests);
   const [allUsers, setAllUsers] = useState<UserProfile[]>(initialUsers);
-  const [selectedFriend, setSelectedFriend] = useState<UserProfile | null>(null);
+  const [selectedFriend, setSelectedFriendState] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [unreadMessages, setUnreadMessages] = useState(new Set<string>());
 
   const { user } = useUser();
   const supabase = createClient();
@@ -67,6 +69,18 @@ export function HomeClientLayout({
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
+
+  const setSelectedFriend = (friend: UserProfile | null) => {
+    setSelectedFriendState(friend);
+    if (friend) {
+        setUnreadMessages(prev => {
+            const newUnread = new Set(prev);
+            newUnread.delete(friend.id);
+            return newUnread;
+        });
+    }
+  };
+
 
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
@@ -128,16 +142,13 @@ export function HomeClientLayout({
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'friends' },
-        (payload) => {
-            // Check if the change is relevant to the current user
-            if (payload.new.user_id === user.id || payload.old.user_id === user.id) {
-                toast({
-                    title: 'Friends list updated!',
-                    description: 'Your connections have changed.',
-                    variant: 'info'
-                });
-                refreshAllData();
-            }
+        () => {
+            toast({
+                title: 'Friends list updated!',
+                description: 'Your connections have changed.',
+                variant: 'info'
+            });
+            refreshAllData();
         }
       )
       .on(
@@ -172,6 +183,7 @@ export function HomeClientLayout({
                     title: `New Message from ${sender?.display_name || 'a friend'}`,
                     description: newMessage.content,
                 })
+                setUnreadMessages(prev => new Set(prev).add(newMessage.sender_id));
             }
         }
       )
@@ -213,6 +225,7 @@ export function HomeClientLayout({
       refreshAllData,
       handleFriendRemoved,
       isLoading,
+      unreadMessages,
   };
   
   if (isLoading) {

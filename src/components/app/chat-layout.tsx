@@ -46,10 +46,11 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
+import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
 import type { Message, UserProfile, Friend } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
+import { useHomeClient } from './home-client-layout';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -109,10 +110,10 @@ const SelectChatIllustration = () => (
     </svg>
 );
 
-const TypingIndicator = () => (
-    <div className="flex items-center gap-1">
-        <span className="text-sm text-muted-foreground italic">typing</span>
-        <div className="flex gap-0.5">
+const TypingIndicator = ({ name }: { name: string }) => (
+    <div className="flex items-center gap-1.5">
+        <span className="text-sm text-muted-foreground italic">{name} is typing</span>
+        <div className="flex gap-0.5 items-center">
             <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.3s]" />
             <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce [animation-delay:-0.15s]" />
             <span className="h-1 w-1 bg-muted-foreground rounded-full animate-bounce" />
@@ -145,6 +146,7 @@ export function ChatLayout({
   const supabase = createClient();
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const { unreadMessages } = useHomeClient();
 
   const userMap = useMemo(() => {
     const map = new Map<string, UserProfile>();
@@ -258,7 +260,9 @@ export function ChatLayout({
   };
   
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    toast({ title: "File upload not implemented yet.", variant: "info" });
+    if (e.target.files && e.target.files[0]) {
+      toast({ title: "File upload not implemented yet.", variant: "info" });
+    }
   };
   
   const handleStartCall = () => {
@@ -379,6 +383,9 @@ export function ChatLayout({
                         <p className="font-semibold truncate">
                             {friend.friend_profile?.display_name}
                         </p>
+                         {unreadMessages.has(friend.friend_id) && (
+                            <span className="h-2.5 w-2.5 rounded-full bg-primary animate-pulse" />
+                        )}
                    </div>
                   <p className="text-sm text-muted-foreground truncate">
                     {friend.friend_profile?.bio || 'No bio available'}
@@ -407,7 +414,7 @@ export function ChatLayout({
                       {selectedFriend.display_name}
                     </h2>
                      <div className="h-5">
-                        {isTyping ? <TypingIndicator /> : <p className="text-sm text-muted-foreground">{selectedFriend.email}</p>}
+                        {isTyping ? <TypingIndicator name={selectedFriend.display_name || '...'} /> : <p className="text-sm text-muted-foreground">{selectedFriend.email}</p>}
                     </div>
                   </div>
                   <Button size="icon" variant="ghost" onClick={handleStartCall}>
@@ -566,4 +573,3 @@ export function ChatLayout({
     </Card>
   );
 }
-
