@@ -62,7 +62,7 @@ const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
         }
 
         try {
-            audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+            audioContextRef.current = new (window.AudioContext || window.AudioContext)();
             analyserRef.current = audioContextRef.current.createAnalyser();
             const source = audioContextRef.current.createMediaStreamSource(stream);
             

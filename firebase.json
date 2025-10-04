@@ -8,8 +8,11 @@
       "**/node_modules/**"
     ],
     "frameworksBackend": {
-      "id": "sonorus-app",
+      "id": "app",
       "region": "us-central1"
     }
+  },
+  "database": {
+    "rules": "firestore.rules"
   }
 }
