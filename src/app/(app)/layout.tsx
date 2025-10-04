@@ -11,8 +11,21 @@ import { Button } from '@/components/ui/button';
 import { PanelLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { CallProvider } from '@/components/app/call-provider';
+import { createClient } from '@/lib/supabase/server';
+import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect('/login');
+  }
+  
   return (
     <CallProvider>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">

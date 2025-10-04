@@ -1,5 +1,3 @@
-
-
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -15,15 +13,14 @@ import {
   Gamepad2,
   Briefcase,
   Heart,
+  Check,
 } from 'lucide-react';
 import Link from 'next/link';
 import { Logo } from '@/components/logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
-import { Check } from 'lucide-react';
 import { LandingNav } from '@/components/app/landing-nav';
 import { FireSaleBanner } from '@/components/app/fire-sale-banner';
 import { createClient } from '@/lib/supabase/server';
@@ -324,14 +321,14 @@ export default async function Home() {
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <Radio className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Radio className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span>
                       <strong className="font-semibold">Low-Latency Audio:</strong>{' '}
                       Experience real-time conversations with minimal delay.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span>
                       <strong className="font-semibold">
                         HD Voice Quality:
@@ -340,7 +337,7 @@ export default async function Home() {
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Lock className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Lock className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span>
                       <strong className="font-semibold">
                         End-to-End Encryption:
@@ -438,15 +435,15 @@ export default async function Home() {
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span><strong className="font-semibold">Analytics Dashboard:</strong> Get insights into user engagement and activity.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Users className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Users className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span><strong className="font-semibold">User Management:</strong> Easily view, manage, and moderate all users.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Check className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span><strong className="font-semibold">Custom Roles:</strong> Define roles and permissions to fit your organization.</span>
                   </li>
                 </ul>
@@ -474,11 +471,11 @@ export default async function Home() {
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span><strong className="font-semibold">Smart Suggestions:</strong> Get personalized recommendations for new people to connect with.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <BrainCircuit className="h-5 w-5 mt-1 shrink-0 text-accent" />
+                    <BrainCircuit className="h-5 w-5 mt-1 shrink-0 text-primary" />
                     <span><strong className="font-semibold">Interest Matching:</strong> Find groups and users that share your passions and hobbies.</span>
                   </li>
                 </ul>
