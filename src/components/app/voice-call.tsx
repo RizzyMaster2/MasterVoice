@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -88,67 +89,52 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
         pc.onicecandidate = event => {
           if (event.candidate) {
-            console.log('[ICE] Local candidate:', event.candidate);
             signalingChannelRef.current?.send({
               type: 'broadcast',
               event: 'ice-candidate',
               payload: event.candidate,
             });
-          } else {
-            console.log('[ICE] All local candidates sent');
           }
         };
 
         pc.ontrack = event => {
-          console.log('[RTC] Remote track received:', event.track.kind);
           if (remoteAudioRef.current && event.streams[0]) {
             remoteAudioRef.current.srcObject = event.streams[0];
-            console.log('[RTC] Remote stream attached to audio element');
           }
         };
 
         pc.onconnectionstatechange = () => {
-          console.log('[RTC] Connection state changed:', pc.connectionState);
           if (pc.connectionState === 'connected') setStatus('connected');
           else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) handleClose(false);
         };
-
-        pc.oniceconnectionstatechange = () => {
-          console.log('[ICE] ICE connection state changed:', pc.iceConnectionState);
-        };
-
+        
         const channelId = `signaling:${[currentUser.id, otherParticipant.id].sort().join(':')}`;
         const channel = supabase.channel(channelId, { config: { broadcast: { self: false } } });
         signalingChannelRef.current = channel;
 
         channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-          console.log('[SIGNAL] Received answer:', payload);
           if (pc.signalingState === 'have-local-offer') {
             await pc.setRemoteDescription(new RTCSessionDescription(payload));
-            console.log('[RTC] Remote description set (answer)');
           }
         });
 
         channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-          console.log('[SIGNAL] Received remote ICE candidate:', payload);
           if (payload) await pc.addIceCandidate(new RTCIceCandidate(payload));
         });
 
         channel.subscribe(async (subStatus) => {
           if (subStatus !== 'SUBSCRIBED') return;
 
-          if (initialOffer) {
+          if (initialOffer) { // We are receiving a call, so we create an answer
             await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-            console.log('[RTC] Remote description set (initial offer)');
             const answer = await pc.createAnswer();
             await pc.setLocalDescription(answer);
-            console.log('[RTC] Created and set local answer:', answer);
             channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-          } else {
+          } else { // We are initiating a call, so we create an offer
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            console.log('[RTC] Created and set local offer:', offer);
-
+            
+            // Send offer to the specific user's channel
             const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
             offerChannel.subscribe(status => {
               if (status === 'SUBSCRIBED') {
@@ -167,8 +153,9 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         sourceRef.current.connect(analyserRef.current);
 
         const detectSpeaking = () => {
-          const data = new Uint8Array(analyserRef.current!.frequencyBinCount);
-          analyserRef.current!.getByteFrequencyData(data);
+          if (!analyserRef.current) return;
+          const data = new Uint8Array(analyserRef.current.frequencyBinCount);
+          analyserRef.current.getByteFrequencyData(data);
           const volume = data.reduce((a, b) => a + b, 0) / data.length;
           setIsSpeaking(volume > 10);
         };
@@ -180,10 +167,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           if (!peerConnectionRef.current) return;
           const statsReport = await peerConnectionRef.current.getStats();
           statsReport.forEach(report => {
-            if (report.type === 'candidate-pair' && report.currentRoundTripTime !== undefined) {
+            if (report.type === 'candidate-pair' && report.state === 'succeeded' && report.currentRoundTripTime) {
               setStats(prev => ({ ...prev, rtt: Math.round(report.currentRoundTripTime * 1000) }));
             }
-            if (report.type === 'inbound-rtp' && report.kind === 'audio' && report.bytesReceived !== undefined) {
+            if (report.type === 'inbound-rtp' && report.kind === 'audio') {
               const bitrate = (report.bytesReceived * 8) / (report.timestamp / 1000);
               setStats(prev => ({ ...prev, bitrate: Math.round(bitrate) }));
             }
@@ -260,7 +247,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             <p>{statusText[status]}</p>
             {status === 'connected' && (
               <p className="text-xs">
-                RTT: {stats.rtt ?? '–'} ms • Bitrate: {stats.bitrate ? `${stats.bitrate} bps` : '–'}
+                RTT: {stats.rtt ?? '–'} ms
               </p>
             )}
           </div>
