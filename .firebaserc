@@ -1,6 +1,7 @@
 {
   "projects": {
-    "hosting": "studio-4461412894-5c5c2"
+    "hosting": "studio-4461412894-5c5c2",
+    "default": "studio-4461412894-5c5c2"
   },
   "targets": {},
   "etags": {}
