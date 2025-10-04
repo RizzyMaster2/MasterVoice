@@ -1,6 +1,5 @@
 
 
-
 'use client'
 
 import {
@@ -47,7 +46,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
+import { Send, Search, Phone, Trash2, Users, Download, Paperclip, Loader2, MoreHorizontal, Copy } from 'lucide-react';
 import type { Message, UserProfile, Friend } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
@@ -259,7 +258,6 @@ export function ChatLayout({
   };
   
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    console.log(e.target.files)
     toast({ title: "File upload not implemented yet.", variant: "info" });
   };
   
@@ -568,3 +566,4 @@ export function ChatLayout({
     </Card>
   );
 }
+

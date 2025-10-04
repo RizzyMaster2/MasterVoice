@@ -1,5 +1,6 @@
 
 import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
 import type { UserProfile } from '@/lib/data';
 import { HomeClientLayout } from '@/components/app/home-client-layout';
 import { cookies } from 'next/headers';
@@ -17,11 +18,8 @@ export default async function HomeLayout({
         data: { user: authUser },
     } = await supabase.auth.getUser();
 
-    // The parent layout already redirects, but we need the user object here.
-    // If it's somehow null, we can throw an error or handle gracefully.
     if (!authUser) {
-        // This should theoretically not be reached due to the parent layout's check.
-        return new Response('Authentication required', { status: 401 });
+        redirect('/login');
     }
 
     const isVerified = !!authUser.email_confirmed_at;

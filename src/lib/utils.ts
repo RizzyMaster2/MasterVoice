@@ -1,5 +1,4 @@
 
-
 import { clsx, type ClassValue } from "clsx"
 import { twMerge } from "tailwind-merge"
 
@@ -24,7 +23,7 @@ export const getErrorMessage = (error: unknown): string => {
   try {
     const parsed = JSON.parse(message);
     return parsed.message || parsed.error_description || parsed.error || message;
-  } catch (parseError) {
+  } catch (e) {
     // If parsing fails, it's not JSON, so return the original message
     return message;
   }

@@ -1,5 +1,7 @@
 
 
+import type { User as SupabaseUser } from '@supabase/supabase-js';
+
 export type UserProfile = {
   id: string;
   created_at: string;
@@ -27,10 +29,6 @@ export type FriendRequest = {
   sender_profile: UserProfile;
 };
 
-export type FriendRequestWithReceiver = FriendRequest & {
-    receiver_profile: UserProfile;
-}
-
 
 export type Message = {
   id: number;
@@ -41,3 +39,4 @@ export type Message = {
   sender_profile?: UserProfile;
   is_typing?: boolean;
 };
+

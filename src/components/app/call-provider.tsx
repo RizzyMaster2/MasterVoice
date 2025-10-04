@@ -1,9 +1,8 @@
 
-
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { createClient, type RealtimeChannel } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
 import { VoiceCall } from './voice-call';
@@ -40,7 +39,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
-  const userChannelRef = useRef<RealtimeChannel | null>(null);
+  const userChannelRef = useRef<any>(null);
   
   const endCall = useCallback(() => {
     if (activeCall && user && userChannelRef.current) {
@@ -109,7 +108,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const joinCall = (chatId: string) => {
-    console.log('Joining call for chat:', chatId); // Added to use chatId
     toast({
       title: 'Feature Coming Soon',
       description: 'Group voice calling is not available at the moment.',

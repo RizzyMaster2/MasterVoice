@@ -1,3 +1,4 @@
+
 {
   "hosting": {
     "source": ".",
@@ -12,6 +13,6 @@
     }
   },
   "database": {
-    "rules": "database.rules.json"
+    "rules": "firestore.rules"
   }
 }

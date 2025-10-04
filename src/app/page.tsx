@@ -1,3 +1,4 @@
+
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -9,18 +10,24 @@ import {
   Radio,
   BarChart,
   Lock,
+  Star,
   BrainCircuit,
+  ShieldCheck,
   Gamepad2,
   Briefcase,
   Heart,
-  Check,
+  Cog,
+  DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { Logo } from '@/components/logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { CurrentYear } from '@/components/app/current-year';
 import { MainHeader } from '@/components/app/main-header';
+import { Check } from 'lucide-react';
 import { LandingNav } from '@/components/app/landing-nav';
 import { FireSaleBanner } from '@/components/app/fire-sale-banner';
 import { createClient } from '@/lib/supabase/server';
@@ -233,6 +240,8 @@ const AIConnectIllustration = () => (
 
 
 export default async function Home() {
+  const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
+
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const {
@@ -317,27 +326,27 @@ export default async function Home() {
                   Crystal-Clear Voice Calls
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Connect with friends and colleagues through high-fidelity, low-latency voice calls. Whether it&apos;s a one-on-one catch-up or a group discussion, your conversations will be seamless.
+                  Connect with friends and colleagues through high-fidelity, low-latency voice calls. Whether it's a one-on-one catch-up or a group discussion, your conversations will be seamless.
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <Radio className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <Radio className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span>
                       <strong className="font-semibold">Low-Latency Audio:</strong>{' '}
                       Experience real-time conversations with minimal delay.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span>
                       <strong className="font-semibold">
                         HD Voice Quality:
                       </strong>{' '}
-                      Enjoy rich, clear audio that makes you feel like you&apos;re in the same room.
+                      Enjoy rich, clear audio that makes you feel like you're in the same room.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Lock className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <Lock className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span>
                       <strong className="font-semibold">
                         End-to-End Encryption:
@@ -435,15 +444,15 @@ export default async function Home() {
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <BarChart className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">Analytics Dashboard:</strong> Get insights into user engagement and activity.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Users className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <Users className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">User Management:</strong> Easily view, manage, and moderate all users.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <Check className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <Check className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">Custom Roles:</strong> Define roles and permissions to fit your organization.</span>
                   </li>
                 </ul>
@@ -467,15 +476,15 @@ export default async function Home() {
                   AI-Powered Connections
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                 Our smart suggestion engine, powered by Google&apos;s Gemini, helps you discover new friends and communities based on your interests and activity.
+                 Our smart suggestion engine, powered by Google's Gemini, helps you discover new friends and communities based on your interests and activity.
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <Sparkles className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">Smart Suggestions:</strong> Get personalized recommendations for new people to connect with.</span>
                   </li>
                   <li className="flex items-start gap-3">
-                    <BrainCircuit className="h-5 w-5 mt-1 shrink-0 text-primary" />
+                    <BrainCircuit className="h-5 w-5 mt-1 shrink-0 text-accent" />
                     <span><strong className="font-semibold">Interest Matching:</strong> Find groups and users that share your passions and hobbies.</span>
                   </li>
                 </ul>
@@ -490,7 +499,7 @@ export default async function Home() {
               Ready to Find Your Harmony?
             </h2>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              Join thousands of communities, friends, and teams communicating on MasterVoice today. It&apos;s free to get started.
+              Join thousands of communities, friends, and teams communicating on MasterVoice today. It's free to get started.
             </p>
             <div className="mt-8">
               <Button size="lg" asChild>
@@ -507,7 +516,7 @@ export default async function Home() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
               <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
-                Choose the Plan That&apos;s Right for You
+                Choose the Plan That's Right for You
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
                 Simple, transparent pricing. No hidden fees.
@@ -535,7 +544,7 @@ export default async function Home() {
                     </ul>
                   </CardContent>
                   <div className="p-6 pt-0">
-                    <Button asChild className="w-full" variant={tier.variant as 'default' | 'outline'}>
+                    <Button asChild className="w-full" variant={tier.variant as any}>
                       <Link href={user ? tier.link : '/signup'}>{tier.cta}</Link>
                     </Button>
                   </div>

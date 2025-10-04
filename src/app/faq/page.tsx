@@ -1,6 +1,5 @@
 
 
-
 import { MainHeader } from '@/components/app/main-header';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -77,7 +76,7 @@ export default async function FaqPage() {
               </div>
               <CardTitle className="font-headline text-4xl">Frequently Asked Questions</CardTitle>
               <p className="text-muted-foreground pt-2">
-                Have questions? We&apos;ve got answers. If you can&apos;t find what you&apos;re looking for, feel free to contact our support team.
+                Have questions? We've got answers. If you can't find what you're looking for, feel free to contact our support team.
               </p>
             </CardHeader>
             <CardContent>

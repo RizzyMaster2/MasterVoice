@@ -1,17 +1,15 @@
 
-'use server';
-
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { type cookies } from 'next/headers';
 
 export function createClient(cookieStore: ReturnType<typeof cookies>) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
   if (!supabaseUrl || !supabaseAnonKey) {
-    throw new Error('Supabase URL or Anon Key is missing from environment variables.');
+    throw new Error('Supabase URL and/or Anon Key are not defined. Please check your environment variables.');
   }
-
+  
   return createServerClient(
     supabaseUrl,
     supabaseAnonKey,

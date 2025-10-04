@@ -1,10 +1,9 @@
 
-
 'use client';
 
 import * as React from 'react';
 import type { User } from '@supabase/supabase-js';
-import type { Friend } from '@/lib/data';
+import type { UserProfile, Friend } from '@/lib/data';
 import {
   Table,
   TableBody,
@@ -37,6 +36,7 @@ import {
 import { getFriendsForUser } from '@/app/(auth)/actions/admin';
 import { Card, CardContent } from '../ui/card';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
 
 type UserManagementProps = {
   users: User[];

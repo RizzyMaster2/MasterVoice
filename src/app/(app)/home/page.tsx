@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useHomeClient } from '@/components/app/home-client-layout';
@@ -13,6 +12,7 @@ export default function HomePage() {
     allUsers, 
     selectedFriend, 
     setSelectedFriend, 
+    refreshAllData, 
     handleFriendRemoved,
     isLoading
   } = useHomeClient();

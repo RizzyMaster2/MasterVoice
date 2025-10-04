@@ -1,5 +1,4 @@
 
-
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
@@ -13,7 +12,7 @@ export default function GroupsPage() {
                     </div>
                     <CardTitle className="font-headline text-2xl">Group Chats Are Coming Soon</CardTitle>
                     <CardDescription>
-                        This feature is currently under construction. Soon, you&apos;ll be able to create and manage group conversations right here. Stay tuned!
+                        This feature is currently under construction. Soon, you'll be able to create and manage group conversations right here. Stay tuned!
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -15,6 +15,7 @@ import {
   MessageSquare,
   Check,
   X,
+  Clock,
   UserPlus,
   Ban,
 } from 'lucide-react';
@@ -284,7 +285,7 @@ export function FriendsClientPage({
                 ) : (
                   <div className="text-center text-muted-foreground p-8">
                     <EmptyFriendsIllustration />
-                    <p>Your friends list is empty. Go to the &quot;Add Friend&quot; tab to find people!</p>
+                    <p>Your friends list is empty. Go to the "Add Friend" tab to find people!</p>
                   </div>
                 )}
               </ScrollArea>

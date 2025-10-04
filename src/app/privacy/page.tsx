@@ -1,6 +1,5 @@
 
 
-
 import { MainHeader } from '@/components/app/main-header';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { createClient } from '@/lib/supabase/server';
@@ -54,7 +53,7 @@ export default async function PrivacyPolicyPage() {
               <p>The personal information that we collect depends on the context of your interactions with us and the MasterVoice, the choices you make and the products and features you use. The personal information we collect may include the following:</p>
               <ul>
                   <li><strong>Personal Information Provided by You.</strong> We collect names; email addresses; passwords; contact preferences; and other similar information.</li>
-                  <li><strong>Usage Data.</strong> We may also collect information on how the Service is accessed and used. This Usage Data may include information such as your computer&apos;s Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that you visit, the time and date of your visit, the time spent on those pages, unique device identifiers and other diagnostic data.</li>
+                  <li><strong>Usage Data.</strong> We may also collect information on how the Service is accessed and used. This Usage Data may include information such as your computer's Internet Protocol address (e.g. IP address), browser type, browser version, the pages of our Service that you visit, the time and date of your visit, the time spent on those pages, unique device identifiers and other diagnostic data.</li>
               </ul>
 
               <h2>3. How We Use Your Information</h2>
@@ -68,7 +67,7 @@ export default async function PrivacyPolicyPage() {
               
               <h2>6. Do We Make Updates to This Policy?</h2>
               <p>In short: Yes, we will update this policy as necessary to stay compliant with relevant laws.</p>
-              <p>We may update this privacy policy from time to time. The updated version will be indicated by an updated &quot;Revised&quot; date and the updated version will be effective as soon as it is accessible. We encourage you to review this privacy policy frequently to be informed of how we are protecting your information.</p>
+              <p>We may update this privacy policy from time to time. The updated version will be indicated by an updated "Revised" date and the updated version will be effective as soon as it is accessible. We encourage you to review this privacy policy frequently to be informed of how we are protecting your information.</p>
               
               <h2>7. How Can You Contact Us About This Policy?</h2>
               <p>If you have questions or comments about this policy, you may reach out to us through our official support channels.</p>

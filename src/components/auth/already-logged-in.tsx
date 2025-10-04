@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { Button } from '@/components/ui/button';
@@ -14,7 +13,7 @@ export function AlreadyLoggedIn() {
                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/50 mb-4">
                     <CheckCircle className="h-8 w-8 text-green-500" />
                 </div>
-                <CardTitle className="font-headline text-2xl">You&apos;re Already Logged In</CardTitle>
+                <CardTitle className="font-headline text-2xl">You're Already Logged In</CardTitle>
                 <CardDescription>
                     It looks like you already have an active session.
                 </CardDescription>
