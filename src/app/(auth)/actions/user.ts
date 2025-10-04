@@ -4,7 +4,6 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
 
 
@@ -121,7 +120,7 @@ export async function updateUserProfile(formData: FormData) {
         ...(avatar_url && { avatar_url: avatar_url }),
     };
 
-    const { data: user, error: authError } = await supabase.auth.updateUser({
+    const { error: authError } = await supabase.auth.updateUser({
         data: updates
     });
 
