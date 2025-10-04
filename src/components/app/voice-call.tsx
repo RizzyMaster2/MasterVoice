@@ -25,31 +25,28 @@ interface VoiceCallProps {
   onClose: () => void;
 }
 
-/**
- * Simulates fetching temporary TURN credentials from a backend.
- * In a real-world application, this function would make a secure API call
- * to your server, which would then use a secret key to generate time-limited
- * credentials for a service like Twilio or your own CoTURN server.
- * This is the standard method for preventing TURN server abuse.
- */
-async function fetchTurnCredentials(): Promise<RTCConfiguration> {
-    console.log("Fetching TURN credentials from backend...");
-    // This is a placeholder. Replace with your actual backend call.
-    // The credentials would be temporary and specific to the user making the call.
-    return {
-        iceServers: [
-            // STUN servers are still useful for finding a direct path.
-            { urls: 'stun:stun.l.google.com:19302' },
-            { urls: 'stun:stun1.l.google.com:19302' },
-            // Example of what a response from your backend might look like:
-            // {
-            //   urls: 'turn:your-turn-server.com:3478?transport=udp',
-            //   username: 'temp_user_for_this_call',
-            //   credential: 'temp_password_valid_for_30_mins',
-            // },
-        ]
-    };
-}
+const PEER_CONNECTION_CONFIG: RTCConfiguration = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:openrelay.metered.ca:80' },
+        { 
+            urls: 'turn:openrelay.metered.ca:80',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        },
+        { 
+            urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+            username: 'openrelayproject',
+            credential: 'openrelayproject'
+        }
+    ]
+};
 
 
 const useActiveSpeaker = (stream: MediaStream | null, threshold = 20) => {
@@ -217,8 +214,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     signalingChannelRef.current = channel;
 
     const createPeerConnection = async () => {
-        const rtcConfig = await fetchTurnCredentials();
-        const pc = new RTCPeerConnection(rtcConfig);
+        const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
         peerConnectionRef.current = pc;
 
         localStream.getTracks().forEach(track => {
