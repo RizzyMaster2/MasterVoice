@@ -22,54 +22,20 @@ async function getCurrentUser() {
 
 // Fetch all user profiles from the database
 export async function getUsers(): Promise<UserProfile[]> {
-  try {
     const cookieStore = cookies();
     const supabase = createClient(cookieStore);
 
-    // First, try to get all profiles using the standard client.
-    // This is more robust and doesn't rely on the service key.
     const { data: profiles, error: profilesError } = await supabase
       .from('profiles')
       .select('*');
       
     if (profilesError) {
-      // If that fails, and we have an admin key, try the admin route.
-      if (process.env.SUPABASE_SERVICE_ROLE_KEY) {
-        console.warn("Falling back to admin client to fetch users due to an error:", profilesError.message);
-        const supabaseAdmin = createAdminClient();
-        const { data: { users: authUsers }, error: authUsersError } = await supabaseAdmin.auth.admin.listUsers();
-        
-        if (authUsersError) throw authUsersError;
-
-        const userIds = authUsers.map(u => u.id);
-        const { data: adminProfiles, error: adminProfilesError } = await supabase.from('profiles').select('*').in('id', userIds);
-        if (adminProfilesError) throw adminProfilesError;
-
-        const profileMap = new Map(adminProfiles?.map(p => [p.id, p]) || []);
-        return authUsers.map(user => {
-          const profile = profileMap.get(user.id);
-          return {
-            id: user.id,
-            created_at: profile?.created_at || user.created_at,
-            display_name: profile?.display_name || user.user_metadata?.display_name || user.email || 'N/A',
-            full_name: profile?.full_name || user.user_metadata?.full_name || user.email,
-            email: user.email || profile?.email || null,
-            photo_url: profile?.photo_url || user.user_metadata?.photo_url || null,
-            status: profile?.status || 'offline',
-            bio: profile?.bio || null,
-          };
-        });
-      }
-      // If no admin key, re-throw the original error.
-      throw profilesError;
+        console.error('Error in getUsers:', profilesError);
+        // Return an empty array on failure to prevent crashing consumers.
+        return [];
     }
 
     return profiles as UserProfile[];
-  } catch (error) {
-    console.error('Error in getUsers:', error);
-    // Return an empty array on failure to prevent crashing consumers.
-    return [];
-  }
 }
 
 // Fetch all friends for the current user
