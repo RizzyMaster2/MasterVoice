@@ -1,4 +1,5 @@
 
+
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
@@ -34,7 +35,7 @@ export async function middleware(request: NextRequest) {
               value,
               ...options,
             })
-          } catch (e) {
+          } catch (error) {
             // The `set` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.
@@ -57,7 +58,7 @@ export async function middleware(request: NextRequest) {
               value: '',
               ...options,
             })
-          } catch (e) {
+          } catch (error) {
             // The `delete` method was called from a Server Component.
             // This can be ignored if you have middleware refreshing
             // user sessions.

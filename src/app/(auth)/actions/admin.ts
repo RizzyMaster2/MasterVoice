@@ -1,12 +1,12 @@
 
+
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { subDays, format, startOfDay, eachDayOfInterval, endOfDay } from 'date-fns';
 import { cookies } from 'next/headers';
-import type { UserProfile, Friend } from '@/lib/data';
-import { getUsers } from './chat';
+import type { Friend } from '@/lib/data';
 
 type AdminStats = {
     totalUsers: number;
@@ -155,5 +155,3 @@ export async function getMessageCountByDay(): Promise<{ data: TimeSeriesData[], 
         return { data: [], error: message };
     }
 }
-
-    

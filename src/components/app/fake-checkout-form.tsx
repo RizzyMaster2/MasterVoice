@@ -1,7 +1,8 @@
 
+
 'use client';
 
-import { useState, useTransition, useEffect } from 'react';
+import { useState, useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -58,14 +59,14 @@ export function FakeCheckoutForm({ planName, price, priceType, planId }: FakeChe
   };
   
   const formatExpiryDate = (value: string) => {
-    let cleanValue = value.replace(/\D/g, '');
+    const cleanValue = value.replace(/\D/g, '');
     if (cleanValue.length > 2) {
       return cleanValue.slice(0, 2) + '/' + cleanValue.slice(2, 4);
     }
     return cleanValue;
   };
 
-  async function onSubmit(values: CheckoutFormValues) {
+  async function onSubmit(_values: CheckoutFormValues) {
     startTransition(async () => {
       try {
         const result = await updateUserPlan(planId, priceType);

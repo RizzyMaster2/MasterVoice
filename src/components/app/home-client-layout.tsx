@@ -1,11 +1,11 @@
 
+
 'use client';
 
 import { 
     useState, 
     useEffect, 
     useCallback, 
-    useMemo, 
     createContext, 
     useContext,
     type ReactNode 
@@ -130,7 +130,7 @@ export function HomeClientLayout({
         { event: '*', schema: 'public', table: 'friends' },
         (payload) => {
             // Check if the change is relevant to the current user
-            if (payload.new.user_id === user.id || payload.old.user_id === user.id) {
+            if ((payload.new as Friend)?.user_id === user.id || (payload.old as Friend)?.user_id === user.id) {
                 toast({
                     title: 'Friends list updated!',
                     description: 'Your connections have changed.',
@@ -145,10 +145,10 @@ export function HomeClientLayout({
         { event: '*', schema: 'public', table: 'friend_requests' },
         (payload) => {
              // Check if the change is relevant to the current user
-            if (payload.new.receiver_id === user.id || payload.new.sender_id === user.id || payload.old.receiver_id === user.id || payload.old.sender_id === user.id) {
+            if ((payload.new as FriendRequest)?.receiver_id === user.id || (payload.new as FriendRequest)?.sender_id === user.id || (payload.old as {receiver_id?: string, sender_id?: string})?.receiver_id === user.id || (payload.old as {receiver_id?: string, sender_id?: string})?.sender_id === user.id) {
                 refreshAllData();
-                if (payload.eventType === 'INSERT' && payload.new.receiver_id === user.id) {
-                    const sender = allUsers.find(u => u.id === payload.new.sender_id);
+                if (payload.eventType === 'INSERT' && (payload.new as FriendRequest).receiver_id === user.id) {
+                    const sender = allUsers.find(u => u.id === (payload.new as FriendRequest).sender_id);
                     toast({
                         title: 'New Friend Request!',
                         description: `You have a new friend request from ${sender?.display_name || 'a user'}.`,
@@ -162,7 +162,7 @@ export function HomeClientLayout({
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
         (payload) => {
-           const newMessage = payload.new;
+           const newMessage = payload.new as Message;
            // Only show toast if the message is not from the current user and for the selected chat
             if (newMessage.sender_id !== user.id && selectedFriend?.id === newMessage.sender_id) {
                 // Already in chat, no toast needed, realtime message will appear

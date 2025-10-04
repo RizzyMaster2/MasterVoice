@@ -1,8 +1,9 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { SupabaseClient, RealtimeChannel } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import {
@@ -111,7 +112,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
-  const signalingChannelRef = useRef<any>(null);
+  const signalingChannelRef = useRef<RealtimeChannel | null>(null);
 
   const { toast } = useToast();
   
@@ -297,8 +298,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             } else { // This user is the caller
                 const otherUserChannel = supabase.channel(`user-signaling:${otherParticipantId}`);
                 
-                otherUserChannel.subscribe(async (status) => {
-                    if (status === 'SUBSCRIBED') {
+                otherUserChannel.subscribe(async (otherChannelStatus) => {
+                    if (otherChannelStatus === 'SUBSCRIBED') {
                         if (!pc) return;
                         const offer = await pc.createOffer();
                         await pc.setLocalDescription(offer);

@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -38,7 +39,7 @@ import {
 } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
-import type { UserProfile, Friend } from '@/lib/data';
+import type { Friend } from '@/lib/data';
 import { getFriends } from '@/app/(auth)/actions/chat';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -89,7 +90,7 @@ export default function ProfilePage() {
     fetchFriends();
   }, [user, toast]);
 
-  const stopMicTest = () => {
+  const stopMicTest = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
     }
@@ -104,14 +105,14 @@ export default function ProfilePage() {
     mediaStreamRef.current = null;
     setMicLevel(0);
     setIsMicTesting(false);
-  };
+  },[]);
 
   useEffect(() => {
     // Cleanup on unmount
     return () => {
       stopMicTest();
     };
-  }, []);
+  }, [stopMicTest]);
 
   const startMicTest = async () => {
     if (isMicTesting) {
@@ -243,7 +244,7 @@ export default function ProfilePage() {
                   <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground p-8">
                      <Users className="h-12 w-12 mb-4" />
                     <p className="font-semibold">No Friends Yet</p>
-                    <p className="text-sm">Use the "Find Friends" feature on the home page to start connecting!</p>
+                    <p className="text-sm">Use the &quot;Find Friends&quot; feature on the home page to start connecting!</p>
                   </div>
                 )}
               </ScrollArea>

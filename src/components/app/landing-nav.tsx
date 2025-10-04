@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -10,7 +11,6 @@ import {
   ShieldCheck,
   BrainCircuit,
   DollarSign,
-  MoveRight,
 } from 'lucide-react';
 
 const sections = [

@@ -1,4 +1,5 @@
 
+
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -10,17 +11,12 @@ import {
   Radio,
   BarChart,
   Lock,
-  Star,
   BrainCircuit,
-  ShieldCheck,
   Gamepad2,
   Briefcase,
   Heart,
-  Cog,
-  DollarSign,
 } from 'lucide-react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Logo } from '@/components/logo';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -240,8 +236,6 @@ const AIConnectIllustration = () => (
 
 
 export default async function Home() {
-  const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
-
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   const {
@@ -326,7 +320,7 @@ export default async function Home() {
                   Crystal-Clear Voice Calls
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                  Connect with friends and colleagues through high-fidelity, low-latency voice calls. Whether it's a one-on-one catch-up or a group discussion, your conversations will be seamless.
+                  Connect with friends and colleagues through high-fidelity, low-latency voice calls. Whether it&apos;s a one-on-one catch-up or a group discussion, your conversations will be seamless.
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
@@ -342,7 +336,7 @@ export default async function Home() {
                       <strong className="font-semibold">
                         HD Voice Quality:
                       </strong>{' '}
-                      Enjoy rich, clear audio that makes you feel like you're in the same room.
+                      Enjoy rich, clear audio that makes you feel like you&apos;re in the same room.
                     </span>
                   </li>
                   <li className="flex items-start gap-3">
@@ -476,7 +470,7 @@ export default async function Home() {
                   AI-Powered Connections
                 </h2>
                 <p className="mt-4 text-lg text-muted-foreground">
-                 Our smart suggestion engine, powered by Google's Gemini, helps you discover new friends and communities based on your interests and activity.
+                 Our smart suggestion engine, powered by Google&apos;s Gemini, helps you discover new friends and communities based on your interests and activity.
                 </p>
                 <ul className="mt-6 space-y-4">
                   <li className="flex items-start gap-3">
@@ -499,7 +493,7 @@ export default async function Home() {
               Ready to Find Your Harmony?
             </h2>
             <p className="mt-6 max-w-2xl mx-auto text-lg text-muted-foreground">
-              Join thousands of communities, friends, and teams communicating on MasterVoice today. It's free to get started.
+              Join thousands of communities, friends, and teams communicating on MasterVoice today. It&apos;s free to get started.
             </p>
             <div className="mt-8">
               <Button size="lg" asChild>
@@ -516,7 +510,7 @@ export default async function Home() {
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
               <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
-                Choose the Plan That's Right for You
+                Choose the Plan That&apos;s Right for You
               </h2>
               <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
                 Simple, transparent pricing. No hidden fees.
@@ -544,7 +538,7 @@ export default async function Home() {
                     </ul>
                   </CardContent>
                   <div className="p-6 pt-0">
-                    <Button asChild className="w-full" variant={tier.variant as any}>
+                    <Button asChild className="w-full" variant={tier.variant as 'default' | 'outline'}>
                       <Link href={user ? tier.link : '/signup'}>{tier.cta}</Link>
                     </Button>
                   </div>

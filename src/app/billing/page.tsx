@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useUser } from '@/hooks/use-user';
@@ -6,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Check, Info, Star } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useRouter } from 'next/navigation';
 import { UnverifiedAccountWarning } from '@/components/app/unverified-account-warning';
 import Link from 'next/link';
 import { MainHeader } from '@/components/app/main-header';
@@ -66,7 +66,6 @@ const pricingTiers = [
 
 
 function BillingPageContent({ user, isVerified, isLoading, currentUserPlanId }: { user: User | null, isVerified: boolean, isLoading: boolean, currentUserPlanId: string }) {
-   const router = useRouter();
 
     if (isLoading) {
         return (

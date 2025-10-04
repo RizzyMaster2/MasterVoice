@@ -3,7 +3,7 @@
 
 import { createClient } from '@/lib/supabase/server';
 import { revalidatePath } from 'next/cache';
-import type { Message, UserProfile, Friend, FriendRequest } from '@/lib/data';
+import type { Message, UserProfile, Friend, FriendRequest, FriendRequestWithReceiver } from '@/lib/data';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { cookies } from 'next/headers';
 
@@ -319,7 +319,7 @@ export async function getFriendRequests(): Promise<{
 
   // For outgoing requests, the profile we care about is the receiver's.
   // We aliased this to `receiver_profile` in the query.
-  const outgoing = outgoingRes.data.map(req => ({
+  const outgoing = (outgoingRes.data as FriendRequestWithReceiver[]).map(req => ({
       ...req,
       // We are assigning the receiver's profile to the `sender_profile` field for UI consistency
       sender_profile: req.receiver_profile as UserProfile, 
@@ -327,7 +327,7 @@ export async function getFriendRequests(): Promise<{
   
   return {
     incoming: (incomingRes.data as FriendRequest[]) || [],
-    outgoing: (outgoing as any[]) || [],
+    outgoing: (outgoing as FriendRequest[]) || [],
   };
 }
 
@@ -439,5 +439,3 @@ export async function getInitialHomeData() {
         friendRequests: friendRequestsData
     };
 }
-
-    

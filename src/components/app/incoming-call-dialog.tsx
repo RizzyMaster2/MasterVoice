@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useRef } from 'react';
@@ -28,25 +29,26 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?';
 
-  const audioRef = useRef<HTMLAudioElement>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
 
   useEffect(() => {
+    const audio = new Audio(ringtoneDataUri);
+    audio.loop = true;
+    audioRef.current = audio;
+
     const playSound = async () => {
-      if (audioRef.current) {
-        try {
-          await audioRef.current.play();
-        } catch (error) {
-          console.warn("Ringtone autoplay was blocked by the browser. A user interaction is required to play audio.");
-        }
+      try {
+        await audio.play();
+      } catch (error) {
+        console.warn("Ringtone autoplay was blocked by the browser. A user interaction is required to play audio.");
       }
     };
     
     playSound();
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
+      audio.pause();
+      audioRef.current = null;
     };
   }, []);
 
@@ -69,7 +71,6 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
             <Phone className="h-7 w-7" />
           </Button>
         </DialogFooter>
-        <audio ref={audioRef} src={ringtoneDataUri} loop />
       </DialogContent>
     </Dialog>
   );
