@@ -17,7 +17,6 @@ import { useUser } from '@/hooks/use-user';
 import { getFriends, getUsers, getFriendRequests } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
-import { CallProvider } from './call-provider';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
@@ -279,9 +278,7 @@ export function HomeClientLayout({
 
   return (
     <HomeClientContext.Provider value={value}>
-        <CallProvider currentUser={currentUser}>
-            {children}
-        </CallProvider>
+      {children}
     </HomeClientContext.Provider>
   );
 }

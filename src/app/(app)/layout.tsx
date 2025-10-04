@@ -11,10 +11,35 @@ import { Button } from '@/components/ui/button';
 import { PanelLeft } from 'lucide-react';
 import { ThemeToggle } from '@/components/app/theme-toggle';
 import { CallProvider } from '@/components/app/call-provider';
+import { createClient } from '@/lib/supabase/server';
+import { redirect } from 'next/navigation';
+import type { UserProfile } from '@/lib/data';
+import { cookies } from 'next/headers';
 
-export default function AppLayout({ children }: { children: ReactNode }) {
+export default async function AppLayout({ children }: { children: ReactNode }) {
+  const cookieStore = cookies();
+  const supabase = createClient(cookieStore);
+  const {
+    data: { user: authUser },
+  } = await supabase.auth.getUser();
+
+  if (!authUser) {
+    redirect('/login');
+  }
+
+  const currentUserProfile: UserProfile = {
+      id: authUser.id,
+      display_name: authUser.user_metadata?.display_name || authUser.user_metadata?.full_name || authUser.email || 'User',
+      full_name: authUser.user_metadata?.full_name || authUser.email,
+      photo_url: authUser.user_metadata?.photo_url || '',
+      created_at: authUser.created_at,
+      email: authUser.email || null,
+      status: 'online', // Placeholder
+      bio: authUser.user_metadata?.bio || null,
+  }
+
   return (
-    <CallProvider>
+    <CallProvider currentUser={currentUserProfile}>
       <div className="grid min-h-screen w-full md:grid-cols-[220px_1fr] lg:grid-cols-[280px_1fr]">
         <div className="hidden border-r bg-muted/40 md:block">
           <div className="flex h-full max-h-screen flex-col gap-2">

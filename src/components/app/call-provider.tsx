@@ -3,7 +3,6 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
 import { VoiceCall } from './voice-call';
 import { IncomingCallDialog } from './incoming-call-dialog';
