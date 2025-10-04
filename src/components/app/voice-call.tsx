@@ -27,21 +27,12 @@ interface VoiceCallProps {
 
 const PEER_CONNECTION_CONFIG: RTCConfiguration = {
   iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
-    // A TURN server is crucial for connections to work across different
-    // networks (e.g., different home Wi-Fi, mobile networks, etc.).
-    // The following is a placeholder for a real TURN server configuration.
-    // To get this to work reliably in production, you would need to
-    // sign up for a service like Twilio and get TURN server credentials.
-    // {
-    //   urls: 'turn:your-turn-server.com:3478',
-    //   username: 'your-username',
-    //   credential: 'your-password',
-    // },
+    // Using OpenRelay's free STUN and TURN servers for development.
+    // Not recommended for production due to lack of SLA.
+    { urls: 'stun:openrelay.metered.ca:80' },
+    { urls: 'turn:openrelay.metered.ca:80' },
+    { urls: 'turn:openrelay.metered.ca:443' },
+    { urls: 'turn:openrelay.metered.ca:443?transport=tcp' },
   ],
 };
 
@@ -414,5 +405,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
+
+    
 
     
