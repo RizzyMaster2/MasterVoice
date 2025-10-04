@@ -49,6 +49,9 @@ interface HomeClientLayoutProps {
   children: ReactNode;
 }
 
+const CACHE_KEY = 'homeClientData';
+const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
 export function HomeClientLayout({ 
     currentUser,
     initialFriends,
@@ -81,7 +84,6 @@ export function HomeClientLayout({
     }
   };
 
-
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
     if (isInitialLoad) {
@@ -93,9 +95,19 @@ export function HomeClientLayout({
           getUsers(),
           getFriendRequests(),
         ]);
+        const filteredUsers = usersData.filter(u => u.id !== user.id);
         setFriends(friendsData);
-        setAllUsers(usersData.filter(u => u.id !== user.id));
+        setAllUsers(filteredUsers);
         setFriendRequests(friendRequestsData);
+
+        // Cache the new data
+        const cacheData = {
+            friends: friendsData,
+            allUsers: filteredUsers,
+            friendRequests: friendRequestsData,
+            timestamp: Date.now(),
+        };
+        sessionStorage.setItem(CACHE_KEY, JSON.stringify(cacheData));
 
     } catch (error) {
         console.error("HomeClientLayout: Failed to refresh data", error);
@@ -112,9 +124,33 @@ export function HomeClientLayout({
   }, [user, toast]);
 
   useEffect(() => {
-    if (user) {
-        refreshAllData(true);
-    }
+    const loadData = async () => {
+        if (!user) {
+            setIsLoading(false);
+            return;
+        }
+
+        try {
+            const cachedItem = sessionStorage.getItem(CACHE_KEY);
+            if (cachedItem) {
+                const { friends, allUsers, friendRequests, timestamp } = JSON.parse(cachedItem);
+                if (Date.now() - timestamp < CACHE_EXPIRATION_MS) {
+                    setFriends(friends);
+                    setAllUsers(allUsers);
+                    setFriendRequests(friendRequests);
+                    setIsLoading(false);
+                    return; // Use cached data
+                }
+            }
+        } catch (error) {
+            console.error("Failed to read from sessionStorage:", error);
+        }
+        
+        // If no valid cache, fetch from server
+        await refreshAllData(true);
+    };
+
+    loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
