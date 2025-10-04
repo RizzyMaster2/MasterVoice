@@ -16,10 +16,9 @@ type Call = {
 };
 
 type CallContextType = {
-  startCall: (participant: UserProfile, chatId?: string) => void;
+  startCall: (participant: UserProfile) => void;
   endCall: () => void;
   activeCall: Call | null;
-  joinCall: (chatId: string) => void;
 };
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -42,13 +41,9 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   const userChannelRef = useRef<any>(null);
   
   const endCall = useCallback(() => {
-    if (activeCall && user && userChannelRef.current) {
-        // Broadcast hangup on the shared channel if one exists in RTC component,
-        // or just clean up locally. The other side will handle via connection state change.
-    }
     setActiveCall(null);
     setIncomingCall(null);
-  }, [activeCall, user]);
+  }, []);
 
 
   useEffect(() => {
@@ -59,10 +54,6 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     fetchUsers();
   }, []);
 
-  const findUserById = useCallback((userId: string) => {
-    return allUsers.find(u => u.id === userId);
-  }, [allUsers]);
-
   useEffect(() => {
     if (!user) return;
     
@@ -71,7 +62,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     userChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
-        const caller = findUserById(payload.from);
+        const caller = allUsers.find(u => u.id === payload.from);
         if (caller && !activeCall && !incomingCall) {
             setIncomingCall({ otherParticipant: caller, offer: payload.offer });
         }
@@ -97,23 +88,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         userChannelRef.current = null;
     };
 
-  }, [user, supabase, findUserById, activeCall, incomingCall, endCall, toast]);
+  }, [user, supabase, allUsers, activeCall, incomingCall, endCall, toast]);
 
-  const startCall = useCallback(async (participant: UserProfile) => {
+  const startCall = useCallback((participant: UserProfile) => {
      if (!user) return;
      // Set the active call locally to open the UI
      setActiveCall({ otherParticipant: participant });
      
      // The `VoiceCall` component will handle creating and sending the offer.
   }, [user]);
-
-  const joinCall = (chatId: string) => {
-    toast({
-      title: 'Feature Coming Soon',
-      description: 'Group voice calling is not available at the moment.',
-      variant: 'info'
-    });
-  };
 
   const acceptCall = () => {
     if (incomingCall) {
@@ -151,7 +134,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   } : null;
 
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall, joinCall }}>
+    <CallContext.Provider value={{ startCall, endCall, activeCall }}>
       {children}
       {currentUserProfile && activeCall && (
         <VoiceCall
