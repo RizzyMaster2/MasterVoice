@@ -66,7 +66,7 @@ export function HomeClientLayout({
   const [isLoading, setIsLoading] = useState(true);
   const [unreadMessages, setUnreadMessages] = useState(new Set<string>());
 
-  const { user } = useUser();
+  const { user, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -125,6 +125,12 @@ export function HomeClientLayout({
 
   useEffect(() => {
     const loadData = async () => {
+        // Guard: Do not run if the user object is still loading.
+        if (isUserLoading) {
+            return;
+        }
+
+        // If there's no user after loading, stop.
         if (!user) {
             setIsLoading(false);
             return;
@@ -152,7 +158,7 @@ export function HomeClientLayout({
 
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, isUserLoading]);
 
 
   useEffect(() => {
@@ -266,7 +272,7 @@ export function HomeClientLayout({
       unreadMessages,
   };
   
-  if (isLoading) {
+  if (isLoading || isUserLoading) {
     return <LoadingScreen />;
   }
 

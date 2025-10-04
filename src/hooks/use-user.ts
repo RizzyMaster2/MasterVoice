@@ -11,7 +11,7 @@ export function useUser() {
     const [user, setUser] = useState<User | null>(null);
     const [isAdmin, setIsAdmin] = useState(false);
     const [plan, setPlan] = useState<'free' | 'pro' | 'business'>('free');
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const supabase = createClient();
 
     useEffect(() => {
@@ -29,7 +29,6 @@ export function useUser() {
         };
 
         const fetchUser = async () => {
-            setIsLoading(true);
             const { data, error } = await supabase.auth.getUser();
             if (!error && data.user) {
                 setUser(data.user);
