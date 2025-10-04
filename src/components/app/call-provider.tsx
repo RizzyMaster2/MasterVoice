@@ -31,8 +31,7 @@ export function useCall() {
   return context;
 }
 
-export function CallProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useUser();
+export function CallProvider({ children, currentUser }: { children: React.ReactNode; currentUser: UserProfile }) {
   const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
@@ -55,10 +54,10 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!user) return;
+    if (!currentUser) return;
     
     // This channel is for this user to receive signals
-    const channel = supabase.channel(`user-signaling:${user.id}`);
+    const channel = supabase.channel(`user-signaling:${currentUser.id}`);
     userChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
@@ -88,15 +87,15 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
         userChannelRef.current = null;
     };
 
-  }, [user, supabase, allUsers, activeCall, incomingCall, endCall, toast]);
+  }, [currentUser, supabase, allUsers, activeCall, incomingCall, endCall, toast]);
 
   const startCall = useCallback((participant: UserProfile) => {
-     if (!user) return;
+     if (!currentUser) return;
      // Set the active call locally to open the UI
      setActiveCall({ otherParticipant: participant });
      
      // The `VoiceCall` component will handle creating and sending the offer.
-  }, [user]);
+  }, [currentUser]);
 
   const acceptCall = () => {
     if (incomingCall) {
@@ -106,7 +105,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
   };
 
   const declineCall = () => {
-    if (incomingCall && user) {
+    if (incomingCall && currentUser) {
         // Send a hangup message to the caller's channel
         const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
         callerChannel.subscribe((status) => {
@@ -114,7 +113,7 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
                 callerChannel.send({
                     type: 'broadcast',
                     event: 'hangup',
-                    payload: { from: user.id },
+                    payload: { from: currentUser.id },
                 }).then(() => supabase.removeChannel(callerChannel));
             }
         });
@@ -122,30 +121,19 @@ export function CallProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const currentUserProfile: UserProfile | null = user ? {
-    id: user.id,
-    display_name: user.user_metadata?.display_name || user.email,
-    full_name: user.user_metadata?.full_name || user.email,
-    photo_url: user.user_metadata?.photo_url || '',
-    created_at: user.created_at,
-    email: user.email || null,
-    status: 'online', // Placeholder
-    bio: user.user_metadata?.bio || null,
-  } : null;
-
   return (
     <CallContext.Provider value={{ startCall, endCall, activeCall }}>
       {children}
-      {currentUserProfile && activeCall && (
+      {currentUser && activeCall && (
         <VoiceCall
           supabase={supabase}
-          currentUser={currentUserProfile}
+          currentUser={currentUser}
           otherParticipant={activeCall.otherParticipant}
           initialOffer={activeCall.offer}
           onClose={endCall}
         />
       )}
-      {user && incomingCall && (
+      {currentUser && incomingCall && (
         <IncomingCallDialog
           caller={incomingCall.otherParticipant}
           onAccept={acceptCall}

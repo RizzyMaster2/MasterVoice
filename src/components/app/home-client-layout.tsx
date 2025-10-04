@@ -17,6 +17,7 @@ import { useUser } from '@/hooks/use-user';
 import { getFriends, getUsers, getFriendRequests } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
+import { CallProvider } from './call-provider';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
@@ -165,14 +166,14 @@ export function HomeClientLayout({
     const friendIdFromUrl = searchParams.get('friend');
     
     if (friendIdFromUrl) {
-        const friendToSelect = allUsers.find(u => u.id === friendIdFromUrl);
+        const friendToSelect = allUsers.find(u => u.id === friendIdFromUrl) || initialUsers.find(u => u.id === friendIdFromUrl);
         if (friendToSelect) {
             setSelectedFriend(friendToSelect);
         }
     } else if (!friendIdFromUrl) { // explicitly check for removal
       setSelectedFriend(null);
     }
-  }, [searchParams, allUsers]);
+  }, [searchParams, allUsers, initialUsers]);
 
 
   useEffect(() => {
@@ -278,7 +279,9 @@ export function HomeClientLayout({
 
   return (
     <HomeClientContext.Provider value={value}>
-        {children}
+        <CallProvider currentUser={currentUser}>
+            {children}
+        </CallProvider>
     </HomeClientContext.Provider>
   );
 }
