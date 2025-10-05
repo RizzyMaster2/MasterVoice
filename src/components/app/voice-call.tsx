@@ -237,7 +237,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       handleClose(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser.id, initialOffer, otherParticipant.id, otherParticipant.display_name, supabase, toast, handleClose]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -312,5 +312,3 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
-
-    
