@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -46,7 +47,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy, Pencil, Check, X } from 'lucide-react';
+import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy, Pencil, Check, X, RefreshCw, AlertCircle } from 'lucide-react';
 import type { Message, UserProfile, Friend, MessageEdit } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
@@ -173,7 +174,8 @@ export function ChatLayout({
       const serverMessages = await getMessages(friendId);
       const messagesWithProfiles = serverMessages.map(msg => ({
           ...msg,
-          sender_profile: userMap.get(msg.sender_id)
+          sender_profile: userMap.get(msg.sender_id),
+          status: 'sent' as const
       }));
       setMessages(messagesWithProfiles);
     } catch (error) {
@@ -213,13 +215,21 @@ export function ChatLayout({
             (newMessage.sender_id === selectedFriend.id && newMessage.receiver_id === currentUser.id);
 
           if (isForCurrentChat) {
-            setMessages((currentMessages) => {
-              if (currentMessages.some((m) => m.id === newMessage.id)) {
-                return currentMessages;
-              }
-              return [...currentMessages, { ...newMessage, sender_profile: userMap.get(newMessage.sender_id) }];
+            // If we have an optimistic message, replace it
+            setMessages(currentMessages => {
+                const optimisticIndex = currentMessages.findIndex(m => typeof m.id === 'string' && m.content === newMessage.content);
+                if (optimisticIndex > -1) {
+                    const newMessages = [...currentMessages];
+                    newMessages[optimisticIndex] = { ...newMessage, status: 'sent', sender_profile: userMap.get(newMessage.sender_id) };
+                    return newMessages;
+                }
+                // Otherwise, add the new message
+                if (currentMessages.some(m => m.id === newMessage.id)) {
+                    return currentMessages;
+                }
+                return [...currentMessages, { ...newMessage, status: 'sent', sender_profile: userMap.get(newMessage.sender_id) }];
             });
-             if (isTyping) setIsTyping(false);
+            if (isTyping) setIsTyping(false);
           }
         }
       )
@@ -247,25 +257,39 @@ export function ChatLayout({
   }, [messages, scrollToBottom]);
 
 
-  const handleSendMessage = async (e: FormEvent) => {
-    e.preventDefault();
-    if (!newMessage.trim() || !selectedFriend) return;
+  const handleSendMessage = async (e?: FormEvent, messageToRetry?: Message) => {
+    e?.preventDefault();
+    const content = messageToRetry?.content || newMessage;
+    if (!content.trim() || !selectedFriend) return;
+    
+    const tempId = messageToRetry?.id || `temp-${Date.now()}`;
+    const optimisticMessage: Message = {
+        id: tempId,
+        content,
+        sender_id: currentUser.id,
+        receiver_id: selectedFriend.id,
+        created_at: new Date().toISOString(),
+        status: 'sending',
+        sender_profile: currentUser,
+    };
 
-    const content = newMessage;
-    setNewMessage('');
+    if (messageToRetry) {
+        setMessages(prev => prev.map(m => m.id === messageToRetry.id ? optimisticMessage : m));
+    } else {
+        setMessages(prev => [...prev, optimisticMessage]);
+        setNewMessage('');
+    }
+
     if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     sendTypingIndicator(selectedFriend.id, false);
     
-    startSendingTransition(async () => {
-        try {
-            await sendMessage(selectedFriend.id, content);
-            // Realtime will handle the update
-        } catch (error) {
-            toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
-            // Re-add the message to the input if sending fails
-            setNewMessage(content);
-        }
-    });
+    try {
+        const sentMessage = await sendMessage(selectedFriend.id, content);
+        // The realtime subscription will handle replacing the optimistic message
+    } catch (error) {
+        toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
+        setMessages(prev => prev.map(m => m.id === tempId ? { ...m, status: 'failed' } : m));
+    }
   };
   
   const handleFileUpload = (e: ChangeEvent<HTMLInputElement>) => {
@@ -285,8 +309,13 @@ export function ChatLayout({
     toast({ title: 'Message copied to clipboard' });
   };
   
-  const handleDeleteMessage = (messageId: number) => {
-    // Optimistic update
+  const handleDeleteMessage = (messageId: number | string) => {
+    if (typeof messageId === 'string') {
+        // It's a failed optimistic message, just remove it from state
+        setMessages(prev => prev.filter(m => m.id !== messageId));
+        return;
+    }
+    // Optimistic update for real messages
     setMessages(prev => prev.filter(m => m.id !== messageId));
     startDeletingTransition(async () => {
       try {
@@ -514,7 +543,15 @@ export function ChatLayout({
                         )}
                       >
                         {msg.sender_id === currentUser.id && (
-                           <div className="opacity-0 group-hover/message:opacity-100 transition-opacity">
+                           <div className="opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center">
+                              {msg.status === 'failed' && (
+                                <div className='flex items-center gap-1'>
+                                    <span className="text-xs text-destructive">Failed</span>
+                                    <Button variant="ghost" size="icon" className='h-7 w-7 text-destructive' onClick={(e) => handleSendMessage(e, msg)}>
+                                        <RefreshCw className='h-4 w-4'/>
+                                    </Button>
+                                </div>
+                              )}
                              <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon" className="h-7 w-7">
@@ -522,10 +559,12 @@ export function ChatLayout({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                  <DropdownMenuItem onClick={() => setEditingMessage({ id: msg.id, content: msg.content })}>
-                                      <Pencil className="mr-2 h-4 w-4" />
-                                      Edit
-                                  </DropdownMenuItem>
+                                  {msg.status !== 'failed' && (
+                                    <DropdownMenuItem onClick={() => setEditingMessage({ id: msg.id as number, content: msg.content })}>
+                                        <Pencil className="mr-2 h-4 w-4" />
+                                        Edit
+                                    </DropdownMenuItem>
+                                  )}
                                   <DropdownMenuItem onClick={() => handleCopyMessage(msg.content)}>
                                       <Copy className="mr-2 h-4 w-4" />
                                       Copy
@@ -551,13 +590,16 @@ export function ChatLayout({
                         )}
                         <div
                             className={cn(
-                            'max-w-xs rounded-lg p-3 text-sm md:max-w-md',
-                            msg.sender_id === currentUser.id
+                            'max-w-xs rounded-lg p-3 text-sm md:max-w-md relative',
+                             msg.sender_id === currentUser.id
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted',
-                            String(msg.id).startsWith('temp-') && 'opacity-70'
+                            msg.status === 'sending' && 'opacity-70',
+                            msg.status === 'failed' && 'bg-destructive/80 text-destructive-foreground'
                             )}
                         >
+                            {msg.status === 'sending' && <Loader2 className="absolute -left-5 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin"/>}
+                           
                             {editingMessage?.id === msg.id ? (
                                 <div className="flex items-center gap-2">
                                     <Input
@@ -575,10 +617,12 @@ export function ChatLayout({
                                     <div className="prose prose-sm dark:prose-invert max-w-none">
                                         {parseMessageContent(msg.content)}
                                     </div>
+                                    {msg.status !== 'failed' && (
                                     <p className="text-xs opacity-70 mt-1 text-right">
                                         {msg.is_edited && '(edited) '}
                                         {formatMessageTimestamp(msg.created_at)}
                                     </p>
+                                    )}
                                 </>
                             )}
                         </div>

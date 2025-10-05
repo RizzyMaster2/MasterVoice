@@ -1,4 +1,5 @@
 
+
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
@@ -133,7 +134,7 @@ export async function sendTypingIndicator(receiverId: string, isTyping: boolean)
 
 
 // Send a new message
-export async function sendMessage(receiverId: string, content: string) {
+export async function sendMessage(receiverId: string, content: string): Promise<Message> {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
@@ -154,7 +155,7 @@ export async function sendMessage(receiverId: string, content: string) {
       throw new Error(error.message);
     }
     
-    return data;
+    return data as Message;
   } catch (error) {
     const message = error instanceof Error ? error.message : 'An unknown error occurred while sending the message.';
     throw new Error(message);

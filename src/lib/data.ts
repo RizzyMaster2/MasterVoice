@@ -32,7 +32,7 @@ export type FriendRequest = {
 
 
 export type Message = {
-  id: number;
+  id: number | string; // Allow string for temporary IDs
   sender_id: string;
   receiver_id: string;
   content: string;
@@ -40,6 +40,7 @@ export type Message = {
   is_edited?: boolean;
   sender_profile?: UserProfile;
   is_typing?: boolean;
+  status?: 'sending' | 'sent' | 'failed';
 };
 
 export type MessageEdit = {
