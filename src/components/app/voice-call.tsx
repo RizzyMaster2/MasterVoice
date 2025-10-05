@@ -51,7 +51,7 @@ export function VoiceCallLogic({
     isMountedRef.current = true;
     onStatusChange(isReceiving ? 'connecting' : 'calling');
 
-    const handleClose = (notify = true) => {
+    const handleClose = (notify = true, shouldNavigate = true) => {
       console.log('[RTC] Closing call...');
       if (signalingChannelRef.current && notify) {
           console.log('[RTC] Sending hangup signal.');
@@ -73,7 +73,7 @@ export function VoiceCallLogic({
         signalingChannelRef.current = null;
       }
       
-      if (isMountedRef.current) {
+      if (isMountedRef.current && shouldNavigate) {
           onClose();
       }
     };
@@ -119,7 +119,7 @@ export function VoiceCallLogic({
                 if (peerConnectionRef.current.connectionState === 'connected') onStatusChange('connected');
                 else if (['failed', 'disconnected', 'closed'].includes(peerConnectionRef.current.connectionState)) {
                     toast({ title: "Call disconnected" });
-                    handleClose(false);
+                    handleClose(false, true);
                 }
             };
             
@@ -128,7 +128,7 @@ export function VoiceCallLogic({
             signalingChannelRef.current = channel;
             
             channel.on('broadcast', { event: 'hangup' }, () => {
-              handleClose(false);
+              handleClose(false, true);
             });
 
             channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
@@ -184,7 +184,7 @@ export function VoiceCallLogic({
             onStatusChange('error');
             toast({ title: 'Microphone Access Error', description: 'Please allow microphone access to make calls.', variant: 'destructive' });
             if(isMountedRef.current) {
-                setTimeout(() => handleClose(true), 2000);
+                setTimeout(() => handleClose(true, true), 2000);
             }
         }
     };
@@ -194,7 +194,7 @@ export function VoiceCallLogic({
     return () => {
       console.log('Cleanup running');
       isMountedRef.current = false;
-      handleClose(true);
+      handleClose(true, false); // Don't navigate on cleanup, only on explicit close
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
