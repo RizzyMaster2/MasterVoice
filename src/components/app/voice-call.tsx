@@ -120,10 +120,11 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         };
 
         pc.onconnectionstatechange = () => {
-          console.log(`[RTC] Connection state changed: ${pc.connectionState}`);
+          if (!peerConnectionRef.current) return;
+          console.log(`[RTC] Connection state changed: ${peerConnectionRef.current.connectionState}`);
           if (!isMounted) return;
-          if (pc.connectionState === 'connected') setStatus('connected');
-          else if (['failed', 'disconnected', 'closed'].includes(pc.connectionState)) {
+          if (peerConnectionRef.current.connectionState === 'connected') setStatus('connected');
+          else if (['failed', 'disconnected', 'closed'].includes(peerConnectionRef.current.connectionState)) {
             toast({ title: "Call disconnected" });
             handleClose(false);
           }
@@ -154,7 +155,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         
         // This is now the critical part: Subscribe first, THEN create offer/answer
         channel.subscribe(async (subStatus) => {
-            if (subStatus !== 'SUBSCRIBED') {
+            if (subStatus !== 'SUBSCRIBED' || !isMounted) {
                 console.log(`[RTC] Channel subscription status: ${subStatus}`);
                 return;
             }
@@ -237,7 +238,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       handleClose(false);
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, initialOffer, otherParticipant.id, otherParticipant.display_name, supabase, toast, handleClose]);
+  }, [currentUser.id, initialOffer, otherParticipant.id]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
