@@ -338,7 +338,6 @@ export function ChatLayout({
 
 
   const handleSelectFriend = (friend: UserProfile) => {
-    setSelectedFriend(friend);
     const newParams = new URLSearchParams(searchParams.toString());
     newParams.set('friend', friend.id);
     router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
