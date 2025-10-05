@@ -42,7 +42,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [stats, setStats] = useState<{ rtt?: number; bitrate?: number }>({});
 
-  const peerConnectionRef = useRef<RTCPeerConnection | null>();
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const signalingChannelRef = useRef<any>(null);
@@ -55,12 +55,18 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   const { toast } = useToast();
 
   const handleClose = useCallback((notify = true) => {
-    console.log('[RTC] handleClose called');
-    if (isMountedRef.current) {
-        onClose();
+    console.log('[RTC] Closing call...');
+    if (signalingChannelRef.current && notify) {
+        console.log('[RTC] Sending hangup signal.');
+        signalingChannelRef.current.send({
+            type: 'broadcast',
+            event: 'hangup',
+            payload: { from: currentUser.id },
+        });
     }
-    
+
     localStreamRef.current?.getTracks().forEach(track => track.stop());
+    
     if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
@@ -68,28 +74,58 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
     }
-
-    if (notify && signalingChannelRef.current) {
-      console.log('[RTC] Sending hangup signal.');
-      signalingChannelRef.current.send({
-        type: 'broadcast',
-        event: 'hangup',
-        payload: { from: currentUser.id },
-      });
-    }
-    if (signalingChannelRef.current) {
+     if (signalingChannelRef.current) {
       supabase.removeChannel(signalingChannelRef.current);
       signalingChannelRef.current = null;
+    }
+    
+    if (isMountedRef.current) {
+        onClose();
     }
   }, [currentUser.id, onClose, supabase]);
 
 
-  useEffect(() => {
+   useEffect(() => {
     isMountedRef.current = true;
-    console.log('VoiceCall component mounted');
+    console.log('Effect running');
+
+    const startSignaling = async (pc: RTCPeerConnection, channel: any) => {
+        try {
+            if (initialOffer) { 
+                console.log('[RTC] initialOffer exists. Creating an answer.');
+                await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                console.log('[RTC] Created and set local answer:', answer);
+                channel.send({ type: 'broadcast', event: 'answer', payload: answer });
+            } else {
+                console.log('[RTC] No initialOffer. Creating an offer.');
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+                console.log('[RTC] Created and set local offer:', offer);
+                
+                const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
+                offerChannel.subscribe(status => {
+                    if (status === 'SUBSCRIBED') {
+                        console.log(`[RTC] Sending offer to ${otherParticipant.display_name}`);
+                        offerChannel.send({ type: 'broadcast', event: 'offer', payload: { from: currentUser.id, offer } })
+                        .then(() => supabase.removeChannel(offerChannel));
+                    }
+                });
+            }
+        } catch (error) {
+            console.error('[RTC] Signaling error:', error);
+            setStatus('error');
+        }
+    };
+
 
     const init = async () => {
         console.log('[RTC] Initializing call...');
+        if (peerConnectionRef.current) {
+            return;
+        }
+
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             if (!isMountedRef.current) return;
@@ -134,7 +170,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
             channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
                 console.log('[RTC] Received answer:', payload);
-                if (pc.signalingState === 'have-local-offer') {
+                if (pc.signalingState !== 'stable') {
                     await pc.setRemoteDescription(new RTCSessionDescription(payload));
                 }
             });
@@ -152,31 +188,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
             channel.subscribe(async (subStatus) => {
                 if (subStatus !== 'SUBSCRIBED' || !isMountedRef.current) return;
-
                 console.log(`[RTC] Successfully subscribed to channel: ${channelId}`);
-                
-                if (initialOffer) { 
-                    console.log('[RTC] initialOffer exists. Creating an answer.');
-                    await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    console.log('[RTC] Created and set local answer:', answer);
-                    channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-                } else {
-                    console.log('[RTC] No initialOffer. Creating an offer.');
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    console.log('[RTC] Created and set local offer:', offer);
-                    
-                    const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
-                    offerChannel.subscribe(status => {
-                        if (status === 'SUBSCRIBED') {
-                            console.log(`[RTC] Sending offer to ${otherParticipant.display_name}`);
-                            offerChannel.send({ type: 'broadcast', event: 'offer', payload: { from: currentUser.id, offer } })
-                            .then(() => supabase.removeChannel(offerChannel));
-                        }
-                    });
-                }
+                await startSignaling(pc, channel);
             });
 
             audioContextRef.current = new AudioContext();
@@ -198,10 +211,11 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     init();
 
     return () => {
-      console.log('VoiceCall component unmounted');
+      console.log('Cleanup running');
       isMountedRef.current = false;
       handleClose(false);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -315,5 +329,3 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     </Dialog>
   );
 }
-
-    
