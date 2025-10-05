@@ -7,9 +7,11 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import type { UserProfile } from '@/lib/data';
 import { useUser } from '@/hooks/use-user';
-import { notFound, useSearchParams } from 'next/navigation';
+import { notFound, useSearchParams, useParams } from 'next/navigation';
 
-export default function FriendCallPage({ params }: { params: { friendId: string } }) {
+export default function FriendCallPage() {
+  const params = useParams();
+  const friendId = params.friendId as string;
   const { allUsers, friends } = useHomeClient();
   const { user, isLoading: isUserLoading } = useUser();
   const [friend, setFriend] = useState<UserProfile | null>(null);
@@ -17,13 +19,13 @@ export default function FriendCallPage({ params }: { params: { friendId: string 
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
-    if (params.friendId && allUsers.length > 0) {
-      const friendProfile = allUsers.find(u => u.id === params.friendId) || friends.find(f => f.friend_id === params.friendId)?.friend_profile;
+    if (friendId && allUsers.length > 0) {
+      const friendProfile = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
       if (friendProfile) {
         setFriend(friendProfile);
       }
     }
-  }, [params.friendId, allUsers, friends]);
+  }, [friendId, allUsers, friends]);
 
   if (isUserLoading || !friend) {
     return <Skeleton className="h-full w-full" />;

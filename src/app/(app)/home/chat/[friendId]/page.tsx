@@ -5,9 +5,9 @@ import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, use } from 'react';
-import type { PromiseType } from 'react-day-picker';
+import { useParams } from 'next/navigation';
 
-export default function ChatPage({ params }: { params: { friendId: string } }) {
+export default function ChatPage() {
   const {
     currentUser,
     friends,
@@ -18,7 +18,8 @@ export default function ChatPage({ params }: { params: { friendId: string } }) {
     isLoading,
   } = useHomeClient();
 
-  const { friendId } = params;
+  const params = useParams();
+  const friendId = params.friendId as string;
 
   useEffect(() => {
     if (friendId && (!selectedFriend || selectedFriend.id !== friendId)) {
