@@ -9,7 +9,7 @@ import {
     useContext,
     type ReactNode 
 } from 'react';
-import { useSearchParams, useRouter, usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useUser } from '@/hooks/use-user';
@@ -144,7 +144,7 @@ export function HomeClientLayout({
                     setAllUsers(allUsers);
                     setFriendRequests(friendRequests);
                     setIsLoading(false);
-                    return; // Use cached data
+                    // Don't return here, let the pathname effect run
                 }
             }
         } catch (error) {
@@ -158,6 +158,17 @@ export function HomeClientLayout({
     loadData();
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, isUserLoading]);
+
+  // Effect to select friend based on URL
+  useEffect(() => {
+    const friendId = pathname.split('/')[3];
+    if (friendId && allUsers.length > 0) {
+      const friendToSelect = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
+      if (friendToSelect) {
+        setSelectedFriend(friendToSelect);
+      }
+    }
+  }, [pathname, allUsers, friends]);
 
 
   useEffect(() => {
