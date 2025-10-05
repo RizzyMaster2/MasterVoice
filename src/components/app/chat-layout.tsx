@@ -338,9 +338,7 @@ export function ChatLayout({
 
 
   const handleSelectFriend = (friend: UserProfile) => {
-    const newParams = new URLSearchParams(searchParams.toString());
-    newParams.set('friend', friend.id);
-    router.push(`${pathname}?${newParams.toString()}`, { scroll: false });
+    setSelectedFriend(friend);
   };
 
   const handleRemoveFriend = () => {
@@ -380,7 +378,7 @@ export function ChatLayout({
     friend.friend_profile.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
-  const showActiveCallBar = incomingCall && (incomingCall.otherParticipant.id === selectedFriend?.id || incomingCall.otherParticipant.id === currentUser.id);
+  const showActiveCallBar = incomingCall && (incomingCall.otherParticipant.id === selectedFriend?.id);
 
   return (
     <Card className="flex h-full w-full">
@@ -482,9 +480,9 @@ export function ChatLayout({
                       </AlertDialogContent>
                     </AlertDialog>
               </div>
-              {showActiveCallBar && (
+              {showActiveCallBar && incomingCall && (
                 <ActiveCallBar 
-                    participants={[incomingCall.otherParticipant, currentUser]}
+                    participants={[incomingCall.otherParticipant]}
                     onJoin={acceptCall}
                     onDecline={declineCall}
                 />

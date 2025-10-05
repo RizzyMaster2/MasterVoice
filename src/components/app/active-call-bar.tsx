@@ -36,8 +36,8 @@ export function ActiveCallBar({ participants, onJoin, onDecline }: ActiveCallBar
                     ))}
                 </div>
                 <div>
-                    <p className="font-semibold text-sm">Active Call</p>
-                    <p className="text-xs text-muted-foreground">{participants.length} participant{participants.length > 1 ? 's' : ''}</p>
+                    <p className="font-semibold text-sm">Incoming Call</p>
+                    <p className="text-xs text-muted-foreground">{participants[0].display_name} is calling...</p>
                 </div>
             </div>
             <div className="flex items-center gap-2">

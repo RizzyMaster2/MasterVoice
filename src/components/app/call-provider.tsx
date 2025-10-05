@@ -56,8 +56,8 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
                 }).then(() => supabase.removeChannel(callerChannel));
             }
         });
-        setIncomingCall(null);
     }
+    setIncomingCall(null);
   }, [incomingCall, currentUser, supabase]);
 
   useEffect(() => {
@@ -103,7 +103,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser?.id, supabase, activeCall, incomingCall, toast, endCall]);
+  }, [currentUser?.id, supabase, activeCall, incomingCall, endCall]);
 
   const startCall = useCallback((participant: UserProfile) => {
      if (!currentUser.id) return;
