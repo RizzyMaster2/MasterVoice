@@ -89,12 +89,12 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   }, [currentUser, supabase, allUsers, activeCall, incomingCall, endCall, toast]);
 
   const startCall = useCallback((participant: UserProfile) => {
-     if (!currentUser) return;
+     if (!currentUser.id) return;
      // Set the active call locally to open the UI
      setActiveCall({ otherParticipant: participant });
      
      // The `VoiceCall` component will handle creating and sending the offer.
-  }, [currentUser]);
+  }, [currentUser.id]);
 
   const acceptCall = () => {
     if (incomingCall) {
