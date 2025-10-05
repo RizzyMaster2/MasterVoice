@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import {
@@ -26,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { getMessages, sendMessage, removeFriend, deleteMessage, editMessage, sendTypingIndicator } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
@@ -47,7 +46,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from '@/components/ui/alert-dialog';
-import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy, Pencil, Check, X, RefreshCw, AlertCircle } from 'lucide-react';
+import { Send, Search, Phone, Trash2, Paperclip, Loader2, MoreHorizontal, Copy, Pencil, Check, X, RefreshCw } from 'lucide-react';
 import type { Message, UserProfile, Friend, MessageEdit } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
@@ -145,7 +144,6 @@ export function ChatLayout({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const router = useRouter();
-  const pathname = usePathname();
   const { incomingCall, acceptCall, declineCall } = useCall();
   const supabase = createClient();
   const [isTyping, setIsTyping] = useState(false);
@@ -284,7 +282,7 @@ export function ChatLayout({
     sendTypingIndicator(selectedFriend.id, false);
     
     try {
-        const sentMessage = await sendMessage(selectedFriend.id, content);
+        await sendMessage(selectedFriend.id, content);
         // The realtime subscription will handle replacing the optimistic message
     } catch (error) {
         toast({ title: 'Error', description: getErrorMessage(error), variant: 'destructive' });
@@ -311,20 +309,19 @@ export function ChatLayout({
   
   const handleDeleteMessage = (messageId: number | string) => {
     if (typeof messageId === 'string') {
-        // It's a failed optimistic message, just remove it from state
+        // It's an optimistic message (failed or sending), just remove it from state
         setMessages(prev => prev.filter(m => m.id !== messageId));
         return;
     }
     // Optimistic update for real messages
+    const originalMessages = messages;
     setMessages(prev => prev.filter(m => m.id !== messageId));
     startDeletingTransition(async () => {
       try {
         await deleteMessage(messageId);
       } catch (error) {
         toast({ title: 'Error deleting message', description: getErrorMessage(error), variant: 'destructive' });
-        if (selectedFriend) {
-            fetchMessages(selectedFriend.id); // Refetch messages on error
-        }
+        setMessages(originalMessages); // Revert on error
       }
     });
   };
@@ -345,13 +342,19 @@ export function ChatLayout({
   const handleSaveEdit = () => {
       if (!editingMessage) return;
       
+      const originalContent = messages.find(m => m.id === editingMessage.id)?.content;
+      
+      // Optimistic update
+      setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: editingMessage.content, is_edited: true } : m));
+      setEditingMessage(null);
+
       startTransition(async () => {
           try {
               await editMessage(editingMessage.id, editingMessage.content);
-              setEditingMessage(null);
-              // Optimistic update handled by real-time subscription
           } catch(error) {
               toast({ title: "Error saving message", description: getErrorMessage(error), variant: "destructive" });
+              // Revert on error
+              setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: originalContent || m.content, is_edited: m.is_edited } : m));
           }
       });
   };
@@ -546,7 +549,6 @@ export function ChatLayout({
                            <div className="opacity-0 group-hover/message:opacity-100 transition-opacity flex items-center">
                               {msg.status === 'failed' && (
                                 <div className='flex items-center gap-1'>
-                                    <span className="text-xs text-destructive">Failed</span>
                                     <Button variant="ghost" size="icon" className='h-7 w-7 text-destructive' onClick={(e) => handleSendMessage(e, msg)}>
                                         <RefreshCw className='h-4 w-4'/>
                                     </Button>
@@ -559,7 +561,7 @@ export function ChatLayout({
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent>
-                                  {msg.status !== 'failed' && (
+                                  {msg.status !== 'failed' && msg.status !== 'sending' && (
                                     <DropdownMenuItem onClick={() => setEditingMessage({ id: msg.id as number, content: msg.content })}>
                                         <Pencil className="mr-2 h-4 w-4" />
                                         Edit
@@ -595,7 +597,7 @@ export function ChatLayout({
                                 ? 'bg-primary text-primary-foreground'
                                 : 'bg-muted',
                             msg.status === 'sending' && 'opacity-70',
-                            msg.status === 'failed' && 'bg-destructive/80 text-destructive-foreground'
+                            msg.status === 'failed' && 'bg-destructive/80 text-destructive-foreground border border-destructive'
                             )}
                         >
                             {msg.status === 'sending' && <Loader2 className="absolute -left-5 top-1/2 -translate-y-1/2 h-3 w-3 animate-spin"/>}

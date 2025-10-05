@@ -3,6 +3,7 @@
 
 import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
+import { redirect } from 'next/navigation';
 
 export default function HomePage() {
   const { 
@@ -15,8 +16,13 @@ export default function HomePage() {
     isLoading
   } = useHomeClient();
 
-  // While loading, or if there's no specific friend selected, we can show the main chat layout
-  // The ChatLayout itself will handle the "Select a friend" message.
+  // This is the main home page. 
+  // If the user has no friends, redirect them to the add friends page.
+  if (!isLoading && friends.length === 0) {
+    redirect('/home/friends');
+  }
+
+  // The ChatLayout will handle the "Select a friend" message.
   return (
     <div className="flex-1 flex flex-col h-full">
       <ChatLayout 

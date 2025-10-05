@@ -4,11 +4,9 @@
 import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CallPage } from '@/components/app/call-page';
 import { useEffect } from 'react';
-import { usePathname } from 'next/navigation';
 
-export default function ChatOrCallPage({ params }: { params: { slug: string[] } }) {
+export default function ChatPage({ params }: { params: { friendId: string } }) {
   const { 
     currentUser, 
     friends, 
@@ -19,9 +17,7 @@ export default function ChatOrCallPage({ params }: { params: { slug: string[] } 
     isLoading
   } = useHomeClient();
 
-  const pathname = usePathname();
-  const friendId = params.slug?.[0];
-  const isCall = params.slug?.[1] === 'call';
+  const { friendId } = params;
 
   useEffect(() => {
     if (friendId && (!selectedFriend || selectedFriend.id !== friendId)) {
@@ -33,12 +29,18 @@ export default function ChatOrCallPage({ params }: { params: { slug: string[] } 
   }, [friendId, allUsers, friends, setSelectedFriend, selectedFriend]);
   
 
-  if (isLoading || (friendId && !selectedFriend)) {
-    return <Skeleton className="h-full w-full" />;
-  }
-  
-  if (isCall && selectedFriend) {
-    return <CallPage friend={selectedFriend} />;
+  if (isLoading || !selectedFriend) {
+    return (
+       <div className="w-2/3 flex flex-col h-full">
+          <div className="flex flex-1 items-center justify-center">
+            <div className="text-center">
+                <Skeleton className="h-16 w-16 mx-auto mb-4 rounded-full" />
+                <Skeleton className="h-6 w-48 mx-auto" />
+                <Skeleton className="h-4 w-64 mx-auto mt-2" />
+            </div>
+          </div>
+       </div>
+    )
   }
 
   return (

@@ -156,10 +156,9 @@ export function HomeClientLayout({
   // Effect to select friend based on URL
   useEffect(() => {
     const pathSegments = pathname.split('/');
-    // Expected: /home/chat/[friendId]
-    const friendId = pathSegments[3]; 
+    const friendId = pathSegments.length > 2 && pathSegments[2] === 'chat' ? pathSegments[3] : null;
 
-    if (friendId && pathSegments[2] === 'chat' && allUsers.length > 0) {
+    if (friendId && allUsers.length > 0) {
       if (!selectedFriend || selectedFriend.id !== friendId) {
         const friendToSelect = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
         if (friendToSelect) {

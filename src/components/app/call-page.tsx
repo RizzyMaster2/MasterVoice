@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
@@ -25,9 +25,8 @@ import {
 import { Slider } from '@/components/ui/slider';
 
 
-export function CallPage({ friend }: { friend: UserProfile }) {
+export function CallPage({ friend, isReceiving }: { friend: UserProfile, isReceiving: boolean }) {
   const router = useRouter();
-  const searchParams = useSearchParams();
   const { user: currentUser, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
 
@@ -44,8 +43,6 @@ export function CallPage({ friend }: { friend: UserProfile }) {
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
-
-  const isReceiving = searchParams.get('isReceiving') === 'true';
 
   const handleClose = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(track => track.stop());
