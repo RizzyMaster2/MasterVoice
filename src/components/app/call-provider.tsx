@@ -66,8 +66,8 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
 
     channel.on('broadcast', { event: 'hangup' }, () => {
         if (activeCall || incomingCall) {
-            endCall();
             toast({ title: "Call Ended", description: "The other user has ended the call." });
+            endCall();
         }
     });
     
@@ -84,7 +84,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser?.id, supabase, activeCall, incomingCall, endCall, toast]);
+  }, [currentUser?.id, supabase, activeCall, incomingCall]);
 
   const startCall = useCallback((participant: UserProfile) => {
      if (!currentUser.id) return;
@@ -114,8 +114,8 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     }
   };
 
-  const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
   const memoizedCurrentUser = useMemo(() => currentUser, [currentUser]);
+  const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
 
 
   return (

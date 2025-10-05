@@ -79,12 +79,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   }, [currentUser.id, onClose, supabase]);
 
   useEffect(() => {
-    if (status !== 'connected') return;
-    const timer = setInterval(() => setCallDuration(prev => prev + 1), 1000);
-    return () => clearInterval(timer);
-  }, [status]);
-
-  useEffect(() => {
     console.log("Effect running");
     let isMounted = true;
     let speakingInterval: NodeJS.Timeout | null = null;
@@ -233,7 +227,14 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       if (statsInterval) clearInterval(statsInterval);
       handleClose(false);
     };
-  }, [currentUser.id, initialOffer, otherParticipant.id, supabase, toast, handleClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, otherParticipant.id, initialOffer]);
+
+  useEffect(() => {
+    if (status !== 'connected') return;
+    const timer = setInterval(() => setCallDuration(prev => prev + 1), 1000);
+    return () => clearInterval(timer);
+  }, [status]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
