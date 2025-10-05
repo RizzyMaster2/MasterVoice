@@ -7,7 +7,6 @@ import type { UserProfile } from '@/lib/data';
 import { VoiceCall } from './voice-call';
 import { IncomingCallDialog } from './incoming-call-dialog';
 import { useToast } from '@/hooks/use-toast';
-import { getUsers } from '@/app/(auth)/actions/chat';
 
 type Call = {
   otherParticipant: UserProfile;
@@ -116,20 +115,22 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   };
 
   const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
+  const memoizedCurrentUser = useMemo(() => currentUser, [currentUser]);
+
 
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall }}>
+    <CallContext.Provider value={{ startCall, endCall, activeCall: memoizedActiveCall }}>
       {children}
-      {currentUser && memoizedActiveCall && (
+      {memoizedCurrentUser && memoizedActiveCall && (
         <VoiceCall
           supabase={supabase}
-          currentUser={currentUser}
+          currentUser={memoizedCurrentUser}
           otherParticipant={memoizedActiveCall.otherParticipant}
           initialOffer={memoizedActiveCall.offer}
           onClose={endCall}
         />
       )}
-      {currentUser && incomingCall && (
+      {memoizedCurrentUser && incomingCall && (
         <IncomingCallDialog
           caller={incomingCall.otherParticipant}
           onAccept={acceptCall}

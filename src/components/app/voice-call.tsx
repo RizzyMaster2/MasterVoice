@@ -85,11 +85,10 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
   }, [status]);
 
   useEffect(() => {
+    console.log("Effect running");
     let isMounted = true;
     let speakingInterval: NodeJS.Timeout | null = null;
     let statsInterval: NodeJS.Timeout | null = null;
-
-    console.log("Effect running");
     
     const init = async () => {
       console.log('[RTC] Initializing call...');
@@ -132,7 +131,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
           }
         };
 
-        // Setup signaling channel FIRST
         const channelId = `signaling:${[currentUser.id, otherParticipant.id].sort().join(':')}`;
         const channel = supabase.channel(channelId, { config: { broadcast: { self: false } } });
         signalingChannelRef.current = channel;
@@ -155,7 +153,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         });
         
-        // This is now the critical part: Subscribe first, THEN create offer/answer
         channel.subscribe(async (subStatus) => {
             if (subStatus !== 'SUBSCRIBED' || !isMounted) {
                 return;
@@ -163,20 +160,19 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
             console.log(`[RTC] Successfully subscribed to channel: ${channelId}`);
             
-            if (initialOffer) { // We are RECEIVING a call
+            if (initialOffer) { 
                 console.log('[RTC] initialOffer exists. Creating an answer.');
                 await pc.setRemoteDescription(new RTCSessionDescription(initialOffer));
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
                 console.log('[RTC] Created and set local answer:', answer);
                 channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-            } else { // We are INITIATING a call
+            } else {
                 console.log('[RTC] No initialOffer. Creating an offer.');
                 const offer = await pc.createOffer();
                 await pc.setLocalDescription(offer);
                 console.log('[RTC] Created and set local offer:', offer);
                 
-                // Use a SEPARATE, TEMPORARY channel to send the initial offer to the specific user
                 const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
                 offerChannel.subscribe(status => {
                     if (status === 'SUBSCRIBED') {
@@ -188,7 +184,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
             }
         });
 
-        // Active speaker detection
         audioContextRef.current = new AudioContext();
         sourceRef.current = audioContextRef.current.createMediaStreamSource(stream);
         analyserRef.current = audioContextRef.current.createAnalyser();
@@ -205,7 +200,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
 
         speakingInterval = setInterval(detectSpeaking, 200);
 
-        // Stats polling
         statsInterval = setInterval(async () => {
           if (!peerConnectionRef.current) return;
           const statsReport = await peerConnectionRef.current.getStats();
@@ -239,8 +233,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       if (statsInterval) clearInterval(statsInterval);
       handleClose(false);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, initialOffer, otherParticipant.id]);
+  }, [currentUser.id, initialOffer, otherParticipant.id, supabase, toast, handleClose]);
 
   const toggleMute = () => {
     if (localStreamRef.current) {
