@@ -232,13 +232,14 @@ export function FriendsClientPage({
         !outgoingRequestReceiverIds.has(user.id) &&
         !incomingRequestSenderIds.has(user.id)
     );
-
-    if (searchQuery) {
-      return availableUsers.filter(user =>
-        user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
-      );
+  
+    if (!searchQuery) {
+      return availableUsers.slice(0, 10); // Show some suggestions
     }
-    return availableUsers.slice(0, 10); // Show some suggestions
+    
+    return availableUsers.filter(user =>
+      user.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
+    );
   }, [allUsers, currentUser.id, friendIds, outgoingRequestReceiverIds, incomingRequestSenderIds, searchQuery]);
 
 
@@ -275,7 +276,7 @@ export function FriendsClientPage({
                           </Avatar>
                           <p className="font-semibold">{friend.friend_profile?.display_name}</p>
                         </div>
-                        <Button variant="ghost" size="sm" onClick={() => router.push(`/home?friend=${friend.friend_id}`)}>
+                        <Button variant="ghost" size="sm" onClick={() => router.push(`/home/chat/${friend.friend_id}`)}>
                           <MessageSquare className="h-4 w-4 mr-2" />
                           Chat
                         </Button>
