@@ -17,6 +17,7 @@ import { useUser } from '@/hooks/use-user';
 import { getFriends, getUsers, getFriendRequests } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
+import { CallProvider } from './call-provider';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
@@ -163,16 +164,22 @@ export function HomeClientLayout({
 
   useEffect(() => {
     const friendIdFromUrl = searchParams.get('friend');
+    if (isLoading) return; // Wait for data to be loaded
     
     if (friendIdFromUrl) {
-        const friendToSelect = allUsers.find(u => u.id === friendIdFromUrl) || initialUsers.find(u => u.id === friendIdFromUrl);
-        if (friendToSelect) {
-            setSelectedFriend(friendToSelect);
-        }
-    } else if (!friendIdFromUrl) { // explicitly check for removal
-      setSelectedFriend(null);
+      const friendToSelect = allUsers.find(u => u.id === friendIdFromUrl);
+      if (friendToSelect) {
+        setSelectedFriendState(friendToSelect);
+        setUnreadMessages(prev => {
+            const newUnread = new Set(prev);
+            newUnread.delete(friendToSelect.id);
+            return newUnread;
+        });
+      }
+    } else {
+      setSelectedFriendState(null);
     }
-  }, [searchParams, allUsers, initialUsers]);
+  }, [searchParams, allUsers, isLoading]);
 
 
   useEffect(() => {
@@ -278,7 +285,9 @@ export function HomeClientLayout({
 
   return (
     <HomeClientContext.Provider value={value}>
-      {children}
+        <CallProvider currentUser={currentUser}>
+            {children}
+        </CallProvider>
     </HomeClientContext.Provider>
   );
 }
