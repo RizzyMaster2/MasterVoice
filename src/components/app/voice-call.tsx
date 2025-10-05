@@ -168,12 +168,15 @@ export function VoiceCallLogic({
                     await pc.setLocalDescription(offer);
                     console.log('[RTC] Created and set local offer:', offer);
                     
-                    const offerChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
-                    offerChannel.subscribe(status => {
+                    const userChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
+                    userChannel.subscribe(status => {
                         if (status === 'SUBSCRIBED') {
                             console.log(`[RTC] Sending offer to ${otherParticipant.display_name}`);
-                            offerChannel.send({ type: 'broadcast', event: 'offer', payload: { from: currentUser.id, offer } })
-                            .then(() => supabase.removeChannel(offerChannel));
+                            userChannel.send({
+                                type: 'broadcast',
+                                event: 'offer',
+                                payload: { from: currentUser.id, offer }
+                            }).then(() => supabase.removeChannel(userChannel));
                         }
                     });
                 }
