@@ -2,17 +2,19 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, PhoneOff, Loader2, Timer, ActivitySquare } from 'lucide-react';
+import { Mic, MicOff, PhoneOff, Loader2, Timer, ActivitySquare, ShieldAlert } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { VoiceCallLogic } from '@/components/app/voice-call';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+
 
 export function CallPage({ friend }: { friend: UserProfile }) {
   const router = useRouter();
@@ -145,7 +147,7 @@ export function CallPage({ friend }: { friend: UserProfile }) {
             <p className="font-semibold text-xl">{friend?.display_name}</p>
           </div>
 
-          <div className="text-center absolute bottom-10 z-10 flex flex-col items-center gap-1 text-muted-foreground">
+          <div className="text-center absolute bottom-28 z-10 flex flex-col items-center gap-1 text-muted-foreground">
             {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
             <p>{statusText[status]}</p>
             {status === 'connected' && (
@@ -157,7 +159,14 @@ export function CallPage({ friend }: { friend: UserProfile }) {
           <audio ref={remoteAudioRef} autoPlay playsInline />
         </div>
 
-        <div className="p-4 border-t bg-background/95 flex justify-center items-center h-24">
+        <div className="p-4 border-t bg-background/95 flex flex-col justify-center items-center h-40">
+           <Alert className="max-w-md mb-4 bg-secondary">
+            <ShieldAlert className="h-4 w-4" />
+            <AlertTitle className="text-xs font-semibold">For Your Safety</AlertTitle>
+            <AlertDescription className="text-xs">
+                We are recording this call for legal reasons.
+            </AlertDescription>
+            </Alert>
           <div className="flex items-center gap-4">
             <Button variant={isMicMuted ? 'outline' : 'secondary'} size="icon" className="rounded-full h-14 w-14" onClick={toggleMute}>
               {isMicMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
