@@ -17,6 +17,9 @@ type CallContextType = {
   startCall: (participant: UserProfile) => void;
   endCall: () => void;
   activeCall: Call | null;
+  incomingCall: Call | null;
+  acceptCall: () => void;
+  declineCall: () => void;
 };
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -40,6 +43,22 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     setActiveCall(null);
     setIncomingCall(null);
   }, []);
+
+  const declineCall = useCallback(() => {
+    if (incomingCall && currentUser) {
+        const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
+        callerChannel.subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+                callerChannel.send({
+                    type: 'broadcast',
+                    event: 'hangup',
+                    payload: { from: currentUser.id },
+                }).then(() => supabase.removeChannel(callerChannel));
+            }
+        });
+        setIncomingCall(null);
+    }
+  }, [incomingCall, currentUser, supabase]);
 
   useEffect(() => {
     if (!currentUser?.id) return;
@@ -84,7 +103,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser?.id, supabase, activeCall, incomingCall]);
+  }, [currentUser?.id, supabase, activeCall, incomingCall, toast, endCall]);
 
   const startCall = useCallback((participant: UserProfile) => {
      if (!currentUser.id) return;
@@ -98,28 +117,12 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     }
   };
 
-  const declineCall = () => {
-    if (incomingCall && currentUser) {
-        const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
-        callerChannel.subscribe((status) => {
-            if (status === 'SUBSCRIBED') {
-                callerChannel.send({
-                    type: 'broadcast',
-                    event: 'hangup',
-                    payload: { from: currentUser.id },
-                }).then(() => supabase.removeChannel(callerChannel));
-            }
-        });
-        setIncomingCall(null);
-    }
-  };
-
   const memoizedCurrentUser = useMemo(() => currentUser, [currentUser]);
   const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
 
 
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall: memoizedActiveCall }}>
+    <CallContext.Provider value={{ startCall, endCall, activeCall: memoizedActiveCall, incomingCall, acceptCall, declineCall }}>
       {children}
       {memoizedCurrentUser && memoizedActiveCall && (
         <VoiceCall
@@ -130,7 +133,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
           onClose={endCall}
         />
       )}
-      {memoizedCurrentUser && incomingCall && (
+      {memoizedCurrentUser && incomingCall && !activeCall && (
         <IncomingCallDialog
           caller={incomingCall.otherParticipant}
           onAccept={acceptCall}

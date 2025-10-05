@@ -1,5 +1,4 @@
 
-
 'use client'
 
 import {
@@ -52,6 +51,7 @@ import type { Message, UserProfile, Friend, MessageEdit } from '@/lib/data';
 import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
 import { useHomeClient } from './home-client-layout';
+import { ActiveCallBar } from './active-call-bar';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -145,7 +145,7 @@ export function ChatLayout({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { startCall } = useCall();
+  const { startCall, incomingCall, acceptCall, declineCall } = useCall();
   const supabase = createClient();
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -380,6 +380,8 @@ export function ChatLayout({
     friend.friend_profile.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
   
+  const showActiveCallBar = incomingCall && (incomingCall.otherParticipant.id === selectedFriend?.id || incomingCall.otherParticipant.id === currentUser.id);
+
   return (
     <Card className="flex h-full w-full">
       <div className="w-1/3 border-r flex flex-col">
@@ -480,6 +482,13 @@ export function ChatLayout({
                       </AlertDialogContent>
                     </AlertDialog>
               </div>
+              {showActiveCallBar && (
+                <ActiveCallBar 
+                    participants={[incomingCall.otherParticipant, currentUser]}
+                    onJoin={acceptCall}
+                    onDecline={declineCall}
+                />
+              )}
             </CardHeader>
             <div className="flex-1 flex flex-col p-0">
               <ScrollArea className="flex-1 p-6" ref={scrollAreaRef}>
