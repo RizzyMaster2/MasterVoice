@@ -20,6 +20,7 @@ export default function FriendCallPage() {
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
+    // This effect runs once when friendId is available.
     if (friendId) {
       const fetchFriendProfile = async () => {
         setIsLoadingFriend(true);
@@ -36,13 +37,14 @@ export default function FriendCallPage() {
       };
       fetchFriendProfile();
     }
-  }, [friendId]);
+  }, [friendId]); // The dependency is stable, preventing re-runs.
 
   if (isUserLoading || isLoadingFriend || !friend) {
     return <Skeleton className="h-full w-full" />;
   }
 
   if (!user) {
+    // This should ideally be caught by middleware, but serves as a backup.
     notFound();
   }
 
