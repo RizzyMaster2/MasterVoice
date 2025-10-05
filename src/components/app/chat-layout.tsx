@@ -52,6 +52,7 @@ import { useCall } from './call-provider';
 import { createClient } from '@/lib/supabase/client';
 import { useHomeClient } from './home-client-layout';
 import { ActiveCallBar } from './active-call-bar';
+import Link from 'next/link';
 
 interface ChatLayoutProps {
   currentUser: UserProfile;
@@ -276,7 +277,7 @@ export function ChatLayout({
   
   const handleStartCall = () => {
     if (selectedFriend) {
-      router.push(`/home/call/${selectedFriend.id}`);
+      router.push(`/home/chat/${selectedFriend.id}/call`);
     }
   };
 
@@ -338,11 +339,8 @@ export function ChatLayout({
 
 
   const handleSelectFriend = (friend: UserProfile) => {
-    const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
-    currentQuery.set('friend', friend.id);
-    const search = currentQuery.toString();
-    const query = search ? `?${search}` : '';
-    router.push(`${pathname}${query}`);
+    setSelectedFriend(friend);
+    router.push(`/home/chat/${friend.id}`);
   };
 
   const handleRemoveFriend = () => {
@@ -401,9 +399,10 @@ export function ChatLayout({
         <ScrollArea className="flex-1">
           {filteredFriends.length > 0 ? (
             filteredFriends.map((friend) => (
-              <div
+              <Link
                 key={friend.friend_id}
-                onClick={() => handleSelectFriend(friend.friend_profile)}
+                href={`/home/chat/${friend.friend_id}`}
+                onClick={() => setSelectedFriend(friend.friend_profile)}
                 className={cn(
                   'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
                   selectedFriend?.id === friend.friend_id && 'bg-accent'
@@ -426,7 +425,7 @@ export function ChatLayout({
                     {friend.friend_profile?.bio || 'No bio available'}
                   </p>
                 </div>
-              </div>
+              </Link>
             ))
           ) : (
             <div className="p-4 text-center text-sm text-muted-foreground">

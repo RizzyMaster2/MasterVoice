@@ -14,7 +14,7 @@ export default function FriendsPage() {
     isLoading
   } = useHomeClient();
 
-  if (isLoading) {
+  if (isLoading || !currentUser) {
     return <Skeleton className="h-full w-full" />;
   }
 

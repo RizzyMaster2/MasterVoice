@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { 
@@ -69,7 +68,6 @@ export function HomeClientLayout({
 
   const { user, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
-  const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const { toast } = useToast();
@@ -163,26 +161,6 @@ export function HomeClientLayout({
 
 
   useEffect(() => {
-    const friendIdFromUrl = searchParams.get('friend');
-    if (isLoading) return; // Wait for data to be loaded
-    
-    if (friendIdFromUrl) {
-      const friendToSelect = allUsers.find(u => u.id === friendIdFromUrl);
-      if (friendToSelect) {
-        setSelectedFriendState(friendToSelect);
-        setUnreadMessages(prev => {
-            const newUnread = new Set(prev);
-            newUnread.delete(friendToSelect.id);
-            return newUnread;
-        });
-      }
-    } else {
-      setSelectedFriendState(null);
-    }
-  }, [searchParams, allUsers, isLoading]);
-
-
-  useEffect(() => {
     if (!user) return;
     
     const realtimeChannel = supabase
@@ -260,11 +238,11 @@ export function HomeClientLayout({
   }, [user, supabase, refreshAllData, selectedFriend, toast, allUsers]);
 
   const handleFriendRemoved = useCallback(() => {
-    router.replace(pathname, {scroll: false}); 
+    router.push('/home');
     refreshAllData().then(() => {
         setSelectedFriend(null);
     });
-  },[router, pathname, refreshAllData]);
+  },[router, refreshAllData]);
 
   const value = {
       currentUser,

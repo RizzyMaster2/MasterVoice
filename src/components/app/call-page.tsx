@@ -14,15 +14,13 @@ import { Badge } from '@/components/ui/badge';
 import { VoiceCallLogic } from '@/components/app/voice-call';
 import { Skeleton } from '@/components/ui/skeleton';
 
-export default function CallPage() {
+export function CallPage({ friend }: { friend: UserProfile }) {
   const router = useRouter();
-  const params = useParams();
   const searchParams = useSearchParams();
   const { user: currentUser, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
   const { toast } = useToast();
 
-  const [otherParticipant, setOtherParticipant] = useState<UserProfile | null>(null);
   const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>('connecting');
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
@@ -35,42 +33,22 @@ export default function CallPage() {
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
-  const friendId = params.friendId as string;
   const isReceiving = searchParams.get('isReceiving') === 'true';
-
-  useEffect(() => {
-    if (!friendId) {
-      toast({ title: 'Error', description: 'No friend specified for the call.', variant: 'destructive' });
-      router.push('/home');
-      return;
-    }
-
-    const fetchParticipant = async () => {
-      const { data, error } = await supabase.from('profiles').select('*').eq('id', friendId).single();
-      if (error || !data) {
-        toast({ title: 'Error', description: 'Could not find the user you are trying to call.', variant: 'destructive' });
-        router.push('/home');
-      } else {
-        setOtherParticipant(data as UserProfile);
-      }
-    };
-    fetchParticipant();
-  }, [friendId, router, supabase, toast]);
 
   const handleClose = useCallback(() => {
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
     }
-    router.push(`/home?friend=${friendId}`);
-  }, [router, friendId]);
+    router.push(`/home/chat/${friend.id}`);
+  }, [router, friend.id]);
 
-  const onConnected = useCallback((stream: MediaStream) => {
+  const onConnected = useCallback((stream: MediaStream, localStream: MediaStream) => {
     if (remoteAudioRef.current) {
       remoteAudioRef.current.srcObject = stream;
     }
     try {
-        const localStream = localStreamRef.current;
+        localStreamRef.current = localStream;
         if(!localStream) return;
         audioContextRef.current = new AudioContext();
         sourceRef.current = audioContextRef.current.createMediaStreamSource(localStream);
@@ -118,13 +96,13 @@ export default function CallPage() {
     new Date(seconds * 1000).toISOString().substr(14, 5);
 
   const statusText = {
-    calling: `Ringing ${otherParticipant?.display_name}...`,
+    calling: `Ringing ${friend?.display_name}...`,
     connecting: 'Connecting...',
     connected: 'Connected',
     error: 'Error Starting Call'
   };
 
-  if (isUserLoading || !otherParticipant || !currentUser) {
+  if (isUserLoading || !friend || !currentUser) {
     return (
         <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-background to-primary/5">
              <Skeleton className="h-32 w-32 rounded-full" />
@@ -139,7 +117,7 @@ export default function CallPage() {
         <VoiceCallLogic 
             supabase={supabase}
             currentUser={currentUser}
-            otherParticipant={otherParticipant}
+            otherParticipant={friend}
             isReceiving={isReceiving}
             onConnected={onConnected}
             onStatusChange={setStatus}
@@ -161,10 +139,10 @@ export default function CallPage() {
           )}
           <div className="flex flex-col items-center gap-4 text-center">
             <Avatar className="h-32 w-32 border-4 border-transparent">
-              <AvatarImage src={otherParticipant?.photo_url || undefined} alt={otherParticipant?.display_name || ''} />
-              <AvatarFallback className="text-4xl">{getInitials(otherParticipant?.display_name)}</AvatarFallback>
+              <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
+              <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
             </Avatar>
-            <p className="font-semibold text-xl">{otherParticipant?.display_name}</p>
+            <p className="font-semibold text-xl">{friend?.display_name}</p>
           </div>
 
           <div className="text-center absolute bottom-10 z-10 flex flex-col items-center gap-1 text-muted-foreground">

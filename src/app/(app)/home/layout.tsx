@@ -35,6 +35,7 @@ export default async function HomeLayout({
         email: authUser.email || null,
         status: 'online', // Placeholder
         bio: authUser.user_metadata?.bio || null,
+        plan: authUser.user_metadata?.plan || 'free'
     }
 
     return (

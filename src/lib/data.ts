@@ -11,6 +11,7 @@ export type UserProfile = {
   photo_url: string | null;
   status: string | null;
   bio: string | null;
+  plan?: 'free' | 'pro' | 'business';
 };
 
 export type Friend = {

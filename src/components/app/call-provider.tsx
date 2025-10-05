@@ -95,12 +95,12 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser?.id, supabase, incomingCall]);
+  }, [currentUser?.id, supabase, incomingCall, toast]);
 
 
   const acceptCall = () => {
     if (incomingCall) {
-      router.push(`/home/call/${incomingCall.otherParticipant.id}?isReceiving=true`);
+      router.push(`/home/chat/${incomingCall.otherParticipant.id}/call?isReceiving=true`);
       setIncomingCall(null);
     }
   };

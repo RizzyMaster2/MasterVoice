@@ -4,16 +4,11 @@
 import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
+import { redirect } from 'next/navigation';
 
 export default function HomePage() {
   const { 
-    currentUser, 
     friends, 
-    allUsers, 
-    selectedFriend, 
-    setSelectedFriend, 
-    refreshAllData, 
-    handleFriendRemoved,
     isLoading
   } = useHomeClient();
 
@@ -21,16 +16,12 @@ export default function HomePage() {
     return <Skeleton className="h-full w-full" />;
   }
 
-  return (
-    <div className="flex-1 flex flex-col h-full">
-        <ChatLayout 
-            currentUser={currentUser} 
-            friends={friends}
-            allUsers={allUsers}
-            selectedFriend={selectedFriend}
-            setSelectedFriend={setSelectedFriend}
-            onFriendRemoved={handleFriendRemoved}
-        />
-    </div>
-  );
+  // Redirect to the first friend in the list, or to the friends page if no friends.
+  if (friends.length > 0) {
+    redirect(`/home/chat/${friends[0].friend_id}`);
+  } else {
+    redirect('/home/friends');
+  }
+
+  return <Skeleton className="h-full w-full" />;
 }

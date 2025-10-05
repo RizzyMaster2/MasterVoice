@@ -11,7 +11,7 @@ interface VoiceCallLogicProps {
   currentUser: UserProfile;
   otherParticipant: UserProfile;
   isReceiving: boolean;
-  onConnected: (stream: MediaStream) => void;
+  onConnected: (stream: MediaStream, localStream: MediaStream) => void;
   onStatusChange: (status: 'calling' | 'connecting' | 'connected' | 'error') => void;
   onStatsUpdate: (stats: { rtt?: number; bitrate?: number }) => void;
   onClose: () => void;
@@ -109,7 +109,7 @@ export function VoiceCallLogic({
             pc.ontrack = event => {
                 console.log('[RTC] Received remote track.');
                 if (event.streams[0]) {
-                    onConnected(event.streams[0]);
+                    onConnected(event.streams[0], stream);
                 }
             };
 
@@ -197,7 +197,7 @@ export function VoiceCallLogic({
       handleClose(true, false); // Don't navigate on cleanup, only on explicit close
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUser.id, otherParticipant.id, isReceiving]);
 
   return null;
 }
