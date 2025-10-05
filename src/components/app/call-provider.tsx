@@ -53,16 +53,26 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   }, []);
 
   useEffect(() => {
-    if (!currentUser) return;
+    if (!currentUser?.id) return;
     
-    // This channel is for this user to receive signals
     const channel = supabase.channel(`user-signaling:${currentUser.id}`);
     userChannelRef.current = channel;
     
-    channel.on('broadcast', { event: 'offer' }, ({ payload }) => {
-        const caller = allUsers.find(u => u.id === payload.from);
-        if (caller && !activeCall && !incomingCall) {
-            setIncomingCall({ otherParticipant: caller, offer: payload.offer });
+    channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
+        // Fetch fresh user data to prevent depending on stale `allUsers` state
+        const { data: callerProfile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', payload.from)
+            .single();
+
+        if (error || !callerProfile) {
+            console.error("Could not find profile for caller:", payload.from);
+            return;
+        }
+
+        if (callerProfile && !activeCall && !incomingCall) {
+            setIncomingCall({ otherParticipant: callerProfile, offer: payload.offer });
         }
     });
 
@@ -86,14 +96,11 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser, supabase, allUsers, activeCall, incomingCall, endCall, toast]);
+  }, [currentUser?.id, supabase, activeCall, incomingCall, endCall, toast]);
 
   const startCall = useCallback((participant: UserProfile) => {
      if (!currentUser.id) return;
-     // Set the active call locally to open the UI
      setActiveCall({ otherParticipant: participant });
-     
-     // The `VoiceCall` component will handle creating and sending the offer.
   }, [currentUser.id]);
 
   const acceptCall = () => {
