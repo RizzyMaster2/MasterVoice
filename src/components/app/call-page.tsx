@@ -7,13 +7,22 @@ import { createClient } from '@/lib/supabase/client';
 import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
-import { Mic, MicOff, PhoneOff, Loader2, Timer, ActivitySquare, ShieldAlert } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+import { Mic, MicOff, PhoneOff, Loader2, Timer, ActivitySquare, ShieldAlert, Volume2, Info } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { VoiceCallLogic } from '@/components/app/voice-call';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
+} from "@/components/ui/dropdown-menu"
+import { Slider } from '@/components/ui/slider';
 
 
 export function CallPage({ friend }: { friend: UserProfile }) {
@@ -21,13 +30,14 @@ export function CallPage({ friend }: { friend: UserProfile }) {
   const searchParams = useSearchParams();
   const { user: currentUser, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
-  const { toast } = useToast();
 
   const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>('connecting');
   const [isMicMuted, setIsMicMuted] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [stats, setStats] = useState<{ rtt?: number; bitrate?: number }>({});
+  const [volume, setVolume] = useState(1); // from 0 to 1
+  const [showDebugInfo, setShowDebugInfo] = useState(false);
   
   const remoteAudioRef = useRef<HTMLAudioElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -83,6 +93,12 @@ export function CallPage({ friend }: { friend: UserProfile }) {
         };
     }
   }, [status]);
+  
+  useEffect(() => {
+    if(remoteAudioRef.current) {
+      remoteAudioRef.current.volume = volume;
+    }
+  }, [volume])
 
   const toggleMute = () => {
     if (localStreamRef.current) {
@@ -100,7 +116,7 @@ export function CallPage({ friend }: { friend: UserProfile }) {
   const statusText = {
     calling: `Ringing ${friend?.display_name}...`,
     connecting: 'Connecting...',
-    connected: 'Connected',
+    connected: formatDuration(callDuration),
     error: 'Error Starting Call'
   };
 
@@ -127,35 +143,64 @@ export function CallPage({ friend }: { friend: UserProfile }) {
             onClose={handleClose}
         />
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gradient-to-br from-background to-primary/5 relative">
-          {status === 'connected' && (
-            <Badge variant="secondary" className="absolute top-4 left-4 z-10 flex items-center gap-2">
-              <Timer className="h-4 w-4" />
-              {formatDuration(callDuration)}
+          
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <div className="relative cursor-context-menu">
+                <Avatar className="h-32 w-32 border-4 border-transparent">
+                  <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
+                  <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
+                </Avatar>
+                <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
+                    <p className="text-lg font-semibold">{friend?.display_name}</p>
+                    <div className="flex items-center gap-2 text-sm font-mono">
+                      {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
+                      <p>{statusText[status]}</p>
+                    </div>
+                </div>
+              </div>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent>
+              <DropdownMenuLabel>{friend?.display_name}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem className="flex flex-col items-start gap-2" onSelect={(e) => e.preventDefault()}>
+                  <div className="flex items-center gap-2 w-full">
+                    <Volume2 className="h-4 w-4" />
+                    <span>Volume</span>
+                  </div>
+                  <Slider 
+                    defaultValue={[volume * 100]} 
+                    max={100} 
+                    step={1}
+                    onValueChange={(value) => setVolume(value[0] / 100)}
+                    className="w-[150px]"
+                  />
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+               <DropdownMenuCheckboxItem
+                  checked={showDebugInfo}
+                  onCheckedChange={setShowDebugInfo}
+                >
+                  <Info className="mr-2 h-4 w-4" />
+                  Show Debug Info
+                </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+
+          {showDebugInfo && (
+            <Badge variant="secondary" className="absolute top-4 left-4 z-10 flex items-center gap-2 font-mono text-xs">
+              <ActivitySquare className="h-4 w-4" />
+              RTT: {stats.rtt ?? '–'} ms | Bitrate: {stats.bitrate ? (stats.bitrate / 1000).toFixed(0) : '–'} kbps
             </Badge>
           )}
+
           {status === 'connected' && (
             <Badge variant={isSpeaking ? 'default' : 'outline'} className="absolute top-4 right-4 z-10 flex items-center gap-2">
               <ActivitySquare className="h-4 w-4" />
               {isSpeaking ? 'Speaking' : 'Silent'}
             </Badge>
           )}
-          <div className="flex flex-col items-center gap-4 text-center">
-            <Avatar className="h-32 w-32 border-4 border-transparent">
-              <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
-              <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
-            </Avatar>
-            <p className="font-semibold text-xl">{friend?.display_name}</p>
-          </div>
-
-          <div className="text-center absolute bottom-28 z-10 flex flex-col items-center gap-1 text-muted-foreground">
-            {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
-            <p>{statusText[status]}</p>
-            {status === 'connected' && (
-              <p className="text-xs">
-                RTT: {stats.rtt ?? '–'} ms
-              </p>
-            )}
-          </div>
+          
           <audio ref={remoteAudioRef} autoPlay playsInline />
         </div>
 
