@@ -5,9 +5,9 @@ import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, use } from 'react';
-import { useParams } from 'next/navigation';
+import React from 'react';
 
-export default function ChatPage() {
+export default function ChatPage({ params }: { params: { friendId: string } }) {
   const {
     currentUser,
     friends,
@@ -18,8 +18,9 @@ export default function ChatPage() {
     isLoading,
   } = useHomeClient();
 
-  const params = useParams();
-  const friendId = params.friendId as string;
+
+  
+  const { friendId } = React.use(params);
 
   useEffect(() => {
     if (friendId && (!selectedFriend || selectedFriend.id !== friendId)) {

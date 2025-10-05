@@ -1,33 +1,44 @@
 
 'use client';
 
-import { useHomeClient } from '@/components/app/home-client-layout';
 import { CallPage } from '@/components/app/call-page';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import type { UserProfile } from '@/lib/data';
 import { useUser } from '@/hooks/use-user';
 import { notFound, useSearchParams, useParams } from 'next/navigation';
+import { getUserProfile } from '@/app/(auth)/actions/chat';
 
 export default function FriendCallPage() {
   const params = useParams();
   const friendId = params.friendId as string;
-  const { allUsers, friends } = useHomeClient();
   const { user, isLoading: isUserLoading } = useUser();
   const [friend, setFriend] = useState<UserProfile | null>(null);
+  const [isLoadingFriend, setIsLoadingFriend] = useState(true);
+
   const searchParams = useSearchParams();
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
-    if (friendId && allUsers.length > 0) {
-      const friendProfile = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
-      if (friendProfile) {
-        setFriend(friendProfile);
-      }
+    if (friendId) {
+      const fetchFriendProfile = async () => {
+        setIsLoadingFriend(true);
+        try {
+          const friendProfile = await getUserProfile(friendId);
+          if (friendProfile) {
+            setFriend(friendProfile);
+          }
+        } catch (error) {
+          console.error("Failed to fetch friend profile", error);
+        } finally {
+          setIsLoadingFriend(false);
+        }
+      };
+      fetchFriendProfile();
     }
-  }, [friendId, allUsers, friends]);
+  }, [friendId]);
 
-  if (isUserLoading || !friend) {
+  if (isUserLoading || isLoadingFriend || !friend) {
     return <Skeleton className="h-full w-full" />;
   }
 

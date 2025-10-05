@@ -37,6 +37,23 @@ export async function getUsers(): Promise<UserProfile[]> {
     return profiles as UserProfile[];
 }
 
+export async function getUserProfile(userId: string): Promise<UserProfile | null> {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: profile, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error(`Error fetching profile for user ${userId}:`, error.message);
+      return null;
+    }
+
+    return profile as UserProfile;
+}
+
 // Fetch all friends for the current user
 export async function getFriends(): Promise<Friend[]> {
   const cookieStore = cookies();
@@ -340,7 +357,7 @@ export async function declineFriendRequest(requestId: number) {
 }
 
 
-export async function deleteMessage(messageId: number) {
+export async function deleteMessage(messageId: number | string) {
   const cookieStore = cookies();
   const supabase = createClient(cookieStore);
   
