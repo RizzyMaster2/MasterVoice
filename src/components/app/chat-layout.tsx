@@ -145,7 +145,7 @@ export function ChatLayout({
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const { startCall, incomingCall, acceptCall, declineCall } = useCall();
+  const { incomingCall, acceptCall, declineCall } = useCall();
   const supabase = createClient();
   const [isTyping, setIsTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -276,7 +276,7 @@ export function ChatLayout({
   
   const handleStartCall = () => {
     if (selectedFriend) {
-      startCall(selectedFriend);
+      router.push(`/home/call/${selectedFriend.id}`);
     }
   };
 
@@ -338,7 +338,11 @@ export function ChatLayout({
 
 
   const handleSelectFriend = (friend: UserProfile) => {
-    setSelectedFriend(friend);
+    const currentQuery = new URLSearchParams(Array.from(searchParams.entries()));
+    currentQuery.set('friend', friend.id);
+    const search = currentQuery.toString();
+    const query = search ? `?${search}` : '';
+    router.push(`${pathname}${query}`);
   };
 
   const handleRemoveFriend = () => {

@@ -4,9 +4,9 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile } from '@/lib/data';
-import { VoiceCall } from './voice-call';
 import { IncomingCallDialog } from './incoming-call-dialog';
 import { useToast } from '@/hooks/use-toast';
+import { useRouter } from 'next/navigation';
 
 type Call = {
   otherParticipant: UserProfile;
@@ -14,9 +14,6 @@ type Call = {
 };
 
 type CallContextType = {
-  startCall: (participant: UserProfile) => void;
-  endCall: () => void;
-  activeCall: Call | null;
   incomingCall: Call | null;
   acceptCall: () => void;
   declineCall: () => void;
@@ -33,17 +30,12 @@ export function useCall() {
 }
 
 export function CallProvider({ children, currentUser }: { children: React.ReactNode; currentUser: UserProfile }) {
-  const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const supabase = createClient();
   const { toast } = useToast();
   const userChannelRef = useRef<any>(null);
+  const router = useRouter();
   
-  const endCall = useCallback(() => {
-    setActiveCall(null);
-    setIncomingCall(null);
-  }, []);
-
   const declineCall = useCallback(() => {
     if (incomingCall && currentUser) {
         const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
@@ -78,15 +70,15 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
             return;
         }
 
-        if (callerProfile && !activeCall && !incomingCall) {
+        if (callerProfile && !incomingCall) {
             setIncomingCall({ otherParticipant: callerProfile, offer: payload.offer });
         }
     });
 
     channel.on('broadcast', { event: 'hangup' }, () => {
-        if (activeCall || incomingCall) {
+        if (incomingCall) {
             toast({ title: "Call Ended", description: "The other user has ended the call." });
-            endCall();
+            setIncomingCall(null);
         }
     });
     
@@ -103,37 +95,20 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         userChannelRef.current = null;
     };
 
-  }, [currentUser?.id, supabase, activeCall, incomingCall, endCall]);
+  }, [currentUser?.id, supabase, incomingCall]);
 
-  const startCall = useCallback((participant: UserProfile) => {
-     if (!currentUser.id) return;
-     setActiveCall({ otherParticipant: participant });
-  }, [currentUser.id]);
 
   const acceptCall = () => {
     if (incomingCall) {
-      setActiveCall(incomingCall);
+      router.push(`/home/call/${incomingCall.otherParticipant.id}?isReceiving=true`);
       setIncomingCall(null);
     }
   };
-
-  const memoizedCurrentUser = useMemo(() => currentUser, [currentUser]);
-  const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
-
-
+  
   return (
-    <CallContext.Provider value={{ startCall, endCall, activeCall: memoizedActiveCall, incomingCall, acceptCall, declineCall }}>
+    <CallContext.Provider value={{ incomingCall, acceptCall, declineCall }}>
       {children}
-      {memoizedCurrentUser && memoizedActiveCall && (
-        <VoiceCall
-          supabase={supabase}
-          currentUser={memoizedCurrentUser}
-          otherParticipant={memoizedActiveCall.otherParticipant}
-          initialOffer={memoizedActiveCall.offer}
-          onClose={endCall}
-        />
-      )}
-      {memoizedCurrentUser && incomingCall && !activeCall && (
+      {currentUser && incomingCall && (
         <IncomingCallDialog
           caller={incomingCall.otherParticipant}
           onAccept={acceptCall}
