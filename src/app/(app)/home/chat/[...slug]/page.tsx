@@ -6,6 +6,7 @@ import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CallPage } from '@/components/app/call-page';
 import { useEffect } from 'react';
+import { usePathname } from 'next/navigation';
 
 export default function ChatOrCallPage({ params }: { params: { slug: string[] } }) {
   const { 
@@ -18,17 +19,18 @@ export default function ChatOrCallPage({ params }: { params: { slug: string[] } 
     isLoading
   } = useHomeClient();
 
+  const pathname = usePathname();
   const friendId = params.slug?.[0];
   const isCall = params.slug?.[1] === 'call';
 
   useEffect(() => {
-    if (friendId) {
+    if (friendId && (!selectedFriend || selectedFriend.id !== friendId)) {
       const friendToSelect = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
       if (friendToSelect) {
         setSelectedFriend(friendToSelect);
       }
     }
-  }, [friendId, allUsers, friends, setSelectedFriend]);
+  }, [friendId, allUsers, friends, setSelectedFriend, selectedFriend]);
   
 
   if (isLoading || (friendId && !selectedFriend)) {

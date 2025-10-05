@@ -25,7 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { cn, getErrorMessage } from '@/lib/utils';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { format, isToday, isYesterday, parseISO } from 'date-fns';
 import { getMessages, sendMessage, removeFriend, deleteMessage, editMessage, sendTypingIndicator } from '@/app/(auth)/actions/chat';
 import { CodeBlock } from './code-block';
@@ -145,7 +145,6 @@ export function ChatLayout({
   const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const { incomingCall, acceptCall, declineCall } = useCall();
   const supabase = createClient();
   const [isTyping, setIsTyping] = useState(false);
@@ -402,7 +401,10 @@ export function ChatLayout({
               <Link
                 key={friend.friend_id}
                 href={`/home/chat/${friend.friend_id}`}
-                onClick={() => setSelectedFriend(friend.friend_profile)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  handleSelectFriend(friend.friend_profile)
+                }}
                 className={cn(
                   'flex items-center gap-3 p-3 cursor-pointer hover:bg-accent/50 transition-colors',
                   selectedFriend?.id === friend.friend_id && 'bg-accent'

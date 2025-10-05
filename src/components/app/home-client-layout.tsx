@@ -72,7 +72,7 @@ export function HomeClientLayout({
   const pathname = usePathname();
   const { toast } = useToast();
 
-  const setSelectedFriend = (friend: UserProfile | null) => {
+  const setSelectedFriend = useCallback((friend: UserProfile | null) => {
     setSelectedFriendState(friend);
     if (friend) {
         setUnreadMessages(prev => {
@@ -81,7 +81,7 @@ export function HomeClientLayout({
             return newUnread;
         });
     }
-  };
+  }, []);
 
   const refreshAllData = useCallback(async (isInitialLoad = false) => {
     if (!user) return;
@@ -99,7 +99,6 @@ export function HomeClientLayout({
         setAllUsers(filteredUsers);
         setFriendRequests(friendRequestsData);
 
-        // Cache the new data
         const cacheData = {
             friends: friendsData,
             allUsers: filteredUsers,
@@ -124,12 +123,7 @@ export function HomeClientLayout({
 
   useEffect(() => {
     const loadData = async () => {
-        // Guard: Do not run if the user object is still loading.
-        if (isUserLoading) {
-            return;
-        }
-
-        // If there's no user after loading, stop.
+        if (isUserLoading) return;
         if (!user) {
             setIsLoading(false);
             return;
@@ -144,31 +138,38 @@ export function HomeClientLayout({
                     setAllUsers(allUsers);
                     setFriendRequests(friendRequests);
                     setIsLoading(false);
-                    // Don't return here, let the pathname effect run
+                } else {
+                     await refreshAllData(true);
                 }
+            } else {
+                 await refreshAllData(true);
             }
         } catch (error) {
             console.error("Failed to read from sessionStorage:", error);
+            await refreshAllData(true);
         }
-        
-        // If no valid cache, fetch from server
-        await refreshAllData(true);
     };
 
     loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user, isUserLoading]);
+  }, [user, isUserLoading, refreshAllData]);
 
   // Effect to select friend based on URL
   useEffect(() => {
-    const friendId = pathname.split('/')[3];
-    if (friendId && allUsers.length > 0) {
-      const friendToSelect = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
-      if (friendToSelect) {
-        setSelectedFriend(friendToSelect);
+    const pathSegments = pathname.split('/');
+    // Expected: /home/chat/[friendId]
+    const friendId = pathSegments[3]; 
+
+    if (friendId && pathSegments[2] === 'chat' && allUsers.length > 0) {
+      if (!selectedFriend || selectedFriend.id !== friendId) {
+        const friendToSelect = allUsers.find(u => u.id === friendId) || friends.find(f => f.friend_id === friendId)?.friend_profile;
+        if (friendToSelect) {
+            setSelectedFriend(friendToSelect);
+        }
       }
+    } else if (pathname === '/home') {
+        setSelectedFriend(null);
     }
-  }, [pathname, allUsers, friends]);
+  }, [pathname, allUsers, friends, setSelectedFriend, selectedFriend]);
 
 
   useEffect(() => {
@@ -195,8 +196,7 @@ export function HomeClientLayout({
             const oldRecord = payload.old as { receiver_id?: string; sender_id?: string };
             const newRecord = payload.new as { receiver_id?: string; sender_id?: string };
 
-             // Check if the change is relevant to the current user
-            if ((newRecord?.receiver_id === user.id || newRecord?.sender_id === user.id) || (oldRecord?.receiver_id === user.id || oldRecord?.sender_id === user.id)) {
+             if ((newRecord?.receiver_id === user.id || newRecord?.sender_id === user.id) || (oldRecord?.receiver_id === user.id || oldRecord?.sender_id === user.id)) {
                 refreshAllData();
                 if (payload.eventType === 'INSERT' && newRecord.receiver_id === user.id) {
                     const sender = allUsers.find(u => u.id === newRecord.sender_id);
@@ -214,7 +214,6 @@ export function HomeClientLayout({
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `receiver_id=eq.${user.id}` },
         (payload) => {
            const newMessage = payload.new as { sender_id: string, content: string};
-           // Only show toast if the message is not from the current user and for the selected chat
             if (newMessage.sender_id !== user.id && selectedFriend?.id === newMessage.sender_id) {
                 // Already in chat, no toast needed, realtime message will appear
             } else if (newMessage.sender_id !== user.id) {
@@ -253,7 +252,7 @@ export function HomeClientLayout({
     refreshAllData().then(() => {
         setSelectedFriend(null);
     });
-  },[router, refreshAllData]);
+  },[router, refreshAllData, setSelectedFriend]);
 
   const value = {
       currentUser,
