@@ -76,7 +76,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
       signalingChannelRef.current = null;
     }
     onClose();
-  }, [onClose, currentUser.id, supabase]);
+  }, [currentUser.id, onClose, supabase]);
 
   useEffect(() => {
     if (status !== 'connected') return;
@@ -89,6 +89,8 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     let speakingInterval: NodeJS.Timeout | null = null;
     let statsInterval: NodeJS.Timeout | null = null;
 
+    console.log("Effect running");
+    
     const init = async () => {
       console.log('[RTC] Initializing call...');
       try {
@@ -156,7 +158,6 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
         // This is now the critical part: Subscribe first, THEN create offer/answer
         channel.subscribe(async (subStatus) => {
             if (subStatus !== 'SUBSCRIBED' || !isMounted) {
-                console.log(`[RTC] Channel subscription status: ${subStatus}`);
                 return;
             }
 
@@ -232,6 +233,7 @@ export function VoiceCall({ supabase, currentUser, otherParticipant, initialOffe
     init();
 
     return () => {
+      console.log("Cleanup running");
       isMounted = false;
       if (speakingInterval) clearInterval(speakingInterval);
       if (statsInterval) clearInterval(statsInterval);

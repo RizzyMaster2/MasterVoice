@@ -1,7 +1,7 @@
 
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile } from '@/lib/data';
 import { VoiceCall } from './voice-call';
@@ -31,7 +31,6 @@ export function useCall() {
 }
 
 export function CallProvider({ children, currentUser }: { children: React.ReactNode; currentUser: UserProfile }) {
-  const [allUsers, setAllUsers] = useState<UserProfile[]>([]);
   const [activeCall, setActiveCall] = useState<Call | null>(null);
   const [incomingCall, setIncomingCall] = useState<Call | null>(null);
   const supabase = createClient();
@@ -43,15 +42,6 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     setIncomingCall(null);
   }, []);
 
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const users = await getUsers();
-      setAllUsers(users);
-    };
-    fetchUsers();
-  }, []);
-
   useEffect(() => {
     if (!currentUser?.id) return;
     
@@ -59,7 +49,6 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     userChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
-        // Fetch fresh user data to prevent depending on stale `allUsers` state
         const { data: callerProfile, error } = await supabase
             .from('profiles')
             .select('*')
@@ -112,7 +101,6 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
 
   const declineCall = () => {
     if (incomingCall && currentUser) {
-        // Send a hangup message to the caller's channel
         const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
         callerChannel.subscribe((status) => {
             if (status === 'SUBSCRIBED') {
@@ -127,15 +115,17 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     }
   };
 
+  const memoizedActiveCall = useMemo(() => activeCall, [activeCall]);
+
   return (
     <CallContext.Provider value={{ startCall, endCall, activeCall }}>
       {children}
-      {currentUser && activeCall && (
+      {currentUser && memoizedActiveCall && (
         <VoiceCall
           supabase={supabase}
           currentUser={currentUser}
-          otherParticipant={activeCall.otherParticipant}
-          initialOffer={activeCall.offer}
+          otherParticipant={memoizedActiveCall.otherParticipant}
+          initialOffer={memoizedActiveCall.offer}
           onClose={endCall}
         />
       )}
