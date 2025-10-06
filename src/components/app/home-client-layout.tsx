@@ -175,7 +175,7 @@ export function HomeClientLayout({
     if (!user) return;
     
     const realtimeChannel = supabase
-      .channel('home-layout-realtime')
+      .channel('public-db-changes')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'friends' },
@@ -236,7 +236,7 @@ export function HomeClientLayout({
           if (status === 'SUBSCRIBED') {
               // Quietly subscribed
           }
-          if (status === 'CHANNEL_ERROR') {
+          if (status === 'CHANNEL_ERROR' || err) {
               console.error('HomeClientLayout: Realtime channel error.', err);
           }
       });
