@@ -4,7 +4,7 @@
 import { useHomeClient } from '@/components/app/home-client-layout';
 import { ChatLayout } from '@/components/app/chat-layout';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useEffect, use } from 'react';
+import { useEffect } from 'react';
 import React from 'react';
 
 export default function ChatPage({ params }: { params: { friendId: string } }) {
@@ -18,9 +18,7 @@ export default function ChatPage({ params }: { params: { friendId: string } }) {
     isLoading,
   } = useHomeClient();
 
-
-  
-  const { friendId } = React.use(params);
+  const { friendId } = params;
 
   useEffect(() => {
     if (friendId && (!selectedFriend || selectedFriend.id !== friendId)) {
@@ -33,9 +31,9 @@ export default function ChatPage({ params }: { params: { friendId: string } }) {
     }
   }, [friendId, allUsers, friends, setSelectedFriend, selectedFriend]);
 
-  if (isLoading || !selectedFriend) {
+  if (isLoading || !selectedFriend || selectedFriend.id !== friendId) {
     return (
-      <div className="w-2/3 flex flex-col h-full">
+      <div className="w-full flex-1 flex flex-col h-full">
         <div className="flex flex-1 items-center justify-center">
           <div className="text-center">
             <Skeleton className="h-16 w-16 mx-auto mb-4 rounded-full" />
