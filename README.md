@@ -57,6 +57,12 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 NEXT_PUBLIC_ADMIN_EMAILS=your-admin-email@example.com
 ```
 
+## Contributing
+
+Pull requests are welcome. For major changes, open an issue first to discuss what you’d like to change.
+
+Please make sure to update tests as appropriate.
+
 ### 2. Install Dependencies
 
 Navigate to the project directory and install the required packages.
