@@ -37,6 +37,7 @@ import { FireSaleBanner } from '@/components/app/fire-sale-banner';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
 import { CookieConsentBanner } from '@/components/app/cookie-consent-banner';
+import { CodeBlock } from '@/components/app/code-block';
 
 const features = [
   {
@@ -290,6 +291,27 @@ const footerLinks = [
     { name: 'FAQ', href: '/faq' },
 ];
 
+const encryptionCodeExample = `
+// Step 1: Generate keys for both users
+const aliceKeys = await generateKeyPair();
+const bobKeys = await generateKeyPair();
+
+// Step 2: Establish a shared secret
+const sharedSecret = await deriveSharedSecret(
+  aliceKeys.privateKey, 
+  bobKeys.publicKey
+);
+
+// Step 3: Encrypt the voice data packet
+const encryptedPacket = await encrypt(
+  voicePacket, 
+  sharedSecret
+);
+
+// The encryptedPacket is sent over the network.
+// Only Bob can decrypt it using the same shared secret.
+`.trim();
+
 
 export default async function Home() {
   const heroImage = PlaceHolderImages.find((img) => img.id === 'hero');
@@ -416,8 +438,50 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        <section id="encryption" className="py-20 md:py-32 bg-secondary/30">
+          <div className="container mx-auto px-4 md:px-6">
+            <div className="grid gap-12 md:grid-cols-2 md:items-center">
+               <div className="order-1 md:order-2">
+                <Badge variant="outline" className="mb-4 border-primary text-primary">Security</Badge>
+                <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                  Secure By Design
+                </h2>
+                <p className="mt-4 text-lg text-muted-foreground">
+                  We believe your conversations should be private. That's why all voice calls on MasterVoice are end-to-end encrypted. No one, not even us, can listen in.
+                </p>
+                <ul className="mt-6 space-y-4">
+                  <li className="flex items-start gap-3">
+                    <Check className="h-5 w-5 mt-1 shrink-0 text-green-500" />
+                    <span>
+                      <strong className="font-semibold">End-to-End Encryption:</strong>{' '}
+                      Only you and the person you're talking to have the keys to your conversation.
+                    </span>
+                  </li>
+                  <li className="flex items-start gap-3">
+                     <Check className="h-5 w-5 mt-1 shrink-0 text-green-500" />
+                    <span>
+                      <strong className="font-semibold">
+                        Open & Transparent:
+                      </strong>{' '}
+                      Our platform is built on open standards, and our source code is available for anyone to review.
+                    </span>
+                  </li>
+                </ul>
+                <Button asChild className="mt-8">
+                  <Link href="/source-code">
+                    View Source Code <MoveRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
+              </div>
+               <div className="order-2 md:order-1">
+                 <CodeBlock language="javascript" code={encryptionCodeExample} />
+               </div>
+            </div>
+          </div>
+        </section>
         
-        <section id="how-it-works" className="py-20 md:py-32 bg-secondary/30">
+        <section id="how-it-works" className="py-20 md:py-32">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
               <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
@@ -447,7 +511,7 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="use-cases" className="py-20 md:py-32">
+        <section id="use-cases" className="py-20 md:py-32 bg-secondary/30">
           <div className="container mx-auto px-4 md:px-6">
             <div className="text-center">
               <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
@@ -673,5 +737,3 @@ export default async function Home() {
     </div>
   );
 }
-
-    
