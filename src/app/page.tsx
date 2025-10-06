@@ -1,4 +1,5 @@
 
+
 import { Button } from '@/components/ui/button';
 import {
   MessageSquare,
@@ -32,6 +33,7 @@ import { LandingNav } from '@/components/app/landing-nav';
 import { FireSaleBanner } from '@/components/app/fire-sale-banner';
 import { createClient } from '@/lib/supabase/server';
 import { cookies } from 'next/headers';
+import { CookieConsentBanner } from '@/components/app/cookie-consent-banner';
 
 const features = [
   {
@@ -237,6 +239,18 @@ const ChartGraphIllustration = () => (
 const AIConnectIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.brain{animation:brain-glow 3s infinite ease-in-out}.node{animation:node-pulse 2s infinite ease-in-out}.line{stroke-dasharray:100;stroke-dashoffset:100;animation:draw-line 2s .5s forwards infinite}.n1{animation-delay:-.5s}.n2{animation-delay:-1s}.n3{animation-delay:-1.5s}.l1{animation-delay:.5s}.l2{animation-delay:1s}.l3{animation-delay:1.5s}@keyframes brain-glow{50%{filter:drop-shadow(0 0 5px hsl(var(--primary)))}}@keyframes node-pulse{50%{r:4}}@keyframes draw-line{50%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}`}</style><path d="M50 20 C 30 20 30 40 50 40 C 70 40 70 20 50 20 M50 40 C 30 40 30 60 50 60 C 70 60 70 40 50 40 M50 60 C 30 60 30 80 50 80 C 70 80 70 60 50 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" className="brain" /><circle cx="20" cy="30" r="3" fill="currentColor" className="node n1"/><circle cx="80" cy="70" r="3" fill="currentColor" className="node n2"/><circle cx="30" cy="70" r="3" fill="currentColor" className="node n3"/><circle cx="70" cy="30" r="3" fill="currentColor" className="node"/><path d="M50 40 C 30 40 30 30 20 30" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l1" opacity=".5"/><path d="M50 60 C 70 60 70 70 80 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l2" opacity=".5"/><path d="M50 80 C 30 80 30 70 30 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l3" opacity=".5"/></svg>
 );
+
+const footerLinks = [
+    { name: 'Terms of Use', href: '/terms' },
+    { name: 'Privacy Policy', href: '/privacy' },
+    { name: 'Careers', href: '/careers' },
+    { name: 'Cookie Policy', href: '/cookie-policy' },
+    { name: 'Support', href: '/support' },
+    { name: 'Code of Conduct', href: '/code-of-conduct' },
+    { name: 'Your Privacy Choices', href: '/privacy-choices' },
+    { name: 'California Privacy Notice', href: '/privacy-ca' },
+    { name: 'FAQ', href: '/faq' },
+];
 
 
 export default async function Home() {
@@ -559,22 +573,26 @@ export default async function Home() {
       </main>
 
       <footer className="bg-secondary/30 border-t">
-        <div className="container mx-auto flex flex-col items-center justify-between gap-4 px-4 py-8 md:flex-row md:px-6">
+        <div className="container mx-auto flex flex-col items-center justify-between gap-6 px-4 py-8 md:px-6">
           <div className="flex items-center gap-2">
             <Logo className="h-6 w-6 text-muted-foreground" />
             <span className="font-headline text-lg font-bold text-muted-foreground">
               MasterVoice
             </span>
           </div>
-           <div className="flex gap-4 text-sm text-muted-foreground">
-              <Link href="/faq" className="hover:text-primary transition-colors">FAQ</Link>
-              <Link href="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+           <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm text-muted-foreground">
+              {footerLinks.map((link) => (
+                  <Link key={link.href} href={link.href} className="hover:text-primary transition-colors">
+                      {link.name}
+                  </Link>
+              ))}
           </div>
           <p className="text-sm text-muted-foreground">
             © <CurrentYear /> MasterVoice. All rights reserved.
           </p>
         </div>
       </footer>
+      <CookieConsentBanner />
     </div>
   );
 }
