@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
@@ -11,12 +12,14 @@ import {
   BrainCircuit,
   DollarSign,
   MoveRight,
+  Sparkles,
 } from 'lucide-react';
 
 const sections = [
   { id: 'features', title: 'Features', icon: MessageSquare },
   { id: 'how-it-works', title: 'How It Works', icon: Cog },
   { id: 'use-cases', title: 'Use Cases', icon: Gamepad2 },
+  { id: 'why-mastervoice', title: 'Why Us?', icon: Sparkles },
   { id: 'admin-controls', title: 'Admin', icon: ShieldCheck },
   { id: 'ai-features', title: 'AI-Powered', icon: BrainCircuit },
   { id: 'pricing', title: 'Pricing', icon: DollarSign },
@@ -101,3 +104,5 @@ export function LandingNav() {
     </nav>
   );
 }
+
+    

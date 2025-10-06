@@ -19,6 +19,9 @@ import {
   Heart,
   Cog,
   DollarSign,
+  Zap,
+  Gem,
+  Rocket,
 } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
@@ -240,6 +243,41 @@ const AIConnectIllustration = () => (
     <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto"><style>{`.brain{animation:brain-glow 3s infinite ease-in-out}.node{animation:node-pulse 2s infinite ease-in-out}.line{stroke-dasharray:100;stroke-dashoffset:100;animation:draw-line 2s .5s forwards infinite}.n1{animation-delay:-.5s}.n2{animation-delay:-1s}.n3{animation-delay:-1.5s}.l1{animation-delay:.5s}.l2{animation-delay:1s}.l3{animation-delay:1.5s}@keyframes brain-glow{50%{filter:drop-shadow(0 0 5px hsl(var(--primary)))}}@keyframes node-pulse{50%{r:4}}@keyframes draw-line{50%{stroke-dashoffset:0}100%{stroke-dashoffset:-100}}`}</style><path d="M50 20 C 30 20 30 40 50 40 C 70 40 70 20 50 20 M50 40 C 30 40 30 60 50 60 C 70 60 70 40 50 40 M50 60 C 30 60 30 80 50 80 C 70 80 70 60 50 60" fill="none" stroke="hsl(var(--primary))" strokeWidth="2" className="brain" /><circle cx="20" cy="30" r="3" fill="currentColor" className="node n1"/><circle cx="80" cy="70" r="3" fill="currentColor" className="node n2"/><circle cx="30" cy="70" r="3" fill="currentColor" className="node n3"/><circle cx="70" cy="30" r="3" fill="currentColor" className="node"/><path d="M50 40 C 30 40 30 30 20 30" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l1" opacity=".5"/><path d="M50 60 C 70 60 70 70 80 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l2" opacity=".5"/><path d="M50 80 C 30 80 30 70 30 70" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" className="line l3" opacity=".5"/></svg>
 );
 
+const WhyMasterVoiceIllustration = () => (
+    <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" className="w-full h-auto">
+        <style>{`
+            .logo-main { animation: logo-pop 1s ease-out forwards; transform-origin: center; transform: scale(0); }
+            .vs-text { font-family: var(--font-headline); font-size: 10px; font-weight: bold; fill: currentColor; opacity: 0; animation: fade-in 1s 1s forwards; }
+            .competitor-logo { opacity: 0; animation: competitor-pop 0.5s ease-out forwards; transform-origin: center; }
+            .comp-1 { animation-delay: 0.5s; fill: #7289DA; }
+            .comp-2 { animation-delay: 0.8s; fill: #0078D4; }
+            @keyframes logo-pop { 0% { transform: scale(0); } 70% { transform: scale(1.2); } 100% { transform: scale(1); } }
+            @keyframes fade-in { to { opacity: 1; } }
+            @keyframes competitor-pop { from { transform: scale(0.5); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+        `}</style>
+        {/* MasterVoice Logo in Center */}
+        <g className="logo-main" transform="translate(35, 35) scale(0.3)">
+             <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" />
+             <path d="M8.5 12C8.5 11.1716 9.17157 10.5 10 10.5H10.5" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" />
+             <path d="M15.5 12C15.5 12.8284 14.8284 13.5 14 13.5H13.5" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" />
+             <path d="M10.5 10.5L13.5 13.5" stroke="hsl(var(--primary))" strokeWidth="1.5" fill="none" />
+        </g>
+        
+        <text x="47" y="25" className="vs-text">vs</text>
+
+        {/* Competitor Logos */}
+        <g className="competitor-logo comp-1" transform="translate(10, 10)">
+            <circle cx="10" cy="10" r="10" />
+            <circle cx="10" cy="10" r="5" fill="white" />
+        </g>
+        <g className="competitor-logo comp-2" transform="translate(70, 70)">
+            <rect width="20" height="20" rx="4" />
+            <rect x="3" y="3" width="14" height="14" rx="2" fill="white" />
+        </g>
+    </svg>
+);
+
+
 const footerLinks = [
     { name: 'Terms of Use', href: '/terms' },
     { name: 'Privacy Policy', href: '/privacy' },
@@ -444,6 +482,45 @@ export default async function Home() {
             </div>
           </div>
         </section>
+        
+        <section id="why-mastervoice" className="py-20 md:py-32">
+           <div className="container mx-auto px-4 md:px-6">
+             <div className="text-center">
+              <div className="mx-auto h-24 w-24 flex items-center justify-center text-primary mb-4">
+                <WhyMasterVoiceIllustration />
+              </div>
+              <h2 className="font-headline text-3xl font-bold text-foreground md:text-4xl">
+                A Simpler, Better Way to Talk
+              </h2>
+              <p className="mt-4 max-w-2xl mx-auto text-muted-foreground">
+                Tired of the noise, clutter, and complexity of other platforms? So were we.
+              </p>
+            </div>
+             <div className="mt-16 grid gap-8 md:grid-cols-3">
+               <Card className="text-center p-6 bg-card/50">
+                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                   <Zap className="w-8 h-8 text-primary" />
+                 </div>
+                 <h3 className="mt-6 font-headline text-xl font-semibold">Simplicity & Focus</h3>
+                 <p className="mt-2 text-muted-foreground">No bots, no endless channels, no distractions. Just clean, fast, and focused communication with the people who matter.</p>
+               </Card>
+                <Card className="text-center p-6 bg-card/50">
+                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                   <Gem className="w-8 h-8 text-primary" />
+                 </div>
+                 <h3 className="mt-6 font-headline text-xl font-semibold">Uncompromising Quality</h3>
+                 <p className="mt-2 text-muted-foreground">Experience the difference with HD audio and end-to-end encryption. Your conversations are crystal-clear and always private.</p>
+               </Card>
+                <Card className="text-center p-6 bg-card/50">
+                 <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+                   <Rocket className="w-8 h-8 text-primary" />
+                 </div>
+                 <h3 className="mt-6 font-headline text-xl font-semibold">A Modern Platform</h3>
+                 <p className="mt-2 text-muted-foreground">Built with the latest technology for a faster, more reliable experience. MasterVoice is the refreshingly modern alternative you've been waiting for.</p>
+               </Card>
+             </div>
+           </div>
+         </section>
 
         <section id="admin-controls" className="py-20 md:py-32 bg-secondary/30">
           <div className="container mx-auto px-4 md:px-6">
@@ -596,3 +673,5 @@ export default async function Home() {
     </div>
   );
 }
+
+    
