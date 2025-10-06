@@ -1,4 +1,5 @@
 
+
 'use client'
 
 import {
@@ -233,9 +234,13 @@ export function ChatLayout({
       )
       .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'messages' }, (payload) => {
           const updatedMessage = payload.new as Message;
-          setMessages(currentMessages =>
-            currentMessages.map(msg => msg.id === updatedMessage.id ? { ...msg, ...updatedMessage, sender_profile: userMap.get(updatedMessage.sender_id) } : msg)
-          );
+           // Ensure the update is for the current chat
+          if ((updatedMessage.sender_id === currentUser.id && updatedMessage.receiver_id === selectedFriend.id) ||
+              (updatedMessage.sender_id === selectedFriend.id && updatedMessage.receiver_id === currentUser.id)) {
+            setMessages(currentMessages =>
+              currentMessages.map(msg => msg.id === updatedMessage.id ? { ...msg, ...updatedMessage, content: updatedMessage.content, is_edited: updatedMessage.is_edited, sender_profile: userMap.get(updatedMessage.sender_id) } : msg)
+            );
+          }
       })
       .on('broadcast', { event: 'typing' }, (payload) => {
           if (payload.payload.sender_id === selectedFriend.id) {
@@ -348,7 +353,7 @@ export function ChatLayout({
       setMessages(prev => prev.map(m => m.id === editingMessage.id ? { ...m, content: editingMessage.content, is_edited: true } : m));
       setEditingMessage(null);
 
-      startTransition(async () => {
+      startSendingTransition(async () => {
           try {
               await editMessage(editingMessage.id, editingMessage.content);
           } catch(error) {

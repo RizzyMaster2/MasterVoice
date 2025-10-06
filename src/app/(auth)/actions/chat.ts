@@ -391,7 +391,7 @@ export async function editMessage(messageId: number, content: string) {
         // It also provides a better error message than a generic RLS violation.
         const { data: message, error: fetchError } = await supabase
             .from('messages')
-            .select('sender_id')
+            .select('sender_id, receiver_id')
             .eq('id', messageId)
             .single();
 
@@ -403,14 +403,33 @@ export async function editMessage(messageId: number, content: string) {
             throw new Error("You can only edit your own messages.");
         }
 
-        const { error: updateError } = await supabase
+        const { data: updatedMessage, error: updateError } = await supabase
             .from('messages')
             .update({ content: content, is_edited: true })
-            .eq('id', messageId);
+            .eq('id', messageId)
+            .select()
+            .single();
         
         if (updateError) {
             throw new Error(`Failed to edit message: ${updateError.message}`);
         }
+
+        // Send a realtime update to the channel
+        const channelName = `chat:${[message.sender_id, message.receiver_id].sort().join(':')}`;
+        const channel = supabase.channel(channelName);
+        
+        await channel.send({
+            type: 'broadcast',
+            event: 'postgres_changes',
+            payload: {
+                commit_timestamp: new Date().toISOString(),
+                eventType: 'UPDATE',
+                schema: 'public',
+                table: 'messages',
+                old: message, // Technically not the "old" record but good enough
+                new: updatedMessage,
+            },
+        });
 
     } catch(error) {
         const message = error instanceof Error ? error.message : 'An unknown error occurred.';
