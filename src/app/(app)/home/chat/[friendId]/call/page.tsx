@@ -46,8 +46,12 @@ export default function FriendCallPage() {
   }
 
   if (!user || !friend) {
-    // This should ideally be caught by middleware or the fetch, but serves as a backup.
-    notFound();
+    // This can happen briefly during navigation. A skeleton is more appropriate
+    // than a hard notFound() here unless fetching truly failed.
+    if (!isLoadingFriend && !friend) {
+        notFound();
+    }
+    return <Skeleton className="h-full w-full" />;
   }
 
   return <CallPage currentUser={user} friend={friend} isReceiving={isReceiving} />;
