@@ -6,8 +6,9 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useEffect, useState } from 'react';
 import type { UserProfile } from '@/lib/data';
 import { useUser } from '@/hooks/use-user';
-import { notFound, useSearchParams, useParams } from 'next/navigation';
+import { notFound, useParams } from 'next/navigation';
 import { getUserProfile } from '@/app/(auth)/actions/chat';
+import { useSearchParams } from 'next/navigation';
 
 export default function FriendCallPage() {
   const params = useParams();
@@ -20,7 +21,6 @@ export default function FriendCallPage() {
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
-    // This effect runs once when friendId is available.
     if (friendId) {
       const fetchFriendProfile = async () => {
         setIsLoadingFriend(true);
@@ -28,6 +28,8 @@ export default function FriendCallPage() {
           const friendProfile = await getUserProfile(friendId);
           if (friendProfile) {
             setFriend(friendProfile);
+          } else {
+             notFound();
           }
         } catch (error) {
           console.error("Failed to fetch friend profile", error);
@@ -37,16 +39,16 @@ export default function FriendCallPage() {
       };
       fetchFriendProfile();
     }
-  }, [friendId]); // The dependency is stable, preventing re-runs.
+  }, [friendId]);
 
-  if (isUserLoading || isLoadingFriend || !friend) {
+  if (isUserLoading || isLoadingFriend) {
     return <Skeleton className="h-full w-full" />;
   }
 
-  if (!user) {
-    // This should ideally be caught by middleware, but serves as a backup.
+  if (!user || !friend) {
+    // This should ideally be caught by middleware or the fetch, but serves as a backup.
     notFound();
   }
 
-  return <CallPage friend={friend} isReceiving={isReceiving} />;
+  return <CallPage currentUser={user} friend={friend} isReceiving={isReceiving} />;
 }

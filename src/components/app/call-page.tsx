@@ -4,7 +4,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useUser } from '@/hooks/use-user';
 import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { Mic, MicOff, PhoneOff, Loader2, Timer, ActivitySquare, ShieldAlert, Volume2, Info } from 'lucide-react';
@@ -23,11 +22,11 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { Slider } from '@/components/ui/slider';
+import type { User } from '@supabase/supabase-js';
 
 
-export function CallPage({ friend, isReceiving }: { friend: UserProfile, isReceiving: boolean }) {
+export function CallPage({ currentUser, friend, isReceiving }: { currentUser: User, friend: UserProfile, isReceiving: boolean }) {
   const router = useRouter();
-  const { user: currentUser, isLoading: isUserLoading } = useUser();
   const supabase = createClient();
 
   const [status, setStatus] = useState<'calling' | 'connecting' | 'connected' | 'error'>('connecting');
@@ -116,16 +115,6 @@ export function CallPage({ friend, isReceiving }: { friend: UserProfile, isRecei
     connected: formatDuration(callDuration),
     error: 'Error Starting Call'
   };
-
-  if (isUserLoading || !friend || !currentUser) {
-    return (
-        <div className="w-full h-full flex flex-col items-center justify-center p-6 bg-gradient-to-br from-background to-primary/5">
-             <Skeleton className="h-32 w-32 rounded-full" />
-             <Skeleton className="h-8 w-48 mt-4" />
-             <Skeleton className="h-5 w-64 mt-2" />
-        </div>
-    );
-  }
 
   return (
     <div className="w-full h-full flex flex-col p-0 gap-0">
