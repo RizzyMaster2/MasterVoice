@@ -35,17 +35,19 @@ export function VoiceCallLogic({
     isReceiving,
     onConnected,
     onStatusChange,
-    onStatsUpdate,
     onClose 
 }: VoiceCallLogicProps) {
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const signalingChannelRef = useRef<any>(null);
-  
   const isMountedRef = useRef(true);
 
   const { toast } = useToast();
+  
+  const handleCloseRef = useRef(onClose);
+  handleCloseRef.current = onClose;
+
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -74,7 +76,7 @@ export function VoiceCallLogic({
       }
       
       if (isMountedRef.current) {
-          onClose();
+          handleCloseRef.current();
       }
     };
 
@@ -87,7 +89,10 @@ export function VoiceCallLogic({
 
         try {
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-            if (!isMountedRef.current) return;
+            if (!isMountedRef.current) {
+              stream.getTracks().forEach(track => track.stop());
+              return;
+            };
             localStreamRef.current = stream;
 
             const pc = new RTCPeerConnection(PEER_CONNECTION_CONFIG);
@@ -96,9 +101,9 @@ export function VoiceCallLogic({
             stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
             pc.onicecandidate = event => {
-                if (event.candidate) {
+                if (event.candidate && signalingChannelRef.current) {
                     console.log('[ICE] Local candidate:', event.candidate);
-                    signalingChannelRef.current?.send({
+                    signalingChannelRef.current.send({
                         type: 'broadcast',
                         event: 'ice-candidate',
                         payload: event.candidate,
@@ -108,7 +113,7 @@ export function VoiceCallLogic({
 
             pc.ontrack = event => {
                 console.log('[RTC] Received remote track.');
-                if (event.streams[0]) {
+                if (event.streams[0] && isMountedRef.current) {
                     onConnected(event.streams[0], stream);
                 }
             };
@@ -132,52 +137,46 @@ export function VoiceCallLogic({
             });
 
             channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
-                console.log('[ICE] Received remote candidate:', payload);
-                if (payload) {
+                if (payload && peerConnectionRef.current) {
                     try {
-                        await pc.addIceCandidate(new RTCIceCandidate(payload));
+                        console.log('[ICE] Received remote candidate:', payload);
+                        await peerConnectionRef.current.addIceCandidate(new RTCIceCandidate(payload));
                     } catch (e) {
                         console.error('[ICE] Error adding received ICE candidate', e);
                     }
                 }
             });
 
-            if (isReceiving) {
-                 channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
-                    console.log('[RTC] Received offer:', payload.offer);
-                    await pc.setRemoteDescription(new RTCSessionDescription(payload.offer));
-                    const answer = await pc.createAnswer();
-                    await pc.setLocalDescription(answer);
-                    console.log('[RTC] Created and set local answer:', answer);
-                    channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-                });
-            } else {
-                 channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-                    console.log('[RTC] Received answer:', payload);
-                    if (pc.signalingState !== 'stable') {
-                        await pc.setRemoteDescription(new RTCSessionDescription(payload));
-                    }
-                });
-            }
+            channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
+              if (isReceiving && peerConnectionRef.current) {
+                console.log('[RTC] Received offer:', payload.offer);
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
+                const answer = await peerConnectionRef.current.createAnswer();
+                await peerConnectionRef.current.setLocalDescription(answer);
+                console.log('[RTC] Created and set local answer:', answer);
+                channel.send({ type: 'broadcast', event: 'answer', payload: answer });
+              }
+            });
+          
+            channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
+              if (!isReceiving && peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'stable') {
+                console.log('[RTC] Received answer:', payload);
+                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
+              }
+            });
 
             channel.subscribe(async (subStatus) => {
                 if (subStatus !== 'SUBSCRIBED' || !isMountedRef.current) return;
                 console.log(`[RTC] Successfully subscribed to channel: ${channelId}`);
-                if (!isReceiving) {
-                    const offer = await pc.createOffer();
-                    await pc.setLocalDescription(offer);
-                    console.log('[RTC] Created and set local offer:', offer);
-                    
-                    const userChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
-                    userChannel.subscribe(status => {
-                        if (status === 'SUBSCRIBED') {
-                            console.log(`[RTC] Sending offer to ${otherParticipant.display_name}`);
-                            userChannel.send({
-                                type: 'broadcast',
-                                event: 'offer',
-                                payload: { from: currentUser.id, offer }
-                            }).then(() => supabase.removeChannel(userChannel));
-                        }
+                
+                if (!isReceiving && peerConnectionRef.current) {
+                    const offer = await peerConnectionRef.current.createOffer();
+                    await peerConnectionRef.current.setLocalDescription(offer);
+                    console.log('[RTC] Created and set local offer, sending...');
+                    channel.send({
+                      type: 'broadcast',
+                      event: 'offer',
+                      payload: { from: currentUser.id, offer }
                     });
                 }
             });
@@ -199,7 +198,8 @@ export function VoiceCallLogic({
       isMountedRef.current = false;
       handleClose(true);
     };
-  }, [currentUser.id, otherParticipant.id, isReceiving, onConnected, onStatusChange, onClose, supabase, toast, otherParticipant.display_name]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser.id, otherParticipant.id, isReceiving, supabase, toast]);
 
   return null;
 }
