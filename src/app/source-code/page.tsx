@@ -33,7 +33,7 @@ export default async function SourceCodePage() {
               <p>By making our code open, we empower our community to verify our security claims and help us build a better, more secure platform for everyone.</p>
               <div className="not-prose pt-4">
                 <Button asChild size="lg">
-                    <Link href="https://github.com/example/mastervoice" target="_blank" rel="noopener noreferrer">
+                    <Link href="https://github.com/RizzyMaster2/MasterVoice" target="_blank" rel="noopener noreferrer">
                         <GitBranch className="mr-2 h-5 w-5" />
                         View Source on GitHub
                     </Link>
