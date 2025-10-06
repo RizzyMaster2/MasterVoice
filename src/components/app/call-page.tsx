@@ -116,6 +116,12 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
     error: 'Error Starting Call'
   };
 
+  const isConnecting = status === 'calling' || status === 'connecting';
+  const avatarUser = isConnecting && !isReceiving ? currentUser : friend;
+  const avatarDisplayName = isConnecting && !isReceiving ? currentUser?.user_metadata.display_name : friend?.display_name;
+  const avatarPhotoUrl = isConnecting && !isReceiving ? currentUser?.user_metadata.photo_url : friend?.photo_url;
+  const mainText = isConnecting && !isReceiving ? 'You' : friend?.display_name;
+
   return (
     <div className="w-full h-full flex flex-col p-0 gap-0">
         {currentUser && friend && (
@@ -135,16 +141,16 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
           <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={isLoading}>
               <div className="relative cursor-context-menu">
-                {isLoading ? (
+                {isLoading || !avatarUser ? (
                     <Skeleton className="h-32 w-32 rounded-full" />
                 ) : (
                     <Avatar className="h-32 w-32 border-4 border-transparent">
-                      <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
-                      <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
+                      <AvatarImage src={avatarPhotoUrl || undefined} alt={avatarDisplayName || ''} />
+                      <AvatarFallback className="text-4xl">{getInitials(avatarDisplayName)}</AvatarFallback>
                     </Avatar>
                 )}
                 <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
-                    <p className="text-lg font-semibold">{friend?.display_name}</p>
+                    <p className="text-lg font-semibold">{mainText}</p>
                     <div className="flex items-center gap-2 text-sm font-mono">
                       {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
                       <p>{statusText[status]}</p>
