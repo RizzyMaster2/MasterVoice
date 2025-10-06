@@ -20,7 +20,8 @@ export default function FriendCallPage() {
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
-    // Only fetch if we have a friendId and haven't already fetched the friend
+    // This effect is now ONLY for fetching the friend profile.
+    // It's guarded to prevent re-fetching if data already exists.
     if (friendId && !friend) {
       const fetchFriendProfile = async () => {
         setIsLoadingFriend(true);
@@ -29,12 +30,10 @@ export default function FriendCallPage() {
           if (friendProfile) {
             setFriend(friendProfile);
           } else {
-            // If the profile is not found, it's a 404
             notFound();
           }
         } catch (error) {
           console.error("Failed to fetch friend profile", error);
-          // Handle error, maybe show a toast or an error message
           notFound();
         } finally {
           setIsLoadingFriend(false);
@@ -42,7 +41,6 @@ export default function FriendCallPage() {
       };
       fetchFriendProfile();
     } else if (!friendId) {
-        // If there's no friendId, we can stop loading.
         setIsLoadingFriend(false);
     }
   }, [friendId, friend]);
