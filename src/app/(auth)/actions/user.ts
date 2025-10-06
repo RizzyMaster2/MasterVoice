@@ -171,3 +171,30 @@ export async function createPublicProfile(userId: string, email: string, fullNam
   
   return data;
 }
+
+export async function updatePrivacySettings(settings: { allow_ai_suggestions?: boolean; searchable_by_email?: boolean }) {
+    const cookieStore = cookies();
+    const supabase = createClient(cookieStore);
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        throw new Error("User not found.");
+    }
+
+    const { data, error } = await supabase.auth.updateUser({
+        data: {
+            ...user.user_metadata,
+            privacy_settings: {
+                ...user.user_metadata.privacy_settings,
+                ...settings,
+            }
+        }
+    });
+
+    if (error) {
+        throw new Error(error.message);
+    }
+
+    revalidatePath('/privacy-choices');
+    return data.user?.user_metadata.privacy_settings;
+}
