@@ -27,6 +27,53 @@ MasterVoice is a feature-rich, real-time chat application built with a modern, s
 - **State Management:** React Hooks & Context API
 - **Form Handling:** [React Hook Form](https://react-hook-form.com/) & [Zod](https://zod.dev/)
 
+## 🔐 Voice Encryption
+
+MasterVoice uses WebRTC to power HD voice calls, ensuring secure, private communication between users. Here's how encryption is handled across the stack:
+
+### 1. End-to-End Media Encryption (SRTP)
+
+- **Protocol**: Secure Real-Time Transport Protocol  
+- **Purpose**: Encrypts voice packets during transmission  
+- **Method**: Uses AES (Advanced Encryption Standard) to scramble audio data so only the intended recipient can decrypt it
+
+> Your voice is converted to digital packets → encrypted → sent → decrypted only by the recipient
+
+### 2. Key Exchange (DTLS)
+
+- **Protocol**: Datagram Transport Layer Security  
+- **Purpose**: Securely negotiates encryption keys between peers  
+- **Method**: DTLS handshake ensures both users agree on a shared secret without exposing it
+
+> DTLS handles the “handshake” so both sides know how to encrypt/decrypt without anyone else listening in
+
+### 3. Signaling Layer Encryption
+
+- **Transport**: HTTPS or WebSocket TLS  
+- **Purpose**: Coordinates call setup (who’s calling whom, ICE candidates, etc.)  
+- **Method**: Encrypted via TLS to prevent metadata leaks or spoofing
+
+> While signaling doesn’t carry voice data, it’s still encrypted to protect call setup
+
+### 4. Relay Servers (TURN)
+
+- **Fallback**: If direct peer-to-peer fails, media is relayed through TURN servers  
+- **Encryption**: TURN relays are SRTP-compliant, so voice remains encrypted end-to-end
+
+---
+
+### 🔒 Summary
+
+| Layer             | Protocol | Encryption |
+|------------------|----------|------------|
+| Voice Media      | SRTP     | AES        |
+| Key Exchange     | DTLS     | TLS        |
+| Signaling        | HTTPS/WSS| TLS        |
+| Relay (TURN)     | SRTP     | AES        |
+
+MasterVoice never stores voice data—calls are ephemeral and encrypted from end to end. Encryption is automatic and enforced by WebRTC, requiring no setup from users.
+
+
 ## Getting Started
 
 Follow these instructions to get a local copy up and running for development and testing purposes.
