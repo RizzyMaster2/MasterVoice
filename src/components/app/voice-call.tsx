@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
@@ -51,7 +51,7 @@ export function VoiceCallLogic({
     isMountedRef.current = true;
     onStatusChange(isReceiving ? 'connecting' : 'calling');
 
-    const handleClose = (notify = true, shouldNavigate = true) => {
+    const handleClose = (notify = true) => {
       console.log('[RTC] Closing call...');
       if (signalingChannelRef.current && notify) {
           console.log('[RTC] Sending hangup signal.');
@@ -73,7 +73,7 @@ export function VoiceCallLogic({
         signalingChannelRef.current = null;
       }
       
-      if (isMountedRef.current && shouldNavigate) {
+      if (isMountedRef.current) {
           onClose();
       }
     };
@@ -119,7 +119,7 @@ export function VoiceCallLogic({
                 if (peerConnectionRef.current.connectionState === 'connected') onStatusChange('connected');
                 else if (['failed', 'disconnected', 'closed'].includes(peerConnectionRef.current.connectionState)) {
                     toast({ title: "Call disconnected" });
-                    handleClose(false, true);
+                    handleClose(false);
                 }
             };
             
@@ -128,7 +128,7 @@ export function VoiceCallLogic({
             signalingChannelRef.current = channel;
             
             channel.on('broadcast', { event: 'hangup' }, () => {
-              handleClose(false, true);
+              handleClose(false);
             });
 
             channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
@@ -187,7 +187,7 @@ export function VoiceCallLogic({
             onStatusChange('error');
             toast({ title: 'Microphone Access Error', description: 'Please allow microphone access to make calls.', variant: 'destructive' });
             if(isMountedRef.current) {
-                setTimeout(() => handleClose(true, true), 2000);
+                setTimeout(() => handleClose(true), 2000);
             }
         }
     };
@@ -197,10 +197,9 @@ export function VoiceCallLogic({
     return () => {
       console.log('Cleanup running');
       isMountedRef.current = false;
-      handleClose(true, false); // Don't navigate on cleanup, only on explicit close
+      handleClose(true);
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser.id, otherParticipant.id, isReceiving]);
+  }, [currentUser.id, otherParticipant.id, isReceiving, onConnected, onStatusChange, onClose, supabase, toast, otherParticipant.display_name]);
 
   return null;
 }
