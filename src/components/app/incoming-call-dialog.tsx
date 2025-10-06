@@ -31,7 +31,6 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
   
   const { toast } = useToast();
   const audioRef = useRef<HTMLAudioElement>(null);
-  const declineTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     const playSound = async () => {
@@ -45,26 +44,13 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
     };
     
     playSound();
-    
-    // Set a timeout to automatically decline the call
-    declineTimerRef.current = setTimeout(() => {
-      toast({
-        title: "Missed Call",
-        description: `You missed a call from ${caller.display_name}`,
-        variant: 'info'
-      });
-      onDecline();
-    }, 10000); // 10 seconds
 
     return () => {
       if (audioRef.current) {
         audioRef.current.pause();
       }
-      if (declineTimerRef.current) {
-        clearTimeout(declineTimerRef.current);
-      }
     };
-  }, [caller.display_name, onDecline, toast]);
+  }, []);
 
   return (
     <Dialog open={true}>

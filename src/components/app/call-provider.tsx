@@ -35,8 +35,17 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   const { toast } = useToast();
   const userChannelRef = useRef<any>(null);
   const router = useRouter();
+  const declineTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  const clearDeclineTimer = () => {
+    if (declineTimerRef.current) {
+      clearTimeout(declineTimerRef.current);
+      declineTimerRef.current = null;
+    }
+  }
+
   const declineCall = useCallback(() => {
+    clearDeclineTimer();
     if (incomingCall && currentUser) {
         const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
         callerChannel.subscribe((status) => {
@@ -72,12 +81,23 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
 
         if (callerProfile && !incomingCall) {
             setIncomingCall({ otherParticipant: callerProfile, offer: payload.offer });
+            
+            // Set a timeout to automatically decline the call
+            declineTimerRef.current = setTimeout(() => {
+              toast({
+                title: "Missed Call",
+                description: `You missed a call from ${callerProfile.display_name}`,
+                variant: 'info'
+              });
+              declineCall();
+            }, 10000); // 10 seconds
         }
     });
 
     channel.on('broadcast', { event: 'hangup' }, () => {
         if (incomingCall) {
             toast({ title: "Call Ended", description: "The other user has ended the call." });
+            clearDeclineTimer();
             setIncomingCall(null);
         }
     });
@@ -93,12 +113,14 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
             supabase.removeChannel(channel);
         }
         userChannelRef.current = null;
+        clearDeclineTimer();
     };
 
-  }, [currentUser?.id, supabase, incomingCall, toast]);
+  }, [currentUser?.id, supabase, incomingCall, toast, declineCall]);
 
 
   const acceptCall = () => {
+    clearDeclineTimer();
     if (incomingCall) {
       router.push(`/home/chat/${incomingCall.otherParticipant.id}/call?isReceiving=true`);
       setIncomingCall(null);
