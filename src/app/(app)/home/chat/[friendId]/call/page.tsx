@@ -20,8 +20,6 @@ export default function FriendCallPage() {
   const isReceiving = searchParams.get('isReceiving') === 'true';
 
   useEffect(() => {
-    // This effect is now ONLY for fetching the friend profile.
-    // It's guarded to prevent re-fetching if data already exists.
     if (friendId && !friend) {
       const fetchFriendProfile = async () => {
         setIsLoadingFriend(true);
@@ -40,23 +38,12 @@ export default function FriendCallPage() {
         }
       };
       fetchFriendProfile();
-    } else if (!friendId) {
-        setIsLoadingFriend(false);
     }
   }, [friendId, friend]);
 
-  // The page is loading if the user is loading or we are actively fetching the friend.
   const isLoading = isUserLoading || isLoadingFriend;
 
-  if (isLoading) {
-    return <Skeleton className="h-full w-full" />;
-  }
-
-  // After loading, if we still don't have the user or friend, it's an error.
-  if (!user || !friend) {
-    // This will show a not found page if data is missing after loading.
-    notFound();
-  }
-  
-  return <CallPage currentUser={user} friend={friend} isReceiving={isReceiving} />;
+  // We will now pass user and friend directly, even if they are null.
+  // The CallPage component will handle the skeleton state internally.
+  return <CallPage currentUser={user} friend={friend} isReceiving={isReceiving} isLoading={isLoading} />;
 }

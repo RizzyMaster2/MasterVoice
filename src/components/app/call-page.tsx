@@ -25,7 +25,7 @@ import { Slider } from '@/components/ui/slider';
 import type { User } from '@supabase/supabase-js';
 
 
-export function CallPage({ currentUser, friend, isReceiving }: { currentUser: User, friend: UserProfile, isReceiving: boolean }) {
+export function CallPage({ currentUser, friend, isReceiving, isLoading }: { currentUser: User | null, friend: UserProfile | null, isReceiving: boolean, isLoading: boolean }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -48,8 +48,8 @@ export function CallPage({ currentUser, friend, isReceiving }: { currentUser: Us
     if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.close();
     }
-    router.push(`/home/chat/${friend.id}`);
-  }, [router, friend.id]);
+    router.push(`/home/chat/${friend?.id}`);
+  }, [router, friend?.id]);
 
   const onConnected = useCallback((stream: MediaStream, localStream: MediaStream) => {
     if (remoteAudioRef.current) {
@@ -118,25 +118,31 @@ export function CallPage({ currentUser, friend, isReceiving }: { currentUser: Us
 
   return (
     <div className="w-full h-full flex flex-col p-0 gap-0">
-        <VoiceCallLogic 
-            supabase={supabase}
-            currentUser={currentUser}
-            otherParticipant={friend}
-            isReceiving={isReceiving}
-            onConnected={onConnected}
-            onStatusChange={setStatus}
-            onStatsUpdate={setStats}
-            onClose={handleClose}
-        />
+        {currentUser && friend && (
+            <VoiceCallLogic 
+                supabase={supabase}
+                currentUser={currentUser}
+                otherParticipant={friend}
+                isReceiving={isReceiving}
+                onConnected={onConnected}
+                onStatusChange={setStatus}
+                onStatsUpdate={setStats}
+                onClose={handleClose}
+            />
+        )}
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gradient-to-br from-background to-primary/5 relative">
           
           <DropdownMenu>
-            <DropdownMenuTrigger asChild>
+            <DropdownMenuTrigger asChild disabled={isLoading}>
               <div className="relative cursor-context-menu">
-                <Avatar className="h-32 w-32 border-4 border-transparent">
-                  <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
-                  <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
-                </Avatar>
+                {isLoading ? (
+                    <Skeleton className="h-32 w-32 rounded-full" />
+                ) : (
+                    <Avatar className="h-32 w-32 border-4 border-transparent">
+                      <AvatarImage src={friend?.photo_url || undefined} alt={friend?.display_name || ''} />
+                      <AvatarFallback className="text-4xl">{getInitials(friend?.display_name)}</AvatarFallback>
+                    </Avatar>
+                )}
                 <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
                     <p className="text-lg font-semibold">{friend?.display_name}</p>
                     <div className="flex items-center gap-2 text-sm font-mono">
