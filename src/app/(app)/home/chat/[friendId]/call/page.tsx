@@ -12,7 +12,7 @@ import { getUserProfile } from '@/app/(auth)/actions/chat';
 export default function FriendCallPage() {
   const params = useParams();
   const friendId = params.friendId as string;
-  const { user, isLoading: isUserLoading } = useUser();
+  const { profile: currentUser, isLoading: isUserLoading } = useUser();
   const [friend, setFriend] = useState<UserProfile | null>(null);
   const [isLoadingFriend, setIsLoadingFriend] = useState(true);
 
@@ -42,8 +42,6 @@ export default function FriendCallPage() {
   }, [friendId, friend]);
 
   const isLoading = isUserLoading || isLoadingFriend;
-
-  // We will now pass user and friend directly, even if they are null.
-  // The CallPage component will handle the skeleton state internally.
-  return <CallPage currentUser={user} friend={friend} isReceiving={isReceiving} isLoading={isLoading} />;
+  
+  return <CallPage currentUser={currentUser} friend={friend} isReceiving={isReceiving} isLoading={isLoading} />;
 }

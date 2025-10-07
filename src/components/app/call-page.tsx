@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import type { UserProfile } from '@/lib/data';
 import { Button } from '@/components/ui/button';
@@ -22,10 +22,10 @@ import {
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu"
 import { Slider } from '@/components/ui/slider';
-import type { User } from '@supabase/supabase-js';
+import { useUser } from '@/hooks/use-user';
 
 
-export function CallPage({ currentUser, friend, isReceiving, isLoading }: { currentUser: User | null, friend: UserProfile | null, isReceiving: boolean, isLoading: boolean }) {
+export function CallPage({ currentUser, friend, isReceiving, isLoading }: { currentUser: UserProfile | null, friend: UserProfile | null, isReceiving: boolean, isLoading: boolean }) {
   const router = useRouter();
   const supabase = createClient();
 
@@ -117,10 +117,9 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
   };
 
   const isConnecting = status === 'calling' || status === 'connecting';
-  const avatarUser = isConnecting && !isReceiving ? currentUser : friend;
-  const avatarDisplayName = isConnecting && !isReceiving ? currentUser?.user_metadata.display_name : friend?.display_name;
-  const avatarPhotoUrl = isConnecting && !isReceiving ? currentUser?.user_metadata.photo_url : friend?.photo_url;
-  const mainText = isConnecting && !isReceiving ? 'You' : friend?.display_name;
+  
+  const avatarUser = isConnecting ? currentUser : friend;
+  const mainText = isConnecting ? 'You' : friend?.display_name;
 
   return (
     <div className="w-full h-full flex flex-col p-0 gap-0">
@@ -144,9 +143,9 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
                 {isLoading || !avatarUser ? (
                     <Skeleton className="h-32 w-32 rounded-full" />
                 ) : (
-                    <Avatar className="h-32 w-32 border-4 border-transparent">
-                      <AvatarImage src={avatarPhotoUrl || undefined} alt={avatarDisplayName || ''} />
-                      <AvatarFallback className="text-4xl">{getInitials(avatarDisplayName)}</AvatarFallback>
+                    <Avatar className="h-32 w-32 border-4 border-transparent data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
+                      <AvatarImage src={avatarUser.photo_url || undefined} alt={avatarUser.display_name || ''} />
+                      <AvatarFallback className="text-4xl">{getInitials(avatarUser.display_name)}</AvatarFallback>
                     </Avatar>
                 )}
                 <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
@@ -185,17 +184,20 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
             </DropdownMenuContent>
           </DropdownMenu>
 
+            {status === 'connected' && friend && (
+                 <div className="relative">
+                    <Avatar className="h-20 w-20 border-2 data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
+                        <AvatarImage src={friend.photo_url || undefined} alt={friend.display_name || ''} />
+                        <AvatarFallback className="text-2xl">{getInitials(friend.display_name)}</AvatarFallback>
+                    </Avatar>
+                    <p className='text-center mt-2 text-sm font-semibold'>{friend.display_name}</p>
+                </div>
+            )}
+
           {showDebugInfo && (
             <Badge variant="secondary" className="absolute top-4 left-4 z-10 flex items-center gap-2 font-mono text-xs">
               <ActivitySquare className="h-4 w-4" />
               RTT: {stats.rtt ?? '–'} ms | Bitrate: {stats.bitrate ? (stats.bitrate / 1000).toFixed(0) : '–'} kbps
-            </Badge>
-          )}
-
-          {status === 'connected' && (
-            <Badge variant={isSpeaking ? 'default' : 'outline'} className="absolute top-4 right-4 z-10 flex items-center gap-2">
-              <ActivitySquare className="h-4 w-4" />
-              {isSpeaking ? 'Speaking' : 'Silent'}
             </Badge>
           )}
           
@@ -207,7 +209,7 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
             <ShieldAlert className="h-4 w-4" />
             <AlertTitle className="text-xs font-semibold">For Your Safety</AlertTitle>
             <AlertDescription className="text-xs">
-                We are recording this call for legal reasons.
+                We are recording this call for demonstration purposes.
             </AlertDescription>
             </Alert>
           <div className="flex items-center gap-4">

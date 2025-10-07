@@ -9,8 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 
 type Call = {
-  otherParticipant: UserProfile;
-  offer?: RTCSessionDescriptionInit;
+  callerProfile: UserProfile;
+  offer: RTCSessionDescriptionInit;
 };
 
 type CallContextType = {
@@ -47,14 +47,15 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   const declineCall = useCallback(() => {
     clearDeclineTimer();
     if (incomingCall && currentUser) {
-        const callerChannel = supabase.channel(`user-signaling:${incomingCall.otherParticipant.id}`);
-        callerChannel.subscribe((status) => {
+        // We need to notify the caller on THEIR channel that we hung up.
+        const callerHangupChannel = supabase.channel(`user-signaling:${incomingCall.callerProfile.id}`);
+        callerHangupChannel.subscribe((status) => {
             if (status === 'SUBSCRIBED') {
-                callerChannel.send({
+                callerHangupChannel.send({
                     type: 'broadcast',
                     event: 'hangup',
                     payload: { from: currentUser.id },
-                }).then(() => supabase.removeChannel(callerChannel));
+                }).then(() => supabase.removeChannel(callerHangupChannel));
             }
         });
     }
@@ -64,39 +65,35 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   useEffect(() => {
     if (!currentUser?.id) return;
     
+    // Listen on the user's personal channel for incoming offers
     const channel = supabase.channel(`user-signaling:${currentUser.id}`);
     userChannelRef.current = channel;
     
     channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
-        const { data: callerProfile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', payload.from)
-            .single();
-
-        if (error || !callerProfile) {
-            console.error("Could not find profile for caller:", payload.from);
+        const { from: callerId, offer, callerProfile } = payload;
+        
+        if (!callerProfile) {
+            console.error("Could not find profile for caller:", callerId);
             return;
         }
 
         if (callerProfile && !incomingCall) {
-            setIncomingCall({ otherParticipant: callerProfile, offer: payload.offer });
+            setIncomingCall({ callerProfile, offer });
             
             // Set a timeout to automatically decline the call
             declineTimerRef.current = setTimeout(() => {
               toast({
                 title: "Missed Call",
                 description: `You missed a call from ${callerProfile.display_name}`,
-                variant: 'info'
               });
               declineCall();
             }, 10000); // 10 seconds
         }
     });
 
-    channel.on('broadcast', { event: 'hangup' }, () => {
-        if (incomingCall) {
-            toast({ title: "Call Ended", description: "The other user has ended the call." });
+    channel.on('broadcast', { event: 'hangup' }, ({ payload }) => {
+        if (incomingCall && payload.from === incomingCall.callerProfile.id) {
+            toast({ title: "Call Cancelled", description: "The other user cancelled the call." });
             clearDeclineTimer();
             setIncomingCall(null);
         }
@@ -122,7 +119,9 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   const acceptCall = () => {
     clearDeclineTimer();
     if (incomingCall) {
-      router.push(`/home/chat/${incomingCall.otherParticipant.id}/call?isReceiving=true`);
+      // Pass the offer to the call page via sessionStorage because it's too large for a URL param
+      sessionStorage.setItem('webrtc_offer', JSON.stringify(incomingCall.offer));
+      router.push(`/home/chat/${incomingCall.callerProfile.id}/call?isReceiving=true`);
       setIncomingCall(null);
     }
   };
@@ -132,7 +131,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
       {children}
       {currentUser && incomingCall && (
         <IncomingCallDialog
-          caller={incomingCall.otherParticipant}
+          caller={incomingCall.callerProfile}
           onAccept={acceptCall}
           onDecline={declineCall}
         />

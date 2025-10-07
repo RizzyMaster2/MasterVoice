@@ -40,7 +40,8 @@ export function VoiceCallLogic({
   
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
-  const signalingChannelRef = useRef<any>(null);
+  const signalingChannelRef = useRef<any>(null); // For chat-specific signaling
+  const userChannelRef = useRef<any>(null); // For user-specific listening
   const isMountedRef = useRef(true);
 
   const { toast } = useToast();
@@ -74,7 +75,13 @@ export function VoiceCallLogic({
         supabase.removeChannel(signalingChannelRef.current);
         signalingChannelRef.current = null;
       }
+       if (userChannelRef.current) {
+        supabase.removeChannel(userChannelRef.current);
+        userChannelRef.current = null;
+      }
       
+      sessionStorage.removeItem('webrtc_offer');
+
       if (isMountedRef.current) {
           handleCloseRef.current();
       }
@@ -128,14 +135,17 @@ export function VoiceCallLogic({
                 }
             };
             
+            // This is the SHARED channel for the two participants to exchange details for THIS call
             const channelId = `signaling:${[currentUser.id, otherParticipant.id].sort().join(':')}`;
             const channel = supabase.channel(channelId, { config: { broadcast: { self: false } } });
             signalingChannelRef.current = channel;
             
+            // Both users listen for hangups on the shared channel
             channel.on('broadcast', { event: 'hangup' }, () => {
               handleClose(false);
             });
 
+            // Both users exchange ICE candidates on the shared channel
             channel.on('broadcast', { event: 'ice-candidate' }, async ({ payload }) => {
                 if (payload && peerConnectionRef.current) {
                     try {
@@ -146,37 +156,64 @@ export function VoiceCallLogic({
                     }
                 }
             });
-
-            channel.on('broadcast', { event: 'offer' }, async ({ payload }) => {
-              if (isReceiving && peerConnectionRef.current) {
-                console.log('[RTC] Received offer:', payload.offer);
-                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload.offer));
-                const answer = await peerConnectionRef.current.createAnswer();
-                await peerConnectionRef.current.setLocalDescription(answer);
-                console.log('[RTC] Created and set local answer:', answer);
-                channel.send({ type: 'broadcast', event: 'answer', payload: answer });
-              }
-            });
           
-            channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
-              if (!isReceiving && peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'stable') {
-                console.log('[RTC] Received answer:', payload);
-                await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
-              }
-            });
+            // Only the CALLER listens for an answer on the shared channel
+            if(!isReceiving) {
+              channel.on('broadcast', { event: 'answer' }, async ({ payload }) => {
+                if (peerConnectionRef.current && peerConnectionRef.current.signalingState !== 'stable') {
+                  console.log('[RTC] Received answer:', payload);
+                  await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(payload));
+                }
+              });
+            }
 
             channel.subscribe(async (subStatus) => {
                 if (subStatus !== 'SUBSCRIBED' || !isMountedRef.current) return;
-                console.log(`[RTC] Successfully subscribed to channel: ${channelId}`);
+                console.log(`[RTC] Successfully subscribed to shared channel: ${channelId}`);
                 
-                if (!isReceiving && peerConnectionRef.current) {
+                if (isReceiving) {
+                    // Receiver gets offer from session storage, sets it, creates answer, and sends it on the shared channel
+                    if (!peerConnectionRef.current) return;
+                    const offerString = sessionStorage.getItem('webrtc_offer');
+                    if (offerString) {
+                        const offer = JSON.parse(offerString);
+                        console.log('[RTC] Receiver got offer from storage:', offer);
+                        await peerConnectionRef.current.setRemoteDescription(new RTCSessionDescription(offer));
+                        const answer = await peerConnectionRef.current.createAnswer();
+                        await peerConnectionRef.current.setLocalDescription(answer);
+                        console.log('[RTC] Receiver created and set local answer:', answer);
+                        channel.send({ type: 'broadcast', event: 'answer', payload: answer });
+                        sessionStorage.removeItem('webrtc_offer');
+                    } else {
+                        console.error("[RTC] Receiver couldn't find offer in session storage.");
+                        handleClose(true);
+                    }
+                } else {
+                    // Caller creates an offer and sends it to the OTHER user's personal channel
+                    if (!peerConnectionRef.current) return;
+                    
+                    // Listen on my own user channel for hangup if the other person declines before connecting
+                    userChannelRef.current = supabase.channel(`user-signaling:${currentUser.id}`);
+                    userChannelRef.current.on('broadcast', { event: 'hangup' }, ({payload}) => {
+                      if (payload.from === otherParticipant.id) handleClose(false);
+                    });
+                    userChannelRef.current.subscribe();
+                    
                     const offer = await peerConnectionRef.current.createOffer();
                     await peerConnectionRef.current.setLocalDescription(offer);
-                    console.log('[RTC] Created and set local offer, sending...');
-                    channel.send({
-                      type: 'broadcast',
-                      event: 'offer',
-                      payload: { from: currentUser.id, offer }
+
+                    // Send offer to the other user's personal channel
+                    const otherUserChannel = supabase.channel(`user-signaling:${otherParticipant.id}`);
+                    otherUserChannel.subscribe(status => {
+                        if (status === 'SUBSCRIBED') {
+                            console.log('[RTC] Sending offer to user channel:', otherParticipant.id);
+                            otherUserChannel.send({
+                              type: 'broadcast',
+                              event: 'offer',
+                              payload: { from: currentUser.id, offer, callerProfile: currentUser }
+                            });
+                            supabase.removeChannel(otherUserChannel);
+                        }
                     });
                 }
             });
