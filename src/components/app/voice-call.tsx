@@ -5,6 +5,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import type { UserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useCall } from './call-provider';
 
 interface VoiceCallLogicProps {
   supabase: SupabaseClient;
@@ -49,6 +50,8 @@ export function VoiceCallLogic({
   const handleCloseRef = useRef(onClose);
   handleCloseRef.current = onClose;
 
+  const { setEndCall } = useCall() as any;
+
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -86,6 +89,8 @@ export function VoiceCallLogic({
           handleCloseRef.current();
       }
     };
+
+    setEndCall(() => handleClose);
 
 
     const init = async () => {

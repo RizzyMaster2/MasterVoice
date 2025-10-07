@@ -16,7 +16,7 @@ import { useUser } from '@/hooks/use-user';
 import { getFriends, getUsers, getFriendRequests } from '@/app/(auth)/actions/chat';
 import type { UserProfile, Friend, FriendRequest } from '@/lib/data';
 import { LoadingScreen } from './loading-screen';
-import { CallProvider } from './call-provider';
+import { CallProvider, useCall } from './call-provider';
 
 interface HomeClientContextType {
     currentUser: UserProfile;
@@ -51,6 +51,59 @@ interface HomeClientLayoutProps {
 
 const CACHE_KEY = 'homeClientData';
 const CACHE_EXPIRATION_MS = 5 * 60 * 1000; // 5 minutes
+
+function Debugger() {
+    const router = useRouter();
+    const { friends } = useHomeClient();
+    const { incomingCall, acceptCall, endCall } = useCall();
+    
+    useEffect(() => {
+        const masterVoiceDebug = {
+            log: () => console.log({ friends, incomingCall }),
+            joinCall: (friendId?: string) => {
+                if (incomingCall) {
+                    console.log(`Accepting incoming call from ${incomingCall.callerProfile.display_name}...`);
+                    acceptCall();
+                    return;
+                }
+                
+                const friend = friends.find(f => f.friend_id === friendId || f.friend_profile.display_name === friendId);
+                if (friend) {
+                    console.log(`Initiating call with ${friend.friend_profile.display_name}...`);
+                    router.push(`/home/chat/${friend.friend_id}/call`);
+                } else if (friendId) {
+                    console.error(`Friend with ID or name "${friendId}" not found.`);
+                    console.log("Available friends:", friends.map(f => ({ name: f.friend_profile.display_name, id: f.friend_id })));
+                } else {
+                     console.error("No friendId provided and no incoming call to accept.");
+                }
+            },
+            endCall: () => {
+                console.log("Attempting to end call from debug console...");
+                if (endCall) {
+                    endCall();
+                } else {
+                    console.log("endCall function not available.");
+                }
+            }
+        };
+
+        (window as any).masterVoiceDebug = masterVoiceDebug;
+        
+        console.log("%cMasterVoice Debug Tools Loaded", "color: #0ea5e9; font-weight: bold; font-size: 14px;");
+        console.log("You can now use `masterVoiceDebug` in the console.");
+        console.log(" - `masterVoiceDebug.joinCall('friend-id-or-name')` to start a call.");
+        console.log(" - `masterVoiceDebug.joinCall()` to accept an incoming call.");
+        console.log(" - `masterVoiceDebug.endCall()` to hang up.");
+
+        return () => {
+            delete (window as any).masterVoiceDebug;
+        };
+    }, [router, friends, incomingCall, acceptCall, endCall]);
+
+    return null;
+}
+
 
 export function HomeClientLayout({ 
     currentUser,
@@ -278,6 +331,7 @@ export function HomeClientLayout({
     <HomeClientContext.Provider value={value}>
         <CallProvider currentUser={currentUser}>
             {children}
+            <Debugger />
         </CallProvider>
     </HomeClientContext.Provider>
   );

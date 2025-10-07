@@ -18,6 +18,7 @@ type CallContextType = {
   incomingCall: Call | null;
   acceptCall: () => void;
   declineCall: () => void;
+  endCall?: () => void;
 };
 
 const CallContext = createContext<CallContextType | null>(null);
@@ -37,6 +38,11 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
   const userChannelRef = useRef<any>(null);
   const router = useRouter();
   const declineTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const endCallRef = useRef<(() => void) | null>(null);
+
+  const setEndCall = (fn: () => void) => {
+    endCallRef.current = fn;
+  }
   
   const clearDeclineTimer = () => {
     if (declineTimerRef.current) {
@@ -126,12 +132,18 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
       setIncomingCall(null);
     }
   };
+
+  const endCall = useCallback(() => {
+    if (endCallRef.current) {
+        endCallRef.current();
+    }
+  }, [])
   
   // We only show the pop-up dialog if the user is NOT already looking at the chat of the person calling.
   const showDialog = incomingCall && router; // A bit of a hack to check router is ready
   
   return (
-    <CallContext.Provider value={{ incomingCall, acceptCall, declineCall }}>
+    <CallContext.Provider value={{ incomingCall, acceptCall, declineCall, endCall }}>
       {children}
       {currentUser && showDialog && (
         <IncomingCallDialog
