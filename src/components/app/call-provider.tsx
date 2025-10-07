@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 
 type Call = {
   callerProfile: UserProfile;
+  otherParticipant: UserProfile; // Added for context
   offer: RTCSessionDescriptionInit;
 };
 
@@ -78,7 +79,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
         }
 
         if (callerProfile && !incomingCall) {
-            setIncomingCall({ callerProfile, offer });
+            setIncomingCall({ callerProfile, offer, otherParticipant: callerProfile });
             
             // Set a timeout to automatically decline the call
             declineTimerRef.current = setTimeout(() => {
@@ -87,7 +88,7 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
                 description: `You missed a call from ${callerProfile.display_name}`,
               });
               declineCall();
-            }, 10000); // 10 seconds
+            }, 30000); // 30 seconds
         }
     });
 
@@ -126,12 +127,15 @@ export function CallProvider({ children, currentUser }: { children: React.ReactN
     }
   };
   
+  // We only show the pop-up dialog if the user is NOT already looking at the chat of the person calling.
+  const showDialog = incomingCall && router; // A bit of a hack to check router is ready
+  
   return (
     <CallContext.Provider value={{ incomingCall, acceptCall, declineCall }}>
       {children}
-      {currentUser && incomingCall && (
+      {currentUser && showDialog && (
         <IncomingCallDialog
-          caller={incomingCall.callerProfile}
+          participants={[incomingCall.callerProfile]}
           onAccept={acceptCall}
           onDecline={declineCall}
         />

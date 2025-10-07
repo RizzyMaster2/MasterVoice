@@ -15,42 +15,55 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Phone, PhoneOff } from 'lucide-react';
 import type { UserProfile } from '@/lib/data';
 import { useToast } from '@/hooks/use-toast';
+import { useHomeClient } from './home-client-layout';
 
 // A simple, short ringing sound as a Base64 data URI (WAV format)
 const ringtoneDataUri = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
 
 interface IncomingCallDialogProps {
-  caller: UserProfile;
+  participants: UserProfile[];
   onAccept: () => void;
   onDecline: () => void;
 }
 
-export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCallDialogProps) {
+export function IncomingCallDialog({ participants, onAccept, onDecline }: IncomingCallDialogProps) {
   const getInitials = (name: string | undefined | null) =>
     name?.split(' ').map((n) => n[0]).join('').toUpperCase() || '?';
   
-  const { toast } = useToast();
+  const { selectedFriend } = useHomeClient();
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  const caller = participants[0];
+  const isViewingCallerChat = selectedFriend?.id === caller.id;
 
   useEffect(() => {
-    const playSound = async () => {
-      if (audioRef.current) {
-        try {
-          await audioRef.current.play();
-        } catch (error) {
-          console.warn("Ringtone autoplay was blocked by the browser. A user interaction is required to play audio.");
+    // Only play sound if the dialog is visible
+    if (!isViewingCallerChat) {
+      const playSound = async () => {
+        if (audioRef.current) {
+          try {
+            audioRef.current.loop = true;
+            await audioRef.current.play();
+          } catch (error) {
+            console.warn("Ringtone autoplay was blocked by the browser. A user interaction is required to play audio.");
+          }
         }
-      }
-    };
-    
-    playSound();
+      };
+      
+      playSound();
 
-    return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-      }
-    };
-  }, []);
+      return () => {
+        if (audioRef.current) {
+          audioRef.current.pause();
+        }
+      };
+    }
+  }, [isViewingCallerChat]);
+  
+  // Don't render the dialog if the user is already viewing the chat with the caller
+  if (isViewingCallerChat) {
+    return null;
+  }
 
   return (
     <Dialog open={true}>
@@ -71,7 +84,7 @@ export function IncomingCallDialog({ caller, onAccept, onDecline }: IncomingCall
             <Phone className="h-7 w-7" />
           </Button>
         </DialogFooter>
-        <audio ref={audioRef} src={ringtoneDataUri} loop />
+        <audio ref={audioRef} src={ringtoneDataUri} />
       </DialogContent>
     </Dialog>
   );
