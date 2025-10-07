@@ -123,13 +123,17 @@ export function HomeClientLayout({
 
   useEffect(() => {
     const loadData = async () => {
-        if (isUserLoading) return;
-        if (!user) {
+        if (isUserLoading || !user) {
             setIsLoading(false);
             return;
         }
 
         try {
+            // Use initial data immediately, making the initial load feel instant
+            if (initialFriends.length > 0 || initialUsers.length > 0 || initialFriendRequests.incoming.length > 0) {
+                 setIsLoading(false);
+            }
+
             const cachedItem = sessionStorage.getItem(CACHE_KEY);
             if (cachedItem) {
                 const { friends, allUsers, friendRequests, timestamp } = JSON.parse(cachedItem);
@@ -137,21 +141,21 @@ export function HomeClientLayout({
                     setFriends(friends);
                     setAllUsers(allUsers);
                     setFriendRequests(friendRequests);
-                    setIsLoading(false);
+                    setIsLoading(false); // Stop loading if valid cache found
                 } else {
-                     await refreshAllData(true);
+                     await refreshAllData(true); // Refresh if cache is stale
                 }
             } else {
-                 await refreshAllData(true);
+                 if (isLoading) await refreshAllData(true); // Only full load if we're still in a loading state
             }
         } catch (error) {
             console.error("Failed to read from sessionStorage:", error);
-            await refreshAllData(true);
+            if (isLoading) await refreshAllData(true);
         }
     };
 
     loadData();
-  }, [user, isUserLoading, refreshAllData]);
+  }, [user, isUserLoading, refreshAllData, isLoading, initialFriends, initialUsers, initialFriendRequests]);
 
   // Effect to select friend based on URL
   useEffect(() => {

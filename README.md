@@ -40,7 +40,7 @@ Follow these instructions to get a local copy up and running for development and
 
 You will need to connect the application to a Supabase project to handle the database, authentication, and storage.
 
-1.  Create a new project on [Supabase](https://database.new).
+1.  Create a new project on [Supabase](https://supabase.com).
 2.  Go to your Supabase project's **Settings > API**.
 3.  Create a `.env.local` file in the root of this project by copying the example file:
     ```bash
@@ -57,15 +57,6 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-public-key
 NEXT_PUBLIC_ADMIN_EMAILS=your-admin-email@example.com
 ```
 
-<<<<<<< HEAD
-=======
-## Contributing
-
-Pull requests are welcome. For major changes, open an issue first to discuss what you’d like to change.
-
-Please make sure to update tests as appropriate.
-
->>>>>>> b3ba94dec2ea2ca462eef00074b1d874e91d0db8
 ### 2. Install Dependencies
 
 Navigate to the project directory and install the required packages.
