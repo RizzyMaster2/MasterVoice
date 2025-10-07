@@ -119,8 +119,8 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
   const isConnecting = status === 'calling' || status === 'connecting';
   
   const avatarUser = isConnecting ? currentUser : friend;
-  const mainText = isConnecting ? 'You' : friend?.display_name;
-
+  const mainText = isConnecting ? (isReceiving ? friend?.display_name : 'You') : friend?.display_name;
+  
   return (
     <div className="w-full h-full flex flex-col p-0 gap-0">
         {currentUser && friend && (
@@ -137,25 +137,33 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
         )}
         <div className="flex-1 flex flex-col items-center justify-center gap-6 p-6 bg-gradient-to-br from-background to-primary/5 relative">
           
-          <DropdownMenu>
+          <div className="relative">
+            {isLoading || !avatarUser ? (
+                <Skeleton className="h-32 w-32 rounded-full" />
+            ) : (
+                <Avatar className="h-32 w-32 border-4 border-transparent data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
+                  <AvatarImage src={avatarUser.photo_url || undefined} alt={avatarUser.display_name || ''} />
+                  <AvatarFallback className="text-4xl">{getInitials(avatarUser.display_name)}</AvatarFallback>
+                </Avatar>
+            )}
+            <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
+                <p className="text-lg font-semibold">{mainText}</p>
+                <div className="flex items-center gap-2 text-sm font-mono">
+                  {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
+                  <p>{statusText[status]}</p>
+                </div>
+            </div>
+          </div>
+          
+            <DropdownMenu>
             <DropdownMenuTrigger asChild disabled={isLoading}>
-              <div className="relative cursor-context-menu">
-                {isLoading || !avatarUser ? (
-                    <Skeleton className="h-32 w-32 rounded-full" />
-                ) : (
-                    <Avatar className="h-32 w-32 border-4 border-transparent data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
-                      <AvatarImage src={avatarUser.photo_url || undefined} alt={avatarUser.display_name || ''} />
-                      <AvatarFallback className="text-4xl">{getInitials(avatarUser.display_name)}</AvatarFallback>
-                    </Avatar>
-                )}
-                <div className="absolute inset-0 bg-black/40 rounded-full flex flex-col items-center justify-center text-white opacity-0 hover:opacity-100 transition-opacity">
-                    <p className="text-lg font-semibold">{mainText}</p>
-                    <div className="flex items-center gap-2 text-sm font-mono">
+                <div className="text-center">
+                    <p className="text-2xl font-bold">{isConnecting ? (isReceiving ? friend?.display_name : "You") : friend?.display_name}</p>
+                    <div className="flex items-center justify-center gap-2 text-muted-foreground font-mono text-sm">
                       {(status === 'calling' || status === 'connecting') && <Loader2 className="animate-spin h-4 w-4" />}
                       <p>{statusText[status]}</p>
                     </div>
                 </div>
-              </div>
             </DropdownMenuTrigger>
             <DropdownMenuContent>
               <DropdownMenuLabel>{friend?.display_name}</DropdownMenuLabel>
@@ -184,13 +192,13 @@ export function CallPage({ currentUser, friend, isReceiving, isLoading }: { curr
             </DropdownMenuContent>
           </DropdownMenu>
 
-            {status === 'connected' && friend && (
-                 <div className="relative">
-                    <Avatar className="h-20 w-20 border-2 data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
-                        <AvatarImage src={friend.photo_url || undefined} alt={friend.display_name || ''} />
-                        <AvatarFallback className="text-2xl">{getInitials(friend.display_name)}</AvatarFallback>
+            {status === 'connected' && currentUser && (
+                 <div className="absolute top-4 right-4 text-center">
+                    <Avatar className="h-16 w-16 border-2 data-[speaking=true]:border-primary transition-all" data-speaking={isSpeaking}>
+                        <AvatarImage src={currentUser.photo_url || undefined} alt={currentUser.display_name || ''} />
+                        <AvatarFallback className="text-xl">{getInitials(currentUser.display_name)}</AvatarFallback>
                     </Avatar>
-                    <p className='text-center mt-2 text-sm font-semibold'>{friend.display_name}</p>
+                    <p className='text-center mt-2 text-xs font-semibold'>You</p>
                 </div>
             )}
 
